@@ -1,0 +1,14 @@
+wolf.png
+rukh.png
+minor-demon.png
+sand-warrior.png
+homarid.png
+thrull.png
+saproling.png
+djinn.png
+tetravite.png
+stangg.png
+snake.png
+citizen.png
+goblin.png
+wasp.png
