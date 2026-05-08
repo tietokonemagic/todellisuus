@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Old School Manual Tabletop</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="orbflip.css">
+</head>
+<body>
+<div id="app">
+  <div id="p2Playmat"></div>
+  <div id="p1Playmat"></div>
+  <main id="table">
+    <div id="centerLine"></div>
+    <div id="selectionBox" class="selection-box"></div>
+    <div id="diceLayer"></div>
+    <div id="turnNotice"></div>
+  </main>
+
+  <section id="p2HandZone" class="hand-zone opponent" data-zone="p2-hand">
+    <div class="hand-label">Opponent hand (0)</div>
+    <div id="p2HandFan" class="hand-fan"></div>
+  </section>
+
+  <section id="p1HandZone" class="hand-zone self" data-zone="p1-hand">
+    <div class="hand-label">Hand (0)</div>
+    <div id="p1HandFan" class="hand-fan"></div>
+  </section>
+
+  <aside id="p1Piles" class="pile-column self-piles">
+    <section id="p1LibraryZone" class="pile-zone" data-zone="p1-library" data-player="p1" data-kind="library">
+      <div class="pile-title">Library (<span id="p1LibraryCount">0</span>)</div>
+      <div id="p1LibraryVisual" class="pile-visual"></div>
+      <div class="library-controls" id="p1DrawPopover">
+        <button type="button" id="p1RevealHandBtn">reveal hand</button>
+        <label>draw <span id="p1DrawAmountLabel">1</span></label>
+        <input id="p1DrawAmountSlider" type="range" min="1" max="1" value="1">
+        <button type="button" id="p1DrawManyBtn">draw</button>
+        <button type="button" id="p1TutorBtn">tutor</button>
+        <button type="button" id="p1ShuffleBtn">shuffle</button>
+        <button type="button" id="p1RevealBtn">reveal top</button>
+        <button type="button" id="p1MulliganBtn">mulligan</button>
+      </div>
+    </section>
+    <section id="p1GraveyardZone" class="pile-zone expandable-pile" data-zone="p1-graveyard" data-player="p1" data-kind="graveyard">
+      <div class="pile-title">Graveyard (<span id="p1GraveyardCount">0</span>)</div>
+    </section>
+    <section id="p1ExileZone" class="pile-zone expandable-pile" data-zone="p1-exile" data-player="p1" data-kind="exile">
+      <div class="pile-title">Exile (<span id="p1ExileCount">0</span>)</div>
+    </section>
+  </aside>
+
+  <aside id="p2Piles" class="pile-column opponent-piles">
+    <section id="p2LibraryZone" class="pile-zone opponent-pile" data-zone="p2-library" data-player="p2" data-kind="library">
+      <div class="pile-title">Library (<span id="p2LibraryCount">0</span>)</div>
+      <div id="p2LibraryVisual" class="pile-visual"></div>
+      <div class="library-controls" id="p2DrawPopover">
+        <button type="button" id="p2RevealHandBtn">reveal hand</button>
+        <label>draw <span id="p2DrawAmountLabel">1</span></label>
+        <input id="p2DrawAmountSlider" type="range" min="1" max="1" value="1">
+        <button type="button" id="p2DrawManyBtn">draw</button>
+        <button type="button" id="p2TutorBtn">tutor</button>
+        <button type="button" id="p2ShuffleBtn">shuffle</button>
+        <button type="button" id="p2RevealBtn">reveal top</button>
+        <button type="button" id="p2MulliganBtn">mulligan</button>
+      </div>
+    </section>
+    <section id="p2GraveyardZone" class="pile-zone expandable-pile opponent-pile" data-zone="p2-graveyard" data-player="p2" data-kind="graveyard">
+      <div class="pile-title">Graveyard (<span id="p2GraveyardCount">0</span>)</div>
+    </section>
+    <section id="p2ExileZone" class="pile-zone expandable-pile opponent-pile" data-zone="p2-exile" data-player="p2" data-kind="exile">
+      <div class="pile-title">Exile (<span id="p2ExileCount">0</span>)</div>
+    </section>
+  </aside>
+
+  <div id="menuWrap">
+      <button type="button" id="menuBtn">Menu</button>
+    <div id="menuPanel">
+      <label>Active player</label>
+      <select id="activePlayerSelect">
+        <option value="p1">you</option>
+        <option value="p2">opponent</option>
+      </select>
+      <div class="playmat-menu-row">
+        <button type="button" id="menuPlaymatBtn">PLAYMATS</button>
+      </div>
+
+        <label>Hand zoom</label>
+        <input id="handZoomSlider" type="range" min="65" max="135" value="86">
+
+        <label>Battlefield zoom</label>
+        <input id="battlefieldZoomSlider" type="range" min="65" max="135" value="86">
+
+        <label>Sleeves</label>
+      <select id="sleeveSelect">
+        <option value="black">black</option>
+        <option value="turquoise">turquoise</option>
+        <option value="blue">blue</option>
+        <option value="yellow">yellow</option>
+        <option value="orange">orange</option>
+        <option value="green">green</option>
+        <option value="transparent">og back</option>
+        <option value="red">red</option>
+        <option value="purple">purple</option>
+        <option value="lilac">lilac</option>
+        <option value="pink">pink</option>
+        <option value="peach">peach</option>
+<option value="ogback2">OG BACK 2</option>
+</select>
+        <div class="menu-row-2"><button type="button" id="menuAddTokenBtn">ADD TOKEN</button><select id="menuTokenNameSelect" class="menu-token-select">
+          <option value="rukh">rukh</option>
+          <option value="tetravite">tetravite</option>
+          <option value="snake">snake</option>
+          <option value="wasp">wasp</option>
+          <option value="wolf">wolf</option>
+          <option value="minor demon">minor demon</option>
+          <option value="sand warrior">sand warrior</option>
+          <option value="camarid">camarid</option>
+          <option value="thrull">thrull</option>
+          <option value="saproling">saproling</option>
+          <option value="djinn">djinn</option>
+          <option value="stangg">stangg</option>
+          <option value="citizen">citizen</option>
+          <option value="goblin">goblin</option>
+        </select>
+<button type="button" id="menuFlipOrbBtn">FLIP ORB</button>
+<button type="button" id="menuFlipStarBtn">FLIP FALLING STAR</button>
+<button type="button" id="menuAddDiceBtn">ADD DICE</button></div>
+
+      <div class="menu-grid">
+        <button type="button" id="resetBtn">Reset</button>
+        <button type="button" id="newDeckBtn" class="danger">New deck</button>
+          <button type="button" id="sideboardBtn">SIDEBOARD</button>
+          <label class="checkrow"><input id="hideSelectionCheck" type="checkbox"> hide selection</label>
+          <label class="checkrow"><input id="showOracleCheck" type="checkbox" checked> show inspector</label>
+        
+        
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="importModal" class="modal">
+  <div class="modal-box">
+    <h1 id="sideboardMainTitle">MAIN</h1>
+    <p>Paste lines like <code>4 Lightning Bolt</code>. Loads to active player.</p>
+    <textarea id="deckInput">4 Lightning Bolt
+4 Counterspell
+4 Hypnotic Specter
+4 Dark Ritual
+4 Sinkhole
+4 Swords to Plowshares
+1 Sol Ring
+1 Demonic Tutor
+1 Regrowth
+1 Chaos Orb
+1 Strip Mine
+4 Mishra's Factory
+4 Underground Sea
+4 Badlands
+4 Scrubland
+4 City of Brass
+7 Swamp</textarea>
+    <div class="modal-row">
+      <label>Core set:</label>
+      <select id="modalCoreSetSelect">
+        <option value="leb">Beta</option>
+        <option value="lea">Alpha</option>
+        <option value="2ed">Unlimited</option>
+      </select>
+      <button type="button" id="loadDeckBtn">Load deck</button>
+      <button type="button" id="closeImportBtn">Close</button>
+    </div>
+    <div id="importStatus"></div>
+  </div>
+</div>
+
+<div id="libraryModal" class="modal hidden">
+  <div class="modal-box library-box">
+    <h1 id="libraryModalTitle">Library search</h1>
+    <p>Select a card, then choose where it goes. Closing shuffles library.</p>
+    <div id="libraryGrid"></div>
+    <div class="modal-row">
+      <button type="button" id="libraryToHandBtn">to hand</button>
+      <button type="button" id="libraryToBattlefieldBtn">to battlefield</button>
+      <button type="button" id="closeLibraryBtn">close</button>
+    </div>
+  </div>
+</div>
+
+<div id="cardMenu" class="context-menu">
+  <button type="button" data-card-action="battlefield">Move to battlefield</button>
+  <button type="button" data-card-action="hand">Move to hand</button>
+  <button type="button" data-card-action="graveyard">Move to graveyard</button>
+  <button type="button" data-card-action="exile">Move to exile</button>
+  <button type="button" data-card-action="library-top">Put on library</button>
+  <button type="button" data-card-action="library-bottom">Put under library</button>
+  <button type="button" data-card-action="flip">Flip face up/down</button>
+  <button type="button" data-card-action="clone">Clone token</button>
+  <button type="button" data-card-action="back">send to back</button>
+  <button type="button" data-card-action="front">bring to front</button>
+</div>
+
+
+<div id="diceMenu" class="context-menu">
+  <button type="button" data-die-value="1">1</button>
+  <button type="button" data-die-value="2">2</button>
+  <button type="button" data-die-value="3">3</button>
+  <button type="button" data-die-value="4">4</button>
+  <button type="button" data-die-value="5">5</button>
+  <button type="button" data-die-value="6">6</button>
+  <button type="button" data-die-action="add">add dice</button>
+  <div id="dieColorBox"><input id="dieHue" type="range" min="0" max="360" value="0"></div>
+</div>
+
+
+<div id="tokenModal" class="modal hidden">
+  <div class="modal-box library-box token-box">
+    <h1 id="sideboardMainTitle">MAIN</h1>
+    <div class="modal-row">
+      <label><input type="radio" name="tokenSetRadio" value="aiie" checked> aiiieeee!!!</label>
+      <label><input type="radio" name="tokenSetRadio" value="citadel"> citadel</label>
+    </div>
+    <div id="tokenGrid"></div>
+    <div class="modal-row">
+      <button type="button" id="tokenToBattlefieldBtn">to battlefield</button>
+      <button type="button" id="closeTokenBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="sideboardModal" class="modal hidden">
+  <div class="modal-box sideboard-box">
+    <h1 id="sideboardMainTitle">MAIN</h1>
+    <div class="sideboard-columns">
+      <section><h2 id="mainAreaTitle">MAIN</h2><div id="mainboardGrid" class="sideboard-grid"></div></section>
+      <section><h2 id="sideAreaTitle">SIDE</h2><div id="sideboardGrid" class="sideboard-grid"></div></section>
+    </div>
+    <div class="modal-row">
+      <button type="button" id="sideboardReadyBtn">ready</button>
+    </div>
+  </div>
+</div>
+<script src="scryfall.js"></script>
+<script src="orbflip.js"></script>
+<script src="app.js"></script>
+    <div id="simpleOrbPowerOuterV70"><div id="simpleOrbPowerInnerV70"></div></div>
+    <button type="button" id="simpleOrbAgainV70">AGAIN</button>
+    <button type="button" id="simpleOrbCloseV70">CLOSE</button>
+  </div>
+</div></div>
+
+<div id="flipOverlayV80" class="flip-overlay-v80 hidden">
+  <div id="flipShadowV80"></div>
+  <div id="flipCardV80"><img id="flipImgV80" src="" alt=""></div>
+  <div id="flipForceV80"></div>
+  <div id="flipPanelV80">
+    <div id="flipHeightV80">HEIGHT 30 CM</div>
+    <div id="flipSideSceneV80"><div id="flipSideCardV80"></div></div>
+    <div id="flipPowerOuterV80"><div id="flipPowerInnerV80"></div></div>
+    <button type="button" id="flipAgainV80">AGAIN</button>
+    <button type="button" id="flipCloseV80">CLOSE</button>
+  </div>
+</div>
+</body>
+</html>

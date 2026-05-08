@@ -1,0 +1,188 @@
+
+/* External shared-table orb flip overlay.
+   No background: only orb, hand, meter, force dot, and shadow float over the battlefield. */
+#orbflipExternal {
+  position: fixed;
+  inset: 0;
+  z-index: 2147480000;
+  pointer-events: none;
+}
+
+#orbflipExternal.hidden {
+  display: none !important;
+}
+
+#orbflipExternal .orbflip-card {
+  position: fixed;
+  width: 170px;
+  height: 237px;
+  border-radius: 8px;
+  transform-style: preserve-3d;
+  transform-origin: 50% 50%;
+  z-index: 2147480100;
+  pointer-events: auto;
+  cursor: grab;
+  box-shadow: 0 18px 34px rgba(0,0,0,.55);
+}
+
+#orbflipExternal .orbflip-card.dragging { cursor: grabbing; }
+#orbflipExternal .orbflip-card.aiming { outline: 3px solid rgba(255,255,255,.75); }
+#orbflipExternal .orbflip-card.flipping { cursor: default; }
+
+#orbflipExternal .orbflip-card img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  pointer-events: none;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+#orbflipExternal .orbflip-front { transform: rotateY(0deg); }
+#orbflipExternal .orbflip-back { transform: rotateY(180deg); }
+
+#orbflipExternal .orbflip-shadow {
+  position: fixed;
+  width: 170px;
+  height: 237px;
+  border-radius: 8px;
+  background: rgba(0,0,0,.28);
+  filter: blur(12px);
+  z-index: 2147480050;
+  pointer-events: none;
+}
+
+#orbflipExternal .orbflip-hand {
+  position: fixed;
+  width: 250px;
+  height: auto;
+  z-index: 2147480090;
+  pointer-events: auto;
+  cursor: grab;
+  opacity: .92;
+  transform-origin: 83% 50%;
+  filter: drop-shadow(0 10px 12px rgba(0,0,0,.24));
+}
+
+#orbflipExternal .orbflip-force {
+  position: fixed;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 16px #fff;
+  display: none;
+  z-index: 2147480300;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+#orbflipExternal .orbflip-panel {
+  position: fixed;
+  right: 34px;
+  top: 32px;
+  width: 330px;
+  height: 620px;
+  background: rgba(33,31,31,.92);
+  border: 1px solid rgba(255,255,255,.25);
+  box-sizing: border-box;
+  padding: 12px;
+  z-index: 2147480200;
+  user-select: none;
+  pointer-events: auto;
+}
+
+#orbflipExternal .orbflip-height {
+  height: 22px;
+  line-height: 22px;
+  cursor: move;
+  font-size: 12px;
+  color: #eee;
+  margin-bottom: 4px;
+}
+
+#orbflipExternal .orbflip-gauge {
+  position: relative;
+  width: 300px;
+  height: 500px;
+  margin: 0 auto 8px auto;
+  overflow: hidden;
+}
+
+#orbflipExternal .orbflip-gauge::before {
+  content: "";
+  position: absolute;
+  left: 48px;
+  top: 22px;
+  width: 3px;
+  height: 450px;
+  background: #57b85d;
+}
+
+#orbflipExternal .orbflip-gauge::after {
+  content: "";
+  position: absolute;
+  left: 48px;
+  top: 472px;
+  width: 235px;
+  height: 3px;
+  background: #57b85d;
+}
+
+#orbflipExternal .orbflip-tick {
+  position: absolute;
+  left: 38px;
+  width: 18px;
+  height: 3px;
+  background: #57b85d;
+}
+
+#orbflipExternal .orbflip-label {
+  position: absolute;
+  left: 4px;
+  transform: translateY(-50%);
+  color: #f0443e;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 22px;
+  line-height: 1;
+}
+
+#orbflipExternal .orbflip-card-arrow,
+#orbflipExternal .orbflip-hand-arrow {
+  position: absolute;
+  left: 62px;
+  width: 0;
+  height: 0;
+  z-index: 20;
+  pointer-events: none;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-right: 13px solid #f0443e;
+}
+
+#orbflipExternal .orbflip-hand-arrow {
+  border-right-color: #fff;
+}
+
+#orbflipExternal .orbflip-power {
+  height: 12px;
+  background: #111;
+  border: 1px solid #666;
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 6px 0 8px 0;
+}
+
+#orbflipExternal .orbflip-power-inner {
+  height: 100%;
+  width: 0%;
+  background: #eee;
+}
+
+#orbflipExternal button {
+  margin: 0 5px 0 0;
+  padding: 6px 9px;
+  font-size: 11px;
+}

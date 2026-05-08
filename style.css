@@ -1,0 +1,6408 @@
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #242424;
+  color: #eee;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 13px;
+}
+
+:root {
+  --base-card-w: 118px;
+  --card-w: var(--base-card-w);
+  --card-ratio: 1.397;
+  --card-h: calc(var(--card-w) * var(--card-ratio));
+  --sleeve: #050505;
+  --hand-height: 162px;
+}
+
+* { box-sizing: border-box; }
+
+button, textarea, select, input { font: inherit; }
+
+button {
+  border: 0;
+  color: #fff;
+  background: #303030;
+  border-radius: 8px;
+  min-height: 30px;
+  padding: 6px 12px;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 1px 4px rgba(0,0,0,.45);
+}
+
+button:hover { filter: brightness(1.15); }
+button.danger { background: #7a2a18; }
+body.hide-selection .card.selected { box-shadow: 0 2px 5px rgba(0,0,0,.75); }
+body.hide-selection .die.selected { outline: 0; box-shadow: 0 2px 6px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.55); }
+
+#app, #table {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #242424;
+}
+
+#centerLine {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px dashed rgba(255,255,255,.18);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.selection-box {
+  position: fixed;
+  border: 1px solid rgba(130,170,255,.9);
+  background: rgba(80,120,255,.16);
+  z-index: 5000;
+  pointer-events: none;
+  display: none;
+}
+
+#turnNotice {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%,-50%);
+  background: rgba(0,0,0,.7);
+  border: 1px solid rgba(255,255,255,.25);
+  border-radius: 999px;
+  padding: 8px 18px;
+  display: none;
+  z-index: 2000;
+}
+
+#menuWrap {
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  z-index: 300;
+}
+
+#menuBtn {
+  width: 88px;
+  background: #151515;
+  border: 1px solid #555;
+  font-weight: 700;
+}
+
+#menuPanel {
+  position: absolute;
+  left: 0;
+  bottom: 40px;
+  width: 250px;
+  background: rgba(12,12,12,.96);
+  border: 1px solid #555;
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.6);
+  display: none;
+}
+
+#menuPanel.open { display: block; }
+
+#menuPanel label {
+  display: block;
+  margin: 8px 0 4px;
+  color: #ddd;
+}
+
+#menuPanel select {
+  width: 100%;
+  background: #111;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 6px;
+  padding: 7px;
+}
+
+.menu-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.hand-zone {
+  position: fixed;
+  left: 140px;
+  right: 170px;
+  height: var(--hand-height);
+  z-index: 40;
+  pointer-events: none;
+}
+
+.hand-zone.self {
+  bottom: 0;
+}
+
+.hand-zone.opponent {
+  top: 0;
+  transform: rotate(180deg);
+}
+
+.hand-zone.drop-hover::before {
+  content: "";
+  position: absolute;
+  inset: 8px 0 0;
+  border: 1px dashed rgba(255,255,255,.35);
+  border-radius: 120px 120px 0 0;
+  pointer-events: none;
+}
+
+.hand-label {
+  position: absolute;
+  left: 0;
+  bottom: 120px;
+  color: #ddd;
+  font-weight: 700;
+  opacity: .75;
+  pointer-events: none;
+}
+
+.hand-fan {
+  position: absolute;
+  left: 50%;
+  bottom: -14px;
+  transform: translateX(-50%);
+  width: min(1120px, calc(100vw - 300px));
+  height: 182px;
+  pointer-events: none;
+}
+
+.pile-column {
+  position: fixed;
+  width: var(--card-w);
+  display: flex;
+  flex-direction: column;
+  gap: 38px;
+  z-index: 30;
+}
+
+.self-piles {
+  right: 22px;
+  bottom: 38px;
+}
+
+.opponent-piles {
+  left: 22px;
+  top: 38px;
+  right: auto;
+  transform: rotate(180deg);
+}
+
+.pile-zone {
+  position: relative;
+  width: var(--card-w);
+  height: var(--card-h);
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(15,15,15,.45);
+  border-radius: 7px;
+  transform-origin: 50% 100%;
+}
+
+.pile-zone.rotated {
+  transform: rotate(90deg);
+}
+
+.pile-title {
+  position: absolute;
+  top: -19px;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  color: #ddd;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: .85;
+  white-space: nowrap;
+}
+
+.sleeve-back,
+.pile-visual {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--sleeve);
+  box-shadow: inset 0 0 20px rgba(255,255,255,.05);
+}
+
+.transparent-sleeve {
+  background-image: url("lapi.png"), linear-gradient(45deg, #555 25%, transparent 25%), linear-gradient(-45deg, #555 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #555 75%), linear-gradient(-45deg, transparent 75%, #555 75%);
+  background-color: #777;
+  background-size: cover, 18px 18px, 18px 18px, 18px 18px, 18px 18px;
+  background-position: center, 0 0, 0 9px, 9px -9px, -9px 0;
+}
+
+.card {
+  position: absolute;
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: 5.5% / 4%;
+  background: #0b0b0b;
+  box-shadow: 0 2px 5px rgba(0,0,0,.75);
+  cursor: grab;
+  user-select: none;
+  transform-origin: 0 100%;
+}
+
+.card:active { cursor: grabbing; }
+.battle-card:hover { z-index: 9999 !important; filter: brightness(1.06); }
+.card.selected { box-shadow: 0 0 0 1px rgba(255,255,255,.9), 0 0 6px rgba(255,255,255,.45); }
+
+.card-face,
+.card-back {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.card-back { display: none; }
+.card.face-down .card-face { display: none; }
+.card.face-down .card-back { display: block; }
+
+.hand-card {
+  bottom: 0;
+  pointer-events: auto;
+}
+
+.battle-card { pointer-events: auto; }
+
+.token-label {
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  transform: translateX(-50%);
+  color: #fff;
+  background: rgba(0,0,0,.65);
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  pointer-events: none;
+}
+
+.small-card-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.expanded-stack {
+  position: absolute;
+  right: calc(var(--card-w) + 14px);
+  bottom: 0;
+  width: var(--card-w);
+  pointer-events: auto;
+  z-index: 200;
+}
+
+.stack-card {
+  position: absolute;
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: 5.5% / 4%;
+  box-shadow: 0 2px 5px rgba(0,0,0,.75);
+  cursor: pointer;
+}
+
+.stack-card img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  display: block;
+}
+
+.draw-popover {
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 0;
+  width: 160px;
+  background: #111;
+  border: 1px solid #555;
+  border-radius: 8px;
+  padding: 10px;
+  z-index: 500;
+}
+
+.draw-popover.hidden { display: none; }
+.draw-popover input { width: 100%; }
+
+#diceLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+}
+
+.die {
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  color: #111;
+  border: 1px solid rgba(0,0,0,.5);
+  border-radius: 7px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.55);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  padding: 5px;
+  pointer-events: auto;
+  cursor: grab;
+  user-select: none;
+}
+
+.die.selected {
+  outline: 1px solid rgba(255,255,255,.9);
+  box-shadow: 0 0 6px rgba(255,255,255,.45);
+}
+
+.pip {
+  width: 7px;
+  height: 7px;
+  background: #111;
+  border-radius: 50%;
+  place-self: center;
+}
+
+.pip.p1 { grid-area: 1 / 1; }
+.pip.p2 { grid-area: 1 / 2; }
+.pip.p3 { grid-area: 1 / 3; }
+.pip.p4 { grid-area: 2 / 1; }
+.pip.p5 { grid-area: 2 / 2; }
+.pip.p6 { grid-area: 2 / 3; }
+.pip.p7 { grid-area: 3 / 1; }
+.pip.p8 { grid-area: 3 / 2; }
+.pip.p9 { grid-area: 3 / 3; }
+
+.oracle-panel {
+  position: absolute;
+  right: 170px;
+  top: 50%;
+  width: 270px;
+  max-height: 420px;
+  overflow: auto;
+  background: rgba(8,8,8,.88);
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 8px;
+  padding: 12px;
+  color: #eee;
+  z-index: 60;
+  box-shadow: 0 4px 20px rgba(0,0,0,.5);
+  display: none;
+  white-space: pre-wrap;
+  line-height: 1.35;
+}
+
+.oracle-panel.visible { display: block; }
+.oracle-name { font-weight: 700; font-size: 15px; margin-bottom: 5px; }
+.oracle-type { color: #bbb; margin-bottom: 8px; }
+.oracle-small { color: #aaa; margin-top: 8px; }
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.72);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+}
+
+.modal.hidden { display: none; }
+
+.modal-box {
+  width: min(720px, calc(100vw - 40px));
+  background: #1e1e1e;
+  border: 1px solid #555;
+  border-radius: 12px;
+  box-shadow: 0 12px 50px rgba(0,0,0,.65);
+  padding: 18px;
+}
+
+.modal-box h1 { margin: 0 0 10px; font-size: 20px; }
+.modal-box p { color: #aaa; margin: 0 0 10px; }
+
+.modal-box textarea {
+  width: 100%;
+  height: 260px;
+  resize: vertical;
+  background: #101010;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 8px;
+  padding: 10px;
+  line-height: 1.4;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.modal-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.modal-row select,
+.modal-row input {
+  background: #111;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+#importStatus { color: #bbb; margin-top: 10px; min-height: 18px; }
+
+.library-box {
+  width: min(1060px, calc(100vw - 40px));
+  height: min(760px, calc(100vh - 40px));
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+}
+
+#libraryGrid {
+  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 12px;
+  padding: 10px;
+  background: #151515;
+  border: 1px solid #444;
+  border-radius: 8px;
+}
+
+.library-card-wrap {
+  position: relative;
+  width: var(--card-w);
+  cursor: pointer;
+  border-radius: 7px;
+}
+
+.library-card-wrap.selected { outline: 3px solid #20bf55; }
+
+.library-card {
+  width: var(--card-w);
+  border-radius: 7px;
+  display: block;
+}
+
+.library-card-wrap:hover { outline: 1px solid rgba(255,255,255,.9); }
+
+.card-count-badge {
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  min-width: 22px;
+  height: 22px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #fff;
+  color: #000;
+  font-weight: 700;
+  text-align: center;
+  line-height: 18px;
+}
+
+.context-menu {
+  position: fixed;
+  z-index: 2000;
+  display: none;
+  min-width: 170px;
+  background: #111;
+  border: 1px solid #555;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0,0,0,.6);
+}
+
+.context-menu button {
+  display: block;
+  width: 100%;
+  border-radius: 0;
+  background: #111;
+  box-shadow: none;
+  text-align: left;
+  padding: 9px 12px;
+  color: #eee;
+}
+
+.context-menu button:hover { background: #2b2b2b; filter: none; }
+
+#dieColorBox {
+  display: none;
+  padding: 10px;
+  background: #111;
+}
+
+#dieHue { width: 130px; }
+
+
+body.shift-down .pile-zone[data-kind="library"]:hover .draw-popover,
+body.shift-down .draw-popover:hover {
+  display: block !important;
+}
+
+.drop-hint {
+  position: fixed;
+  z-index: 4000;
+  pointer-events: none;
+  background: rgba(0,0,0,.78);
+  color: white;
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 12px;
+  display: none;
+}
+
+.pile-zone {
+  touch-action: none;
+}
+
+.draw-popover.hidden {
+  display: none;
+}
+
+
+.card.owner-p2:not(.hand-card) {
+  transform-origin: 0 100%;
+}
+
+.card.owner-p2.hand-card {
+  transform-origin: 50% 50%;
+}
+
+
+.pile-zone {
+  cursor: default;
+}
+
+/* always-visible library control area, same visual size as a card */
+.library-controls {
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 0;
+  width: var(--card-w);
+  height: var(--card-h);
+  background: #111;
+  border: 1px solid #555;
+  border-radius: 8px;
+  padding: 10px;
+  z-index: 500;
+  display: grid !important;
+  align-content: start;
+  gap: 7px;
+}
+
+.library-controls.hidden {
+  display: grid !important;
+}
+
+.library-controls label {
+  color: #ddd;
+  font-size: 12px;
+}
+
+.library-controls input {
+  width: 100%;
+}
+
+.library-controls button {
+  width: 100%;
+  min-height: 24px;
+  padding: 3px 6px;
+  font-size: 11px;
+}
+
+
+/* keep opponent piles on left, self on right */
+.opponent-piles {
+  left: 22px !important;
+  right: auto !important;
+}
+
+
+/* v10 fixed player-zone layout */
+:root {
+  --card-w: clamp(118px, 7vw, 154px);
+  --card-h: calc(var(--card-w) * 1.397);
+  --gap: clamp(10px, 1vw, 18px);
+  --panel-w: var(--card-w);
+  --zone-side-pad: clamp(16px, 1.6vw, 30px);
+  --zone-bottom-pad: clamp(16px, 1.5vw, 28px);
+  --hand-height: calc(var(--card-h) * .92);
+}
+
+/* Only battlefield/hand cards can later be scaled by code/controls.
+   Piles stay on the responsive base size. */
+#app, #table {
+  background: #242424;
+}
+
+#centerLine {
+  top: 50%;
+  border-top: 1px dashed rgba(255,255,255,.18);
+}
+
+/* player pile groups: library above, controls to its left, gy/exile below side-by-side */
+.pile-column {
+  width: calc(var(--card-w) * 2 + var(--gap));
+  display: grid !important;
+  grid-template-columns: var(--card-w) var(--card-w);
+  grid-template-rows: var(--card-h) var(--card-h) var(--card-h);
+  column-gap: var(--gap);
+  row-gap: calc(var(--gap) + 12px);
+  z-index: 35;
+}
+
+.self-piles {
+  right: var(--zone-side-pad) !important;
+  bottom: var(--zone-bottom-pad) !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+}
+
+.opponent-piles {
+  left: var(--zone-side-pad) !important;
+  top: var(--zone-bottom-pad) !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: rotate(180deg) !important;
+}
+
+/* reset any old fixed positions */
+.pile-zone {
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: var(--card-w);
+  height: var(--card-h);
+}
+
+/* library sits top-right of the 2-col group */
+.pile-zone[data-kind="library"] {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+/* grave/exile below */
+.pile-zone[data-kind="graveyard"] {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.pile-zone[data-kind="exile"] {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+/* library controls: card-sized area to the left of library, inside bounds */
+.library-controls {
+  position: absolute !important;
+  right: calc(100% + var(--gap)) !important;
+  left: auto !important;
+  top: 0 !important;
+  width: var(--card-w) !important;
+  height: var(--card-h) !important;
+  background: #111;
+  border: 1px solid #555;
+  border-radius: 8px;
+  padding: clamp(7px, .7vw, 11px);
+  z-index: 500;
+  display: grid !important;
+  grid-template-rows: auto auto auto auto auto auto auto;
+  gap: clamp(4px, .45vw, 7px);
+  overflow: hidden;
+}
+
+.library-controls.hidden {
+  display: grid !important;
+}
+
+.library-controls label {
+  color: #ddd;
+  font-size: clamp(10px, .8vw, 12px);
+  line-height: 1;
+  margin: 0;
+}
+
+.library-controls input {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+.library-controls button {
+  width: 100%;
+  min-height: 0;
+  height: clamp(20px, 2vw, 28px);
+  padding: 2px 4px;
+  font-size: clamp(10px, .85vw, 12px);
+  line-height: 1;
+  border-radius: 7px;
+}
+
+/* titles must stay attached and not cross the center in initial layout */
+.pile-title {
+  top: calc(-1.35em - 4px);
+  font-size: clamp(11px, .95vw, 14px);
+}
+
+/* life dice: above library but below center line for p1, mirrored for p2 */
+#diceLayer {
+  z-index: 90;
+}
+
+/* hand areas: keep within own half */
+.hand-zone.self {
+  bottom: 0;
+  height: min(22vh, calc(50vh - 18px));
+}
+
+.hand-zone.opponent {
+  top: 0;
+  height: min(22vh, calc(50vh - 18px));
+}
+
+.hand-fan {
+  width: min(1020px, calc(100vw - 360px));
+  height: calc(var(--card-h) + 30px);
+}
+
+/* disable old zoom from piles */
+
+
+.card.tapped .token-label {
+  transform: translateX(-50%) rotate(-90deg);
+}
+
+.life-die {
+  background: #eeeeee !important;
+}
+
+.counter-die {
+  background: #79d45a;
+}
+
+
+/* v12: keep pile groups inside each player's half */
+.pile-column {
+  width: calc(var(--card-w) * 2 + var(--gap)) !important;
+  display: grid !important;
+  grid-template-columns: var(--card-w) var(--card-w) !important;
+  grid-template-rows: var(--card-h) var(--card-h) !important;
+  column-gap: var(--gap) !important;
+  row-gap: calc(var(--gap) + 18px) !important;
+}
+
+.self-piles {
+  right: var(--zone-side-pad) !important;
+  top: calc(50vh + 88px) !important;
+  bottom: auto !important;
+  left: auto !important;
+  transform: none !important;
+}
+
+.opponent-piles {
+  left: var(--zone-side-pad) !important;
+  bottom: calc(50vh + 88px) !important;
+  top: auto !important;
+  right: auto !important;
+  transform: rotate(180deg) !important;
+}
+
+/* dice layer visible above self library, no clipping */
+#diceLayer {
+  overflow: visible;
+  z-index: 95;
+}
+
+.die {
+  z-index: 1000;
+}
+
+
+/* v13 deck area */
+#menuBtn {
+  background: #157a38 !important;
+  border-color: #2dbd5d !important;
+}
+
+.pile-title {
+  top: auto !important;
+  bottom: calc(-1.45em - 6px) !important;
+}
+
+/* deck area bottom aligned with menu button bottom */
+.self-piles {
+  top: auto !important;
+  bottom: 14px !important;
+  right: var(--zone-side-pad) !important;
+  transform: none !important;
+}
+
+.opponent-piles {
+  bottom: auto !important;
+  top: 14px !important;
+  left: var(--zone-side-pad) !important;
+  transform: rotate(180deg) !important;
+}
+
+.pile-column {
+  row-gap: calc(var(--gap) + 32px) !important;
+}
+
+.library-controls {
+  overflow: hidden !important;
+}
+
+.token-box {
+  width: min(920px, calc(100vw - 40px));
+  height: min(720px, calc(100vh - 40px));
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+#tokenGrid {
+  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 14px;
+  padding: 10px;
+  background: #151515;
+  border: 1px solid #444;
+  border-radius: 8px;
+}
+
+.token-choice {
+  width: 118px;
+  cursor: pointer;
+  border-radius: 8px;
+  text-align: center;
+  color: #ddd;
+  font-weight: 700;
+}
+
+.token-choice img {
+  width: 118px;
+  border-radius: 7px;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.token-choice:hover {
+  outline: 2px solid white;
+}
+
+/* v14 */
+.checkrow{display:flex!important;gap:8px;align-items:center}
+.library-card-wrap.selected,.library-card-wrap.selected:hover,.token-choice.selected,.token-choice.selected:hover{outline:3px solid #20bf55!important}
+body.core-2ed .card.selected,body.core-2ed .die.selected,body.core-2ed .library-card-wrap.selected,body.core-2ed .library-card-wrap.selected:hover,body.core-2ed .token-choice.selected,body.core-2ed .token-choice.selected:hover{outline:3px solid #000!important;box-shadow:0 0 0 1px #fff!important}
+.library-controls{gap:3px!important;padding:6px!important;grid-template-rows:repeat(9,minmax(0,1fr))!important;overflow:hidden!important}
+.library-controls button{height:auto!important;min-height:0!important;padding:1px 3px!important;font-size:clamp(8px,.68vw,10px)!important;line-height:1!important;border-radius:5px!important}
+.library-controls label{font-size:clamp(8px,.68vw,10px)!important;line-height:1!important}
+.library-controls input[type=range]{height:14px}
+.token-choice.selected{outline:3px solid #20bf55}
+.token-choice img{background:#111}
+.sideboard-box{width:min(1280px,calc(100vw - 30px));height:min(860px,calc(100vh - 30px));display:grid;grid-template-rows:auto 1fr auto}
+.sideboard-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px;min-height:0}
+.sideboard-columns h2{margin:0 0 8px;font-size:16px}
+.sideboard-grid{height:100%;overflow:auto;background:#151515;border:1px solid #444;border-radius:8px;padding:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:10px}
+.sideboard-card{position:relative;width:118px;cursor:pointer;border-radius:7px}
+.sideboard-card img{width:118px;border-radius:7px;display:block}
+.sideboard-count{position:absolute;top:5px;right:5px;min-width:22px;height:22px;padding:2px 6px;border-radius:999px;background:#fff;color:#000;font-weight:700;text-align:center;line-height:18px}
+
+
+/* v15 smaller default + green-menu zoom */
+:root {
+  --base-card-w: clamp(102px, 6.1vw, 134px);
+  --table-zoom: 1;
+  --card-w: calc(var(--base-card-w) * var(--table-zoom));
+  --card-h: calc(var(--card-w) * 1.397);
+}
+
+/* Keep the deck-area control box locked to card size after zoom. */
+.library-controls {
+  width: var(--card-w) !important;
+  height: var(--card-h) !important;
+}
+
+/* Dice scale with same zoom; default is smaller than before. */
+.die {
+  width: calc(34px * var(--table-zoom)) !important;
+  height: calc(34px * var(--table-zoom)) !important;
+  padding: calc(4px * var(--table-zoom)) !important;
+}
+
+.pip {
+  width: calc(6px * var(--table-zoom)) !important;
+  height: calc(6px * var(--table-zoom)) !important;
+}
+
+/* v20 typography */
+body, button, input, select {
+  font-family: "Arial Narrow", Arial, sans-serif !important;
+  font-style: italic !important;
+  text-transform: uppercase !important;
+}
+
+/* v21 layout/zoom fixes */
+:root {
+  --deck-card-w: clamp(128px, 7.4vw, 168px);
+  --deck-card-h: calc(var(--deck-card-w) * 1.397);
+  --battle-zoom: 1;
+  --hand-drop-width: min(760px, 46vw);
+}
+
+/* deck area is larger, but independent from hand/battlefield zoom */
+.pile-column {
+  width: calc(var(--deck-card-w) * 2 + var(--gap)) !important;
+  grid-template-columns: var(--deck-card-w) var(--deck-card-w) !important;
+  grid-template-rows: var(--deck-card-h) var(--deck-card-h) !important;
+}
+
+.pile-zone {
+  width: var(--deck-card-w) !important;
+  height: var(--deck-card-h) !important;
+}
+
+.library-controls {
+  width: var(--deck-card-w) !important;
+  height: var(--deck-card-h) !important;
+  right: calc(100% + var(--gap)) !important;
+}
+
+/* grave/exile a bit higher so labels fit */
+.self-piles {
+  bottom: 28px !important;
+}
+.opponent-piles {
+  top: 28px !important;
+}
+
+/* hand drop zone is only a centered narrow strip, not whole bottom half */
+.hand-zone.self {
+  left: 50% !important;
+  right: auto !important;
+  width: var(--hand-drop-width) !important;
+  transform: translateX(-50%) !important;
+  height: 150px !important;
+}
+.hand-zone.opponent {
+  left: 50% !important;
+  right: auto !important;
+  width: var(--hand-drop-width) !important;
+  transform: translateX(-50%) rotate(180deg) !important;
+  height: 150px !important;
+}
+
+.hand-fan {
+  width: var(--hand-drop-width) !important;
+}
+
+/* battlefield + hand cards zoom from green menu */
+#table .battle-card {
+  width: calc(var(--card-w) * var(--battle-zoom)) !important;
+  height: calc(var(--card-w) * var(--card-ratio) * var(--battle-zoom)) !important;
+}
+
+.hand-card {
+  width: calc(var(--card-w) * var(--battle-zoom)) !important;
+  height: calc(var(--card-w) * var(--card-ratio) * var(--battle-zoom)) !important;
+}
+
+/* dice larger and tight */
+.die {
+  width: 42px !important;
+  height: 42px !important;
+  padding: 5px !important;
+}
+.pip {
+  width: 7px !important;
+  height: 7px !important;
+}
+
+
+/* v23 independent zoom */
+:root {
+  --hand-zoom: 1;
+  --battlefield-zoom: 1;
+}
+
+#handZoomSlider,
+#battlefieldZoomSlider {
+  width: 100%;
+}
+
+/* make zoom affect actual element size, not transform */
+.hand-card {
+  width: calc(var(--card-w) * var(--hand-zoom)) !important;
+  height: calc(var(--card-w) * var(--card-ratio) * var(--hand-zoom)) !important;
+}
+
+#table .battle-card {
+  width: calc(var(--card-w) * var(--battlefield-zoom)) !important;
+  height: calc(var(--card-w) * var(--card-ratio) * var(--battlefield-zoom)) !important;
+}
+
+/* tapping: rotate around lower-left like real card */
+.battle-card {
+  transform-origin: 0 100% !important;
+}
+
+
+/* v24 hand drag ghost: hand stays stable while dragging from hand */
+.drag-ghost {
+  position: absolute;
+  width: calc(var(--card-w) * var(--hand-zoom));
+  height: calc(var(--card-w) * var(--card-ratio) * var(--hand-zoom));
+  border-radius: 5.5% / 4%;
+  pointer-events: none;
+  z-index: 99999 !important;
+  box-shadow: 0 6px 18px rgba(0,0,0,.75);
+}
+
+.drag-ghost img,
+.drag-ghost .card-back {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  display: block;
+}
+
+
+/* v27 tap rotation anchor */
+.battle-card {
+  transform-origin: 0 100% !important;
+}
+
+
+/* v28 fixes */
+.battle-card {
+  transform-origin: 100% 100% !important; /* bottom-right stays in place when tapping */
+}
+
+.life-die {
+  cursor: default !important;
+}
+
+.pile-zone.shuffling {
+  animation: shuffleShake .75s linear;
+}
+
+@keyframes shuffleShake {
+  0% { transform: translateX(0) rotate(0deg); }
+  15% { transform: translateX(-4px) rotate(-2deg); }
+  30% { transform: translateX(4px) rotate(2deg); }
+  45% { transform: translateX(-3px) rotate(-1deg); }
+  60% { transform: translateX(3px) rotate(1deg); }
+  75% { transform: translateX(-2px) rotate(-1deg); }
+  100% { transform: translateX(0) rotate(0deg); }
+}
+
+
+/* v29 tap geometry:
+   tapped card is pure visual transform, stored x/y never changes.
+   The original bottom-right corner lands on the original bottom-left corner. */
+:root {
+  --battle-card-w: calc(var(--card-w) * var(--battlefield-zoom));
+}
+
+.battle-card {
+  transform-origin: 0 100% !important;
+}
+
+
+/* v30: no translate in tapped transform; prevents tapped cards drifting downward on click */
+.battle-card {
+  transform-origin: 0% 100% !important;
+}
+
+
+/* v33 tap geometry */
+.battle-card {
+  transform-origin: 0 0 !important;
+}
+
+
+/* v34 dice spacing safety */
+.life-die {
+  margin-right: 0 !important;
+}
+
+
+/* v35 */
+:root {
+  --hand-zoom: 1;
+  --battlefield-zoom: 1;
+}
+
+/* actual independent zoom */
+.hand-card {
+  width: calc(var(--card-w) * var(--hand-zoom)) !important;
+  height: calc(var(--card-w) * var(--card-ratio) * var(--hand-zoom)) !important;
+}
+
+#table .battle-card {
+  width: calc(var(--card-w) * var(--battlefield-zoom)) !important;
+  height: calc(var(--card-w) * var(--card-ratio) * var(--battlefield-zoom)) !important;
+}
+
+/* hand fan control */
+.hand-fan-slider {
+  position: absolute;
+  left: -84px;
+  bottom: 48px;
+  width: 118px;
+  transform: rotate(-90deg);
+  z-index: 80;
+  pointer-events: auto;
+}
+
+/* opponent slider mirrors with hand */
+.hand-zone.opponent .hand-fan-slider {
+  transform: rotate(90deg);
+}
+
+/* token fan launched from green menu */
+#tokenModal.token-fan-mode {
+  background: transparent !important;
+  pointer-events: none;
+  place-items: end center;
+}
+
+#tokenModal.token-fan-mode .modal-box {
+  pointer-events: auto;
+  width: min(900px, calc(100vw - 60px));
+  height: 230px;
+  padding: 12px;
+  background: rgba(10,10,10,.92);
+  border-radius: 16px;
+  margin-bottom: 28px;
+}
+
+#tokenModal.token-fan-mode h1,
+#tokenModal.token-fan-mode .modal-row {
+  display: none;
+}
+
+#tokenModal.token-fan-mode #tokenGrid {
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  gap: 0;
+  overflow: visible;
+  background: transparent;
+  border: 0;
+  height: 100%;
+}
+
+#tokenModal.token-fan-mode .token-choice {
+  margin-left: -34px;
+  transform-origin: 50% 110%;
+  transition: transform .12s;
+}
+
+#tokenModal.token-fan-mode .token-choice:first-child {
+  margin-left: 0;
+}
+
+#tokenModal.token-fan-mode .token-choice:hover {
+  transform: translateY(-18px) scale(1.08);
+  z-index: 10;
+}
+
+/* shuffle only the actual library visual */
+.pile-visual.shuffling {
+  animation: libraryShuffleShake 1s ease-in-out;
+}
+
+@keyframes libraryShuffleShake {
+  0% { transform: translate(0,0) rotate(0deg); }
+  10% { transform: translate(-8px,2px) rotate(-5deg); }
+  20% { transform: translate(8px,-2px) rotate(5deg); }
+  30% { transform: translate(-7px,-3px) rotate(-4deg); }
+  40% { transform: translate(7px,3px) rotate(4deg); }
+  50% { transform: translate(-9px,1px) rotate(-6deg); }
+  60% { transform: translate(9px,-1px) rotate(6deg); }
+  70% { transform: translate(-5px,2px) rotate(-3deg); }
+  85% { transform: translate(5px,-2px) rotate(3deg); }
+  100% { transform: translate(0,0) rotate(0deg); }
+}
+
+/* sideboard wider + stacked rows */
+.sideboard-box {
+  width: min(1560px, calc(100vw - 18px)) !important;
+  height: min(920px, calc(100vh - 18px)) !important;
+  grid-template-rows: auto auto 1fr !important;
+}
+
+.sideboard-box > .modal-row {
+  order: -1;
+  margin: 0 0 10px 0;
+}
+
+.sideboard-grid {
+  display: block !important;
+  position: relative;
+  padding: 10px 10px 40px !important;
+}
+
+.sideboard-stack-card {
+  position: absolute;
+  width: 118px;
+  border-radius: 7px;
+  cursor: grab;
+}
+
+.sideboard-stack-card img {
+  width: 118px;
+  border-radius: 7px;
+  display: block;
+}
+
+
+/* v36 hand/slider UI */
+.hand-label,
+#handLabel {
+  display: none !important;
+}
+
+.hand-zone.drop-hover::before {
+  display: none !important;
+}
+
+.hand-zone.opponent .hand-fan-slider,
+#p2HandFanSlider {
+  display: none !important;
+}
+
+#sliderDock {
+  position: absolute;
+  left: 96px;
+  bottom: 0;
+  height: 170px;
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  z-index: 350;
+}
+
+.vslider-wrap {
+  position: relative;
+  width: 26px;
+  height: 166px;
+}
+
+.vslider-wrap input[type="range"] {
+  position: absolute;
+  left: -55px;
+  bottom: 68px;
+  width: 136px;
+  transform: rotate(-90deg);
+  transform-origin: center;
+}
+
+.vslider-wrap span {
+  position: absolute;
+  left: 19px;
+  bottom: 10px;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: .04em;
+  opacity: .78;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* own hand becomes a movable tabletop element */
+.hand-zone.self {
+  width: var(--hand-drop-width) !important;
+  height: 150px !important;
+  left: var(--p1-hand-left, 50%) !important;
+  top: var(--p1-hand-top, auto) !important;
+  bottom: var(--p1-hand-bottom, 0px) !important;
+  right: auto !important;
+  transform: translate(-50%, 0) !important;
+  cursor: move;
+}
+
+.hand-zone.self .hand-fan,
+.hand-zone.self .hand-card {
+  cursor: grab;
+}
+
+.hand-zone.opponent {
+  pointer-events: none;
+}
+
+#p1HandZone {
+  pointer-events: auto;
+}
+
+
+/* v37 token fan: no background bar, just tokens on top */
+#tokenModal.token-fan-mode {
+  background: transparent !important;
+  pointer-events: none !important;
+  display: block !important;
+  z-index: 9000 !important;
+}
+
+#tokenModal.token-fan-mode .modal-box {
+  position: fixed !important;
+  left: 50% !important;
+  bottom: 28px !important;
+  transform: translateX(-50%) !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+}
+
+#tokenModal.token-fan-mode h1,
+#tokenModal.token-fan-mode .modal-row {
+  display: none !important;
+}
+
+#tokenModal.token-fan-mode #tokenGrid {
+  display: flex !important;
+  align-items: end !important;
+  justify-content: center !important;
+  gap: 0 !important;
+  height: 180px !important;
+  width: auto !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  background: transparent !important;
+  border: 0 !important;
+  pointer-events: none !important;
+}
+
+#tokenModal.token-fan-mode .token-choice {
+  pointer-events: auto !important;
+  margin-left: -34px !important;
+  background: transparent !important;
+  width: 118px !important;
+}
+
+#tokenModal.token-fan-mode .token-choice:first-child {
+  margin-left: 0 !important;
+}
+
+
+/* v38: no visible vertical slider dock */
+#sliderDock,
+.hand-fan-slider,
+#p1HandFanSlider,
+#p2HandFanSlider,
+#p1HandDepthSlider {
+  display: none !important;
+}
+
+#menuPanel input[type="range"] {
+  width: 100%;
+}
+
+
+/* v39 hand area interaction */
+.hand-zone.self {
+  pointer-events: auto !important;
+}
+
+.hand-zone.self.cmd-hand-drag {
+  outline: 1px dashed rgba(255,255,255,.25);
+}
+
+
+/* v40 */
+.menu-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.menu-row-2 button {
+  width: 100%;
+}
+
+/* deck menu now has one fewer button */
+.library-controls {
+  grid-template-rows: repeat(8, minmax(0, 1fr)) !important;
+}
+
+/* hand zone moves as one draggable element */
+.hand-zone.self.cmd-hand-drag,
+.hand-zone.self.trackpad-hand-active {
+  outline: 1px dashed rgba(255,255,255,.22);
+}
+
+/* dice menu color slider directly under values */
+#diceMenu .dice-color-label,
+.dice-color-label {
+  display: none !important;
+}
+
+#diceMenu input[type="range"] {
+  width: 100%;
+  margin-top: 6px;
+}
+
+
+/* v41 sideboard grouped stacks */
+.sideboard-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, 138px) !important;
+  align-items: start !important;
+  gap: 22px !important;
+  overflow: auto !important;
+  position: relative !important;
+}
+
+.sideboard-name-stack {
+  position: relative;
+  width: 118px;
+  min-height: 168px;
+}
+
+.sideboard-stack-card {
+  position: absolute !important;
+  left: 0 !important;
+  width: 118px !important;
+  height: 165px !important;
+  border-radius: 7px;
+  cursor: grab;
+}
+
+.sideboard-stack-card img {
+  width: 118px;
+  border-radius: 7px;
+  display: block;
+  pointer-events: none;
+}
+
+
+/* v42 current oracle card panel */
+.oracle-panel {
+  position: absolute;
+  left: 8px;
+  bottom: 54px;
+  width: 190px;
+  max-height: 440px;
+  z-index: 330;
+  background: rgba(8,8,8,.92);
+  border: 1px solid rgba(255,255,255,.25);
+  border-radius: 10px;
+  padding: 8px;
+  box-shadow: 0 12px 34px rgba(0,0,0,.55);
+  pointer-events: none;
+}
+
+.oracle-panel.hidden {
+  display: none !important;
+}
+
+.oracle-panel img {
+  width: 100%;
+  border-radius: 7px;
+  display: block;
+  margin-bottom: 7px;
+}
+
+#oraclePanelText {
+  font-size: 10px;
+  line-height: 1.18;
+  color: #e8e8e8;
+  max-height: 130px;
+  overflow: auto;
+  text-transform: none !important;
+  font-style: italic;
+}
+
+
+/* v43 sideboard layout: editor lives on right, oracle panel remains visible on left */
+#sideboardModal {
+  justify-items: end !important;
+  align-items: center !important;
+  padding-left: 230px !important;
+  background: rgba(0,0,0,.68) !important;
+}
+
+.sideboard-box {
+  width: min(1280px, calc(100vw - 250px)) !important;
+  height: min(880px, calc(100vh - 24px)) !important;
+  margin-right: 12px !important;
+}
+
+.sideboard-columns {
+  grid-template-columns: minmax(760px, 1fr) minmax(360px, 420px) !important;
+}
+
+/* mainboard: continuous 10-card columns, room for 6+ columns */
+#mainboardGrid.sideboard-grid {
+  display: grid !important;
+  grid-template-columns: repeat(7, 128px) !important;
+  gap: 14px !important;
+  align-items: start !important;
+  overflow: auto !important;
+}
+
+/* sideboard: narrower, usually 15 cards */
+#sideboardGrid.sideboard-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 128px) !important;
+  gap: 14px !important;
+  align-items: start !important;
+  overflow: auto !important;
+}
+
+.sideboard-column-stack {
+  position: relative;
+  width: 118px;
+  min-height: 168px;
+}
+
+.sideboard-stack-card {
+  position: absolute !important;
+  left: 0 !important;
+  width: 118px !important;
+  height: 165px !important;
+  border-radius: 7px;
+  cursor: grab;
+}
+
+.sideboard-stack-card img {
+  width: 118px;
+  border-radius: 7px;
+  display: block;
+  pointer-events: none;
+}
+
+.sideboard-stack-card.dragging {
+  opacity: .45;
+}
+
+
+/* v44 oracle panel exactly above green menu button */
+.oracle-panel {
+  left: 14px !important;
+  bottom: 92px !important;
+  width: 142px !important;
+  max-height: none !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  z-index: 320 !important; /* menu opens above this */
+}
+
+.oracle-panel img {
+  width: 142px !important;
+  border-radius: 6px !important;
+  margin: 0 0 8px 0 !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,.65);
+}
+
+#oraclePanelText {
+  width: 142px !important;
+  min-height: 118px !important;
+  max-height: 172px !important;
+  overflow: auto !important;
+  background: #050505 !important;
+  color: #eeeeee !important;
+  padding: 8px !important;
+  border-radius: 0 !important;
+  font-size: 12px !important;
+  line-height: 1.14 !important;
+  text-transform: none !important;
+  font-style: normal !important;
+  box-sizing: border-box !important;
+}
+
+/* the green menu panel must cover oracle panel when open */
+#menuPanel,
+.menu-panel {
+  z-index: 500 !important;
+}
+
+
+/* v45 oracle panel exactly like reference: card above, black oracle box below */
+.oracle-panel {
+  position: absolute !important;
+  left: 14px !important;
+  bottom: 92px !important;
+  width: 150px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  z-index: 320 !important;
+  pointer-events: none !important;
+}
+
+.oracle-panel.hidden {
+  display: none !important;
+}
+
+.oracle-panel img {
+  width: 150px !important;
+  height: auto !important;
+  display: block !important;
+  border-radius: 5px !important;
+  margin: 0 0 8px 0 !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,.7) !important;
+}
+
+#oraclePanelText {
+  width: 150px !important;
+  min-height: 128px !important;
+  max-height: 190px !important;
+  overflow: auto !important;
+  background: #000 !important;
+  color: #fff !important;
+  padding: 9px 10px !important;
+  box-sizing: border-box !important;
+  font-family: "Arial Narrow", Arial, sans-serif !important;
+  font-style: normal !important;
+  font-size: 13px !important;
+  line-height: 1.18 !important;
+  text-transform: none !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+}
+
+/* green menu covers oracle panel */
+#menuPanel,
+.menu-panel {
+  z-index: 700 !important;
+}
+
+
+/* v46 definitive oracle + static hand hover */
+.oracle-panel {
+  position: fixed !important;
+  left: 14px !important;
+  bottom: 64px !important;
+  width: 150px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  z-index: 250 !important;
+  pointer-events: none !important;
+}
+
+.oracle-panel.hidden {
+  display: none !important;
+}
+
+.oracle-panel img {
+  width: 150px !important;
+  height: auto !important;
+  display: block !important;
+  border-radius: 5px !important;
+  margin: 0 0 8px 0 !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,.7) !important;
+}
+
+#oraclePanelText {
+  width: 150px !important;
+  height: 132px !important;
+  overflow: auto !important;
+  background: #000 !important;
+  color: #fff !important;
+  padding: 9px 10px !important;
+  box-sizing: border-box !important;
+  font-family: "Arial Narrow", Arial, sans-serif !important;
+  font-style: normal !important;
+  font-size: 13px !important;
+  line-height: 1.15 !important;
+  text-transform: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* menu opens over oracle */
+#menuPanel,
+.menu-panel,
+.menu-open,
+#floatingMenu {
+  z-index: 900 !important;
+}
+
+
+/* v47 sideboard editor: one continuous background, free-position cards */
+.sideboard-columns {
+  background: #151515 !important;
+  border: 1px solid #444 !important;
+  border-radius: 8px !important;
+  padding: 10px !important;
+  gap: 0 !important;
+}
+
+.sideboard-columns section {
+  position: relative !important;
+  min-height: 100% !important;
+}
+
+.sideboard-columns section:first-child {
+  border-right: 1px solid rgba(255,255,255,.16) !important;
+}
+
+.sideboard-grid {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 36px 10px 40px 10px !important;
+  display: block !important;
+  position: relative !important;
+  overflow: hidden !important;
+  min-height: 720px !important;
+}
+
+.sideboard-columns h2 {
+  position: absolute !important;
+  top: 8px !important;
+  left: 10px !important;
+  z-index: 20 !important;
+  pointer-events: none !important;
+}
+
+.sideboard-free-card {
+  position: absolute !important;
+  width: 118px !important;
+  height: 165px !important;
+  border-radius: 7px;
+  cursor: grab;
+  user-select: none;
+}
+
+.sideboard-free-card.dragging {
+  opacity: .55;
+  cursor: grabbing;
+}
+
+.sideboard-free-card img {
+  width: 118px;
+  border-radius: 7px;
+  display: block;
+  pointer-events: none;
+}
+
+
+/* v48 definitive layer order:
+   background/playmat at the back, game objects above, oracle above game, menu/modal above oracle only where needed */
+#app, #table {
+  z-index: 1 !important;
+}
+
+.oracle-panel {
+  position: fixed !important;
+  left: 14px !important;
+  bottom: 64px !important;
+  width: 150px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  z-index: 8000 !important;
+  pointer-events: none !important;
+  display: block;
+}
+
+.oracle-panel.hidden {
+  display: none !important;
+}
+
+.oracle-panel img {
+  width: 150px !important;
+  height: auto !important;
+  display: block !important;
+  border-radius: 5px !important;
+  margin: 0 0 8px 0 !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,.7) !important;
+}
+
+#oraclePanelText {
+  width: 150px !important;
+  height: 132px !important;
+  overflow: auto !important;
+  background: #000 !important;
+  color: #fff !important;
+  padding: 9px 10px !important;
+  box-sizing: border-box !important;
+  font-family: "Arial Narrow", Arial, sans-serif !important;
+  font-style: normal !important;
+  font-size: 13px !important;
+  line-height: 1.15 !important;
+  text-transform: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* green menu goes on top of oracle when open */
+#menuPanel, .menu-panel {
+  z-index: 9000 !important;
+}
+
+/* sideboard editor must not darken / hide oracle panel */
+#sideboardModal {
+  background: transparent !important;
+  pointer-events: none !important;
+  z-index: 6000 !important;
+}
+
+#sideboardModal .modal-box {
+  pointer-events: auto !important;
+}
+
+/* keep oracle visible over sideboard modal too */
+#sideboardModal ~ .oracle-panel,
+.oracle-panel {
+  z-index: 8000 !important;
+}
+
+
+/* v49 shuffle only the visual library card/back, not the whole deck area */
+.pile-zone.shuffling,
+.pile-column.shuffling {
+  animation: none !important;
+}
+
+.pile-visual.shuffling,
+.library-shuffle-visual {
+  animation: v49LibraryCrazyShuffle .52s linear 0s 2 !important;
+  transform-origin: 50% 50% !important;
+}
+
+@keyframes v49LibraryCrazyShuffle {
+  0%   { transform: translate(0,0) rotate(0deg) scale(1); }
+  8%   { transform: translate(-12px,7px) rotate(-9deg) scale(1.02); }
+  16%  { transform: translate(10px,-8px) rotate(10deg) scale(.99); }
+  24%  { transform: translate(-9px,-10px) rotate(7deg) scale(1.03); }
+  32%  { transform: translate(13px,6px) rotate(-11deg) scale(1); }
+  40%  { transform: translate(-15px,2px) rotate(13deg) scale(1.02); }
+  48%  { transform: translate(8px,11px) rotate(-8deg) scale(.99); }
+  56%  { transform: translate(-7px,-6px) rotate(10deg) scale(1.03); }
+  64%  { transform: translate(14px,-3px) rotate(-12deg) scale(1); }
+  72%  { transform: translate(-11px,9px) rotate(9deg) scale(1.02); }
+  84%  { transform: translate(9px,-10px) rotate(-7deg) scale(1.01); }
+  100% { transform: translate(0,0) rotate(0deg) scale(1); }
+}
+
+/* v49 sideboard editor layers: cards always above panels/background */
+.sideboard-box,
+.sideboard-columns,
+.sideboard-grid {
+  overflow: visible !important;
+}
+
+.sideboard-columns {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.sideboard-free-card,
+.sideboard-stack-card,
+.sideboard-column-stack,
+.sideboard-name-stack {
+  z-index: 5000 !important;
+}
+
+.sideboard-free-card.dragging,
+.sideboard-stack-card.dragging {
+  z-index: 99999 !important;
+  opacity: .78 !important;
+}
+
+.sideboard-grid[data-drop-active="true"] {
+  outline: 1px solid rgba(255,255,255,.35);
+}
+
+/* v49 visible headings */
+.sideboard-columns section h2 {
+  text-transform: uppercase !important;
+  color: #fff !important;
+}
+
+
+/* v50 oracle: fixed bottom-left ABOVE the green menu button by actual screen position */
+#oraclePanel.oracle-panel,
+.oracle-panel {
+  position: fixed !important;
+  left: 14px !important;
+  bottom: 86px !important;
+  width: 150px !important;
+  height: auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  z-index: 2147483000 !important;
+  pointer-events: none !important;
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+#oraclePanel.oracle-panel.hidden {
+  display: block !important;
+}
+
+#oraclePanelImage {
+  width: 150px !important;
+  height: auto !important;
+  display: block !important;
+  border-radius: 5px !important;
+  margin: 0 0 8px 0 !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,.7) !important;
+  background: #111 !important;
+}
+
+#oraclePanelImage[src=""],
+#oraclePanelImage:not([src]) {
+  display: none !important;
+}
+
+#oraclePanelText {
+  width: 150px !important;
+  height: 132px !important;
+  overflow: auto !important;
+  background: #000 !important;
+  color: #fff !important;
+  padding: 9px 10px !important;
+  box-sizing: border-box !important;
+  font-family: "Arial Narrow", Arial, sans-serif !important;
+  font-style: normal !important;
+  font-size: 13px !important;
+  line-height: 1.15 !important;
+  text-transform: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* menu still opens in front of oracle */
+#menuPanel,
+.menu-panel {
+  z-index: 2147483100 !important;
+}
+
+
+/* v51 floating local inspector: text only, draggable, resizable, always above game */
+#oraclePanel.oracle-panel,
+.oracle-panel {
+  position: fixed !important;
+  left: 22px !important;
+  top: calc(50vh + 24px) !important;
+  bottom: auto !important;
+  width: 172px !important;
+  height: 158px !important;
+  min-width: 110px !important;
+  min-height: 80px !important;
+  max-width: 420px !important;
+  max-height: 520px !important;
+  resize: both !important;
+  overflow: auto !important;
+  z-index: 2147483000 !important;
+  background: #000 !important;
+  color: #fff !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 10px !important;
+  box-sizing: border-box !important;
+  pointer-events: auto !important;
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  cursor: move !important;
+}
+
+#oraclePanel.oracle-panel.hidden,
+.oracle-panel.hidden {
+  display: none !important;
+}
+
+#oraclePanelImage {
+  display: none !important;
+}
+
+#oraclePanelText {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: auto !important;
+  background: transparent !important;
+  color: #fff !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  font-family: "Times New Roman", Times, serif !important;
+  font-style: normal !important;
+  font-size: 13px !important;
+  line-height: 1.15 !important;
+  text-transform: none !important;
+  white-space: pre-wrap !important;
+  cursor: inherit !important;
+}
+
+/* menu remains above only when opened from green button */
+#menuPanel, .menu-panel {
+  z-index: 2147483100 !important;
+}
+
+
+/* v52 remove hand dashed outlines/rectangles */
+.hand-zone,
+.hand-zone.self,
+.hand-zone.opponent,
+.hand-zone.drop-hover,
+.hand-zone.cmd-hand-drag,
+.hand-zone.trackpad-hand-active,
+#p1HandZone,
+#p2HandZone {
+  outline: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.hand-zone::before,
+.hand-zone::after,
+.hand-zone.drop-hover::before,
+.hand-zone.drop-hover::after,
+.hand-zone.cmd-hand-drag::before,
+.hand-zone.cmd-hand-drag::after,
+.hand-zone.trackpad-hand-active::before,
+.hand-zone.trackpad-hand-active::after {
+  display: none !important;
+  content: none !important;
+}
+
+/* v52 sideboard editor headings: only MAIN, SIDE, READY */
+.sideboard-box > h1 {
+  position: absolute !important;
+  top: 12px !important;
+  left: 22px !important;
+  margin: 0 !important;
+  font-size: 18px !important;
+  z-index: 50 !important;
+}
+
+.sideboard-columns section h2 {
+  display: none !important;
+}
+
+.sideboard-columns section:nth-child(2)::before {
+  content: "SIDE";
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 50;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  pointer-events: none;
+}
+
+/* Cards must always be above both editor areas. */
+.sideboard-grid {
+  overflow: visible !important;
+  z-index: 1 !important;
+}
+
+.sideboard-free-card,
+.sideboard-stack-card {
+  z-index: 20000 !important;
+}
+
+.sideboard-free-card.dragging,
+.sideboard-stack-card.dragging,
+.sideboard-free-card.is-dragging,
+.sideboard-stack-card.is-dragging {
+  z-index: 2147482000 !important;
+  opacity: .85 !important;
+  pointer-events: none !important;
+}
+
+#sideboardDragLayer {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 2147482500;
+  pointer-events: none;
+}
+
+#sideboardDragLayer .sideboard-free-card,
+#sideboardDragLayer .sideboard-stack-card {
+  position: fixed !important;
+}
+
+
+
+
+/* v54 stable floating inspector */
+#localInspector {
+  position: fixed !important;
+  left: 20px !important;
+  bottom: 78px !important;
+  width: 190px !important;
+  height: 150px !important;
+  background: #000 !important;
+  color: #fff !important;
+  font-family: "Times New Roman", Times, serif !important;
+  font-size: 13px !important;
+  line-height: 1.15 !important;
+  padding: 9px !important;
+  box-sizing: border-box !important;
+  z-index: 2147483000 !important;
+  resize: both !important;
+  overflow: auto !important;
+  cursor: move !important;
+  text-transform: none !important;
+  font-style: normal !important;
+  white-space: pre-wrap !important;
+  border: 0 !important;
+}
+
+#localInspector.hidden {
+  display: none !important;
+}
+
+
+/* v55 local inspector: guaranteed visible + draggable/resizable */
+#localInspector {
+  position: fixed !important;
+  left: 22px !important;
+  top: calc(50vh + 24px) !important;
+  bottom: auto !important;
+  width: 190px !important;
+  height: 150px !important;
+  min-width: 120px !important;
+  min-height: 80px !important;
+  resize: both !important;
+  overflow: auto !important;
+  background: #000 !important;
+  color: #fff !important;
+  font-family: "Times New Roman", Times, serif !important;
+  font-size: 13px !important;
+  line-height: 1.15 !important;
+  padding: 9px !important;
+  box-sizing: border-box !important;
+  z-index: 2147483000 !important;
+  cursor: move !important;
+  white-space: pre-wrap !important;
+  text-transform: none !important;
+  font-style: normal !important;
+  border: 0 !important;
+}
+
+#localInspector.hidden {
+  display: none !important;
+}
+
+#oraclePanel {
+  display: none !important;
+}
+
+
+/* v56: restore v29 working oracle panel behavior, only moved to desired place */
+#localInspector {
+  display: none !important;
+}
+
+#oraclePanel.oracle-panel,
+.oracle-panel {
+  position: fixed !important;
+  left: 14px !important;
+  bottom: 82px !important;
+  top: auto !important;
+  right: auto !important;
+  width: 190px !important;
+  max-height: 300px !important;
+  overflow: auto !important;
+  background: #000 !important;
+  color: #fff !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 10px !important;
+  z-index: 2147483000 !important;
+  box-shadow: none !important;
+  white-space: pre-wrap !important;
+  line-height: 1.18 !important;
+  font-family: "Times New Roman", Times, serif !important;
+  font-size: 13px !important;
+  font-style: normal !important;
+  text-transform: none !important;
+  pointer-events: none !important;
+  display: none !important;
+}
+
+#oraclePanel.visible,
+.oracle-panel.visible {
+  display: block !important;
+}
+
+.oracle-name {
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  margin-bottom: 4px !important;
+}
+
+.oracle-type {
+  color: #ddd !important;
+  margin-bottom: 7px !important;
+}
+
+.oracle-small {
+  color: #bbb !important;
+  margin-top: 7px !important;
+  font-size: 11px !important;
+}
+
+/* green menu still covers it */
+#menuPanel, .menu-panel {
+  z-index: 2147483100 !important;
+}
+
+
+/* v57: v29 oracle panel restored, only moved to bottom-left above menu */
+#localInspector {
+  display: none !important;
+}
+
+#oraclePanel.oracle-panel {
+  position: fixed !important;
+  left: 14px !important;
+  bottom: 82px !important;
+  top: auto !important;
+  right: auto !important;
+  width: 190px !important;
+  max-height: 300px !important;
+  overflow: auto !important;
+  background: #000 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 10px !important;
+  color: #fff !important;
+  z-index: 2147483000 !important;
+  box-shadow: none !important;
+  display: none !important;
+  white-space: pre-wrap !important;
+  line-height: 1.18 !important;
+  font-family: "Times New Roman", Times, serif !important;
+  font-size: 13px !important;
+  font-style: normal !important;
+  text-transform: none !important;
+  pointer-events: none !important;
+}
+
+#oraclePanel.oracle-panel.visible {
+  display: block !important;
+}
+
+#oraclePanel .oracle-name {
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  margin-bottom: 4px !important;
+  color: #fff !important;
+}
+
+#oraclePanel .oracle-type {
+  color: #ddd !important;
+  margin-bottom: 7px !important;
+}
+
+#oraclePanel .oracle-small {
+  color: #bbb !important;
+  margin-top: 7px !important;
+  font-size: 11px !important;
+}
+
+#menuPanel,
+.menu-panel {
+  z-index: 2147483100 !important;
+}
+
+
+/* v58: inforuutu/oracle removed completely */
+#oraclePanel,
+.oracle-panel,
+#localInspector {
+  display: none !important;
+}
+
+/* v58 playmats */
+#p1Playmat,
+#p2Playmat {
+  position: fixed;
+  left: 0;
+  width: 100vw;
+  height: 50vh;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#p1Playmat {
+  bottom: 0;
+  background-image: url("playmat/gate.png");
+}
+
+#p2Playmat {
+  top: 0;
+  background-image: url("playmat/camel.png");
+  transform: rotate(180deg);
+}
+
+/* keep actual table transparent enough for playmat */
+#table {
+  background: transparent !important;
+}
+
+#app {
+  background: #242424 !important;
+}
+
+/* all actual game objects above playmat */
+.card, .die, .pile-column, .hand-zone, #diceLayer, #menuWrap, .modal, .context-menu {
+  position: absolute;
+}
+
+.pile-column, .hand-zone, #diceLayer, #menuWrap, .context-menu {
+  z-index: 20;
+}
+
+.card {
+  z-index: 30;
+}
+
+/* side editor labels only in requested places */
+.sideboard-box > h1,
+#sideboardMainTitle,
+#mainAreaTitle,
+#sideAreaTitle,
+.sideboard-columns section h2,
+.sideboard-columns section::before {
+  display: none !important;
+  content: none !important;
+}
+
+.sideboard-box {
+  position: relative !important;
+}
+
+.sideboard-box::before {
+  content: "MAIN";
+  position: absolute;
+  top: 30px;
+  left: 210px;
+  color: #fff;
+  font-size: 28px;
+  font-weight: 700;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.sideboard-box::after {
+  content: "SIDE";
+  position: absolute;
+  top: 30px;
+  left: calc(66% + 70px);
+  color: #fff;
+  font-size: 28px;
+  font-weight: 700;
+  z-index: 50;
+  pointer-events: none;
+}
+
+/* sideboard drag: cards must not go under MAIN/SIDE areas */
+.sideboard-box,
+.sideboard-columns,
+.sideboard-grid {
+  overflow: visible !important;
+}
+
+.sideboard-free-card,
+.sideboard-stack-card {
+  z-index: 50000 !important;
+}
+
+.sideboard-free-card.dragging,
+.sideboard-stack-card.dragging,
+.sideboard-free-card.is-dragging,
+.sideboard-stack-card.is-dragging {
+  z-index: 2147483000 !important;
+  pointer-events: none !important;
+  opacity: .85 !important;
+}
+
+#sideboardDragLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+}
+
+#sideboardDragLayer .sideboard-free-card,
+#sideboardDragLayer .sideboard-stack-card {
+  position: fixed !important;
+}
+
+
+/* v59 token picker: close button after last token + set switch beside add-token */
+.menu-token-set {
+  width: 100%;
+  min-width: 0;
+  background: #111;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 6px;
+  padding: 6px;
+  font-size: 10px;
+}
+
+#tokenGrid .token-close-choice {
+  width: 118px;
+  height: 36px;
+  align-self: end;
+  margin-left: 8px;
+  display: grid;
+  place-items: center;
+  background: #333;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* v59 shuffle animation: only the actual library visual/back shakes */
+.pile-zone.shuffling,
+.pile-column.shuffling,
+.library-controls.shuffling {
+  animation: none !important;
+  transform: none !important;
+}
+
+.pile-visual.library-shake {
+  animation: v59LibraryShake .62s linear 0s 2 !important;
+  transform-origin: 50% 50% !important;
+}
+
+@keyframes v59LibraryShake {
+  0%   { transform: translate(0,0) rotate(0deg); }
+  7%   { transform: translate(-14px,8px) rotate(-10deg); }
+  14%  { transform: translate(13px,-9px) rotate(12deg); }
+  21%  { transform: translate(-10px,-12px) rotate(8deg); }
+  28%  { transform: translate(15px,6px) rotate(-13deg); }
+  35%  { transform: translate(-16px,3px) rotate(14deg); }
+  42%  { transform: translate(10px,13px) rotate(-9deg); }
+  49%  { transform: translate(-8px,-7px) rotate(11deg); }
+  56%  { transform: translate(16px,-4px) rotate(-14deg); }
+  63%  { transform: translate(-13px,11px) rotate(10deg); }
+  72%  { transform: translate(12px,-13px) rotate(-8deg); }
+  84%  { transform: translate(-7px,6px) rotate(6deg); }
+  100% { transform: translate(0,0) rotate(0deg); }
+}
+
+
+/* v60 floating current-oracle box */
+#floatingOracleBox {
+  position: fixed;
+  left: 18px;
+  top: calc(50vh + 24px);
+  width: 260px;
+  height: 170px;
+  min-width: 160px;
+  min-height: 90px;
+  max-width: 520px;
+  max-height: 70vh;
+  resize: both;
+  overflow: auto;
+  background: rgba(28,28,28,.96);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 8px;
+  padding: 10px;
+  box-sizing: border-box;
+  z-index: 2147482000;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 13px;
+  line-height: 1.18;
+  white-space: pre-wrap;
+  text-transform: none;
+  font-style: normal;
+  cursor: move;
+}
+
+#floatingOracleBox.hidden {
+  display: none;
+}
+
+#floatingOracleBox .fo-name {
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+#floatingOracleBox .fo-type {
+  color: #ddd;
+  margin-bottom: 8px;
+}
+
+
+/* v61 simple token selector */
+.menu-token-select {
+  width: 100%;
+  min-width: 0;
+  background: #111;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 6px;
+  padding: 6px;
+  font-size: 11px;
+}
+
+
+/* v62 clean card inspector: one root-level element above everything */
+#oraclePanel,
+.oracle-panel,
+#localInspector,
+#floatingOracleBox {
+  display: none !important;
+}
+
+#cardInspectorV62 {
+  position: fixed;
+  left: 18px;
+  top: calc(50vh + 24px);
+  width: 260px;
+  height: 170px;
+  min-width: 140px;
+  min-height: 80px;
+  max-width: 560px;
+  max-height: 70vh;
+  resize: both;
+  overflow: auto;
+  z-index: 2147483647;
+  background: #222;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: 8px;
+  padding: 10px;
+  box-sizing: border-box;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 13px;
+  line-height: 1.18;
+  white-space: pre-wrap;
+  text-transform: none;
+  font-style: normal;
+  cursor: move;
+}
+
+#cardInspectorV62.hidden {
+  display: none !important;
+}
+
+#cardInspectorV62 .ci-name {
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+#cardInspectorV62 .ci-type {
+  color: #ddd;
+  margin-bottom: 8px;
+}
+
+/* while dragging a card from hand, the visual ghost must stay above the hand fan */
+.drag-ghost {
+  z-index: 2147482000 !important;
+}
+
+
+/* v63 Chaos Orb integration */
+#chaosFlipButton {
+  position: fixed;
+  display: none;
+  z-index: 2147482500;
+  background: #111;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.55);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0,0,0,.6);
+}
+
+.chaos-modal.hidden {
+  display: none !important;
+}
+
+.chaos-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2147481000;
+  background: rgba(0,0,0,.58);
+  display: grid;
+  place-items: center;
+}
+
+.chaos-box {
+  position: relative;
+  width: min(1180px, calc(100vw - 32px));
+  height: min(780px, calc(100vh - 32px));
+  background: #242424;
+  border: 1px solid rgba(255,255,255,.25);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+#chaosCloseBtn {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  z-index: 50;
+}
+
+#chaosTable {
+  position: absolute;
+  inset: 0;
+  background: #242424;
+}
+
+.chaos-card {
+  position: absolute;
+  width: 170px;
+  height: 237px;
+  border-radius: 8px;
+  box-shadow: 0 8px 22px rgba(0,0,0,.55);
+  user-select: none;
+  touch-action: none;
+  transform-origin: 50% 50%;
+}
+
+.chaos-card img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+#chaosTarget {
+  left: calc(50% + 70px);
+  top: calc(50% - 80px);
+}
+
+#chaosTarget.hit {
+  outline: 5px solid #75ff5a;
+  box-shadow: 0 0 28px rgba(117,255,90,.95);
+}
+
+#chaosOrb {
+  left: calc(50% - 250px);
+  top: calc(50% - 120px);
+  cursor: crosshair;
+  z-index: 20;
+}
+
+#chaosOrb.aiming {
+  outline: 3px solid rgba(255,255,255,.75);
+}
+
+#chaosOrb.flipping {
+  pointer-events: none;
+}
+
+#chaosShadow {
+  position: absolute;
+  width: 170px;
+  height: 237px;
+  border-radius: 8px;
+  background: rgba(0,0,0,.25);
+  filter: blur(10px);
+  pointer-events: none;
+  z-index: 2;
+}
+
+#chaosForcePoint {
+  position: fixed;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 12px #fff;
+  transform: translate(-50%,-50%);
+  z-index: 80;
+  pointer-events: none;
+  display: none;
+}
+
+#chaosUi {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  width: 330px;
+  background: rgba(10,10,10,.78);
+  border: 1px solid rgba(255,255,255,.25);
+  border-radius: 10px;
+  padding: 12px;
+  z-index: 40;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+#chaosPowerOuter {
+  margin-top: 10px;
+  height: 16px;
+  background: #111;
+  border: 1px solid #666;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+#chaosPowerInner {
+  height: 100%;
+  width: 0%;
+  background: #eee;
+}
+
+#chaosStatus {
+  margin-top: 10px;
+  color: #ddd;
+  white-space: pre-wrap;
+}
+
+#chaosSideView {
+  position: absolute;
+  right: 50%;
+  top: 64%;
+  transform: translateX(50%);
+  width: 270px;
+  height: 190px;
+  background: rgba(10,10,10,.78);
+  border: 1px solid rgba(255,255,255,.25);
+  border-radius: 10px;
+  z-index: 40;
+  padding: 12px;
+  box-sizing: border-box;
+  font-size: 13px;
+}
+
+#chaosSideScene {
+  position: relative;
+  height: 120px;
+  border-left: 1px solid #777;
+  border-bottom: 2px solid #aaa;
+  margin-top: 6px;
+}
+
+#chaosSideOrb {
+  position: absolute;
+  left: 96px;
+  width: 72px;
+  height: 8px;
+  background: #ddd;
+  border-radius: 4px;
+  transform-origin: 50% 50%;
+}
+
+
+/* v64: flip button is detected from actual card under pointer, works for Chaos Orb + Falling Star */
+#chaosFlipButton {
+  pointer-events: auto !important;
+}
+
+.flip-candidate-hover {
+  outline: 2px solid rgba(255,255,255,.8) !important;
+}
+
+
+/* v65: one inspector only; no hover FLIP bubble */
+#chaosFlipButton {
+  display: none !important;
+}
+
+#cardInspectorV62 {
+  position: fixed;
+  left: 18px;
+  top: calc(50vh + 24px);
+  width: 260px;
+  height: 170px;
+  min-width: 140px;
+  min-height: 80px;
+  max-width: 560px;
+  max-height: 70vh;
+  resize: both;
+  overflow: auto;
+  z-index: 2147483647;
+  background: #222;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: 8px;
+  padding: 10px;
+  box-sizing: border-box;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 13px;
+  line-height: 1.18;
+  white-space: pre-wrap;
+  text-transform: none;
+  font-style: normal;
+  cursor: move;
+}
+
+#cardInspectorV62.hidden {
+  display: none !important;
+}
+
+#cardInspectorV62 .ci-name {
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+#cardInspectorV62 .ci-type {
+  color: #ddd;
+  margin-bottom: 8px;
+}
+
+
+/* v66: exactly one inspector, created only by JS */
+#cardInspectorV62 {
+  position: fixed !important;
+  left: 18px !important;
+  top: calc(50vh + 24px) !important;
+  width: 260px !important;
+  height: 170px !important;
+  min-width: 140px !important;
+  min-height: 80px !important;
+  max-width: 560px !important;
+  max-height: 70vh !important;
+  resize: both !important;
+  overflow: auto !important;
+  z-index: 2147483647 !important;
+  background: #222 !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,.28) !important;
+  border-radius: 8px !important;
+  padding: 10px !important;
+  box-sizing: border-box !important;
+  font-family: "Times New Roman", Times, serif !important;
+  font-size: 13px !important;
+  line-height: 1.18 !important;
+  white-space: pre-wrap !important;
+  text-transform: none !important;
+  font-style: normal !important;
+  cursor: move !important;
+}
+
+#cardInspectorV62 .ci-name { font-weight: 700; margin-bottom: 5px; }
+#cardInspectorV62 .ci-type { color: #ddd; margin-bottom: 8px; }
+
+#chaosFlipButton { display: none !important; }
+
+
+/* v67: ORBFLIP happens directly over the real table, no boxed mini-game */
+#chaosFlipModal {
+  background: transparent !important;
+  pointer-events: none !important;
+  display: block;
+}
+
+#chaosFlipModal.hidden {
+  display: none !important;
+}
+
+#chaosFlipModal .chaos-box {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+  pointer-events: none !important;
+}
+
+#chaosTable {
+  position: fixed !important;
+  inset: 0 !important;
+  background: transparent !important;
+  pointer-events: none !important;
+}
+
+#chaosOrb,
+#chaosShadow,
+#chaosForcePoint {
+  pointer-events: auto !important;
+}
+
+#chaosTarget {
+  display: none !important;
+}
+
+#chaosUi {
+  display: none !important;
+}
+
+/* small control panel only */
+#chaosSideView {
+  position: fixed !important;
+  left: 18px !important;
+  top: calc(50vh + 18px) !important;
+  transform: none !important;
+  width: 185px !important;
+  height: 170px !important;
+  background: rgba(10,10,10,.82) !important;
+  border: 1px solid rgba(255,255,255,.25) !important;
+  border-radius: 10px !important;
+  z-index: 2147482600 !important;
+  padding: 10px !important;
+  box-sizing: border-box !important;
+  pointer-events: auto !important;
+  font-size: 11px !important;
+}
+
+#chaosSideView b {
+  display: none !important;
+}
+
+#chaosSideView::before {
+  content: "HEIGHT";
+  display: block;
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+
+#chaosSideView #chaosSideScene {
+  height: 88px !important;
+  margin-top: 4px !important;
+}
+
+#chaosSideView #chaosSideOrb {
+  left: 58px !important;
+}
+
+#chaosSideView .v67-controls {
+  display: flex;
+  gap: 6px;
+  margin-top: 7px;
+}
+
+#chaosSideView .v67-controls button {
+  padding: 5px 8px;
+  margin: 0;
+  font-size: 11px;
+}
+
+#chaosCloseBtn,
+#chaosResetBtn {
+  display: none !important;
+}
+
+#chaosPowerOuter {
+  position: fixed !important;
+  left: 50% !important;
+  bottom: 38px !important;
+  transform: translateX(-50%) !important;
+  width: 320px !important;
+  height: 18px !important;
+  z-index: 2147482600 !important;
+  display: none;
+}
+
+#chaosPowerOuter.v67-show {
+  display: block !important;
+}
+
+#chaosStatus {
+  position: fixed !important;
+  left: 50% !important;
+  bottom: 66px !important;
+  transform: translateX(-50%) !important;
+  z-index: 2147482600 !important;
+  background: rgba(0,0,0,.72) !important;
+  color: #fff !important;
+  padding: 6px 10px !important;
+  border-radius: 8px !important;
+  display: block !important;
+  pointer-events: none !important;
+}
+
+#chaosOrb {
+  z-index: 2147482400 !important;
+}
+
+#chaosShadow {
+  z-index: 2147482300 !important;
+}
+
+.flip-hit-v67 {
+  outline: 5px solid #75ff5a !important;
+  box-shadow: 0 0 28px rgba(117,255,90,.95) !important;
+}
+
+
+/* v68 clean ORBFLIP overlay, independent from old chaos modal */
+#orbflipV68.hidden { display: none !important; }
+
+#orbflipV68 {
+  position: fixed;
+  inset: 0;
+  z-index: 2147482500;
+  pointer-events: none;
+}
+
+#orbflipCardV68 {
+  position: fixed;
+  width: 170px;
+  height: 237px;
+  border-radius: 8px;
+  z-index: 2147482600;
+  transform-origin: 50% 50%;
+  pointer-events: auto;
+  cursor: grab;
+  box-shadow: 0 8px 22px rgba(0,0,0,.55);
+}
+
+#orbflipCardV68.dragging { cursor: grabbing; }
+#orbflipCardV68.aiming { outline: 3px solid rgba(255,255,255,.75); }
+#orbflipCardV68.flipping { pointer-events: none; }
+
+#orbflipImgV68 {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+#orbflipShadowV68 {
+  position: fixed;
+  width: 170px;
+  height: 237px;
+  border-radius: 8px;
+  background: rgba(0,0,0,.25);
+  filter: blur(10px);
+  z-index: 2147482400;
+  pointer-events: none;
+}
+
+#orbflipForceV68 {
+  position: fixed;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 12px #fff;
+  transform: translate(-50%,-50%);
+  z-index: 2147482700;
+  pointer-events: none;
+  display: none;
+}
+
+#orbflipPanelV68 {
+  position: fixed;
+  left: 18px;
+  top: calc(50vh + 18px);
+  width: 190px;
+  height: 178px;
+  background: rgba(10,10,10,.86);
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: 10px;
+  padding: 10px;
+  box-sizing: border-box;
+  color: #fff;
+  z-index: 2147482800;
+  pointer-events: auto;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+}
+
+#orbflipHeightLabelV68 {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+#orbflipSideSceneV68 {
+  position: relative;
+  height: 82px;
+  border-left: 1px solid #777;
+  border-bottom: 2px solid #aaa;
+  margin-bottom: 8px;
+}
+
+#orbflipSideCardV68 {
+  position: absolute;
+  left: 58px;
+  bottom: 52px;
+  width: 72px;
+  height: 8px;
+  background: #ddd;
+  border-radius: 4px;
+  transform-origin: 50% 50%;
+}
+
+#orbflipPowerOuterV68 {
+  height: 12px;
+  background: #111;
+  border: 1px solid #666;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+#orbflipPowerInnerV68 {
+  height: 100%;
+  width: 0%;
+  background: #eee;
+}
+
+.orbflip-buttons-v68 {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.orbflip-buttons-v68 button {
+  margin: 0;
+  padding: 5px 8px;
+  font-size: 11px;
+}
+
+#orbflipStatusV68 {
+  color: #ddd;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.flip-hit-v68 {
+  outline: 5px solid #75ff5a !important;
+  box-shadow: 0 0 28px rgba(117,255,90,.95) !important;
+}
+
+
+/* v69 force ORBFLIP overlay visible/clickable when opened */
+#orbflipV68:not(.hidden) {
+  display: block !important;
+  pointer-events: none !important;
+}
+
+#orbflipV68:not(.hidden) #orbflipCardV68,
+#orbflipV68:not(.hidden) #orbflipPanelV68 {
+  display: block !important;
+  pointer-events: auto !important;
+}
+
+
+/* v70: dead-simple independent ORBFLIP overlay */
+#simpleOrbflipV70.hidden {
+  display: none !important;
+}
+
+#simpleOrbflipV70 {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+}
+
+#simpleOrbCardV70 {
+  position: fixed;
+  left: calc(50vw - 85px);
+  top: calc(50vh - 119px);
+  width: 170px;
+  height: 237px;
+  border-radius: 8px;
+  z-index: 2147483200;
+  pointer-events: auto;
+  cursor: grab;
+  transform-origin: 50% 50%;
+  box-shadow: 0 8px 22px rgba(0,0,0,.55);
+}
+
+#simpleOrbCardV70.dragging {
+  cursor: grabbing;
+}
+
+#simpleOrbCardV70.aiming {
+  outline: 3px solid rgba(255,255,255,.75);
+}
+
+#simpleOrbCardV70.flipping {
+  pointer-events: none;
+}
+
+#simpleOrbCardV70 img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+#simpleOrbShadowV70 {
+  position: fixed;
+  width: 170px;
+  height: 237px;
+  border-radius: 8px;
+  background: rgba(0,0,0,.25);
+  filter: blur(10px);
+  z-index: 2147483100;
+  pointer-events: none;
+}
+
+#simpleOrbForceV70 {
+  position: fixed;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 12px #fff;
+  transform: translate(-50%,-50%);
+  z-index: 2147483300;
+  pointer-events: none;
+  display: none;
+}
+
+#simpleOrbPanelV70 {
+  position: fixed;
+  left: 18px;
+  top: calc(50vh + 18px);
+  width: 190px;
+  height: 178px;
+  background: rgba(10,10,10,.88);
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: 10px;
+  padding: 10px;
+  box-sizing: border-box;
+  color: #fff;
+  z-index: 2147483400;
+  pointer-events: auto;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+}
+
+#simpleOrbHeightV70 {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+#simpleOrbSideV70 {
+  position: relative;
+  height: 82px;
+  border-left: 1px solid #777;
+  border-bottom: 2px solid #aaa;
+  margin-bottom: 8px;
+}
+
+#simpleOrbSideCardV70 {
+  position: absolute;
+  left: 58px;
+  bottom: 52px;
+  width: 72px;
+  height: 8px;
+  background: #ddd;
+  border-radius: 4px;
+  transform-origin: 50% 50%;
+}
+
+#simpleOrbPowerOuterV70 {
+  height: 12px;
+  background: #111;
+  border: 1px solid #666;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+#simpleOrbPowerInnerV70 {
+  height: 100%;
+  width: 0%;
+  background: #eee;
+}
+
+#simpleOrbPanelV70 button {
+  margin: 0 5px 0 0;
+  padding: 5px 8px;
+  font-size: 11px;
+}
+
+
+/* v71 */
+#cardInspectorV62 {
+  pointer-events: auto !important;
+  resize: both !important;
+  overflow: auto !important;
+  cursor: move !important;
+}
+
+.context-menu button[data-card-menu-keep],
+#cardMenu button[data-card-menu-keep] {
+  display: block;
+}
+
+#simpleOrbflipV70:not(.hidden) {
+  display: block !important;
+}
+
+
+/* v72 inspector: real movable/resizable floating window */
+#cardInspectorV62 {
+  position: fixed !important;
+  left: 18px;
+  top: calc(50vh + 24px);
+  bottom: auto !important;
+  right: auto !important;
+  width: 260px;
+  height: 170px;
+  min-width: 140px;
+  min-height: 80px;
+  max-width: 80vw;
+  max-height: 80vh;
+  resize: both !important;
+  overflow: auto !important;
+  pointer-events: auto !important;
+  cursor: default !important;
+  user-select: text !important;
+}
+
+#cardInspectorV62::before {
+  content: "";
+  display: block;
+  height: 14px;
+  margin: -10px -10px 6px -10px;
+  background: rgba(255,255,255,.12);
+  cursor: move;
+}
+
+
+/* v73: new independent local inspector window */
+#cardInspectorV62 {
+  display: none !important;
+}
+
+#inspectorWindowV73 {
+  position: fixed;
+  left: 18px;
+  top: calc(50vh + 24px);
+  width: 280px;
+  height: 190px;
+  min-width: 150px;
+  min-height: 90px;
+  max-width: 80vw;
+  max-height: 80vh;
+  z-index: 2147483647;
+  background: #222;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+  pointer-events: auto;
+  font-family: "Times New Roman", Times, serif;
+  text-transform: none;
+  font-style: normal;
+}
+
+#inspectorHeaderV73 {
+  height: 22px;
+  line-height: 22px;
+  padding: 0 8px;
+  background: rgba(255,255,255,.14);
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: move;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+#inspectorBodyV73 {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 22px;
+  bottom: 0;
+  overflow: auto;
+  padding: 9px;
+  box-sizing: border-box;
+  font-size: 13px;
+  line-height: 1.18;
+  white-space: pre-wrap;
+  user-select: text;
+}
+
+#inspectorBodyV73 .ci-name {
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+#inspectorBodyV73 .ci-type {
+  color: #ddd;
+  margin-bottom: 8px;
+}
+
+#inspectorResizeV73 {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  background:
+    linear-gradient(135deg, transparent 45%, rgba(255,255,255,.55) 46%, rgba(255,255,255,.55) 54%, transparent 55%),
+    linear-gradient(135deg, transparent 62%, rgba(255,255,255,.35) 63%, rgba(255,255,255,.35) 71%, transparent 72%);
+}
+
+
+/* v74 inspector movement override: uses mouse events, not pointer events */
+#inspectorWindowV73 {
+  pointer-events: auto !important;
+}
+
+#inspectorHeaderV73 {
+  pointer-events: auto !important;
+  cursor: move !important;
+}
+
+#inspectorResizeV73 {
+  pointer-events: auto !important;
+  cursor: nwse-resize !important;
+}
+
+
+/* v75: restore the v62 inspector behavior that actually moved */
+#inspectorWindowV73 {
+  display: none !important;
+}
+
+#cardInspectorV62 {
+  position: fixed !important;
+  left: 18px !important;
+  top: calc(50vh + 24px) !important;
+  bottom: auto !important;
+  right: auto !important;
+  width: 260px !important;
+  height: 170px !important;
+  min-width: 140px !important;
+  min-height: 80px !important;
+  max-width: 560px !important;
+  max-height: 70vh !important;
+  resize: both !important;
+  overflow: auto !important;
+  z-index: 2147483647 !important;
+  background: #222 !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,.28) !important;
+  border-radius: 8px !important;
+  padding: 10px !important;
+  box-sizing: border-box !important;
+  font-family: "Times New Roman", Times, serif !important;
+  font-size: 13px !important;
+  line-height: 1.18 !important;
+  white-space: pre-wrap !important;
+  text-transform: none !important;
+  font-style: normal !important;
+  cursor: move !important;
+  pointer-events: auto !important;
+  user-select: text !important;
+}
+
+#cardInspectorV62.hidden {
+  display: none !important;
+}
+
+#cardInspectorV62 .ci-name {
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+#cardInspectorV62 .ci-type {
+  color: #ddd;
+  margin-bottom: 8px;
+}
+
+
+/* v76 inspector: force visible, overriding old hide rules */
+#cardInspectorV62 {
+  display: block !important;
+  position: fixed !important;
+  left: 18px !important;
+  top: calc(50vh + 24px) !important;
+  bottom: auto !important;
+  right: auto !important;
+  width: 260px !important;
+  height: 170px !important;
+  min-width: 140px !important;
+  min-height: 80px !important;
+  max-width: 560px !important;
+  max-height: 70vh !important;
+  resize: both !important;
+  overflow: auto !important;
+  z-index: 2147483647 !important;
+  background: #222 !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,.28) !important;
+  border-radius: 8px !important;
+  padding: 10px !important;
+  box-sizing: border-box !important;
+  font-family: "Times New Roman", Times, serif !important;
+  font-size: 13px !important;
+  line-height: 1.18 !important;
+  white-space: pre-wrap !important;
+  text-transform: none !important;
+  font-style: normal !important;
+  cursor: move !important;
+  pointer-events: auto !important;
+  user-select: text !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+#cardInspectorV62 .ci-name {
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+#cardInspectorV62 .ci-type {
+  color: #ddd;
+  margin-bottom: 8px;
+}
+
+
+/* v77 inspector is a game-object-like draggable element */
+#cardInspectorV62 {
+  display: block !important;
+  position: fixed !important;
+  width: 260px !important;
+  height: 170px !important;
+  min-width: 140px !important;
+  min-height: 80px !important;
+  max-width: 560px !important;
+  max-height: 70vh !important;
+  resize: none !important;
+  overflow: auto !important;
+  z-index: 2147483647 !important;
+  background: #222 !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,.28) !important;
+  border-radius: 8px !important;
+  padding: 10px !important;
+  box-sizing: border-box !important;
+  font-family: "Times New Roman", Times, serif !important;
+  font-size: 13px !important;
+  line-height: 1.18 !important;
+  white-space: pre-wrap !important;
+  text-transform: none !important;
+  font-style: normal !important;
+  cursor: grab !important;
+  pointer-events: auto !important;
+  user-select: text !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+#cardInspectorV62.dragging {
+  cursor: grabbing !important;
+}
+
+#cardInspectorV62 .ci-name {
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+#cardInspectorV62 .ci-type {
+  color: #ddd;
+  margin-bottom: 8px;
+}
+
+#cardInspectorResizeV77 {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  background:
+    linear-gradient(135deg, transparent 45%, rgba(255,255,255,.55) 46%, rgba(255,255,255,.55) 54%, transparent 55%),
+    linear-gradient(135deg, transparent 62%, rgba(255,255,255,.35) 63%, rgba(255,255,255,.35) 71%, transparent 72%);
+}
+
+
+/* v78: inspector is dragged by its own mousedown/mousemove, independent of pointer handlers */
+#cardInspectorV62 {
+  display: block !important;
+  position: fixed !important;
+  left: 18px !important;
+  top: calc(50vh + 24px) !important;
+  width: 260px !important;
+  height: 170px !important;
+  min-width: 140px !important;
+  min-height: 80px !important;
+  max-width: 560px !important;
+  max-height: 70vh !important;
+  resize: none !important;
+  overflow: hidden !important;
+  z-index: 2147483647 !important;
+  background: #222 !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,.28) !important;
+  border-radius: 8px !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  font-family: "Times New Roman", Times, serif !important;
+  font-size: 13px !important;
+  line-height: 1.18 !important;
+  text-transform: none !important;
+  font-style: normal !important;
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+#inspectorDragBarV78 {
+  height: 22px;
+  line-height: 22px;
+  padding: 0 8px;
+  background: rgba(255,255,255,.14);
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: grab;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+#inspectorDragBarV78.dragging {
+  cursor: grabbing;
+}
+
+#inspectorContentV78 {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 22px;
+  bottom: 0;
+  overflow: auto;
+  padding: 9px;
+  box-sizing: border-box;
+  white-space: pre-wrap;
+  user-select: text;
+}
+
+#inspectorResizeV78 {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 22px;
+  height: 22px;
+  cursor: nwse-resize;
+  z-index: 2;
+  background:
+    linear-gradient(135deg, transparent 48%, rgba(255,255,255,.65) 49%, rgba(255,255,255,.65) 55%, transparent 56%),
+    linear-gradient(135deg, transparent 64%, rgba(255,255,255,.45) 65%, rgba(255,255,255,.45) 72%, transparent 73%);
+}
+
+#inspectorContentV78 .ci-name { font-weight: 700; margin-bottom: 5px; }
+#inspectorContentV78 .ci-type { color: #ddd; margin-bottom: 8px; }
+
+
+/* v79 inspector. Important: movable properties are NOT locked with !important. */
+#cardInspectorV79 {
+  display: block !important;
+  position: fixed !important;
+  left: 18px;
+  top: calc(50vh + 24px);
+  width: 260px;
+  height: 170px;
+  min-width: 140px;
+  min-height: 80px;
+  max-width: 560px;
+  max-height: 70vh;
+  overflow: hidden;
+  z-index: 2147483647 !important;
+  background: #222 !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,.28) !important;
+  border-radius: 8px !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  font-family: "Times New Roman", Times, serif !important;
+  font-size: 13px !important;
+  line-height: 1.18 !important;
+  text-transform: none !important;
+  font-style: normal !important;
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+#inspectorDragBarV79 {
+  height: 22px;
+  line-height: 22px;
+  padding: 0 8px;
+  background: rgba(255,255,255,.14);
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: grab;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+#inspectorDragBarV79.dragging { cursor: grabbing; }
+
+#inspectorContentV79 {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 22px;
+  bottom: 0;
+  overflow: auto;
+  padding: 9px;
+  box-sizing: border-box;
+  white-space: pre-wrap;
+  user-select: text;
+}
+
+#inspectorResizeV79 {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 22px;
+  height: 22px;
+  cursor: nwse-resize;
+  z-index: 2;
+  background:
+    linear-gradient(135deg, transparent 48%, rgba(255,255,255,.65) 49%, rgba(255,255,255,.65) 55%, transparent 56%),
+    linear-gradient(135deg, transparent 64%, rgba(255,255,255,.45) 65%, rgba(255,255,255,.45) 72%, transparent 73%);
+}
+
+#inspectorContentV79 .ci-name { font-weight: 700; margin-bottom: 5px; }
+#inspectorContentV79 .ci-type { color: #ddd; margin-bottom: 8px; }
+
+/* hide all older inspector boxes */
+#cardInspectorV62,
+#inspectorWindowV73,
+#oraclePanel,
+#localInspector,
+#floatingOracleBox {
+  display: none !important;
+}
+
+
+/* v80: small flip buttons on Chaos Orb / Falling Star */
+.flip-launch-v80 {
+  position: fixed;
+  z-index: 2147482300;
+  background: #111;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.55);
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 10px;
+  font-family: Arial, sans-serif;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0,0,0,.55);
+}
+
+/* v80: transparent v5-style flip overlay */
+#flipOverlayV80.hidden {
+  display: none !important;
+}
+
+#flipOverlayV80 {
+  position: fixed;
+  inset: 0;
+  z-index: 2147482200;
+  pointer-events: none;
+  background: transparent;
+}
+
+#flipCardV80 {
+  position: fixed;
+  left: calc(50vw - 85px);
+  top: calc(50vh - 119px);
+  width: 170px;
+  height: 237px;
+  border-radius: 8px;
+  z-index: 2147482400;
+  pointer-events: auto;
+  cursor: grab;
+  transform-origin: 50% 50%;
+  box-shadow: 0 8px 22px rgba(0,0,0,.55);
+}
+
+#flipCardV80.dragging {
+  cursor: grabbing;
+}
+
+#flipCardV80.aiming {
+  outline: 3px solid rgba(255,255,255,.75);
+}
+
+#flipCardV80.flipping {
+  pointer-events: none;
+}
+
+#flipImgV80 {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+#flipShadowV80 {
+  position: fixed;
+  width: 170px;
+  height: 237px;
+  border-radius: 8px;
+  background: rgba(0,0,0,.25);
+  filter: blur(10px);
+  z-index: 2147482250;
+  pointer-events: none;
+}
+
+#flipForceV80 {
+  position: fixed;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 12px #fff;
+  transform: translate(-50%,-50%);
+  z-index: 2147482500;
+  pointer-events: none;
+  display: none;
+}
+
+#flipPanelV80 {
+  position: fixed;
+  left: 18px;
+  top: calc(50vh + 18px);
+  width: 190px;
+  height: 178px;
+  background: rgba(10,10,10,.82);
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: 10px;
+  padding: 10px;
+  box-sizing: border-box;
+  color: #fff;
+  z-index: 2147482600;
+  pointer-events: auto;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+}
+
+#flipHeightV80 {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+#flipSideSceneV80 {
+  position: relative;
+  height: 82px;
+  border-left: 1px solid #777;
+  border-bottom: 2px solid #aaa;
+  margin-bottom: 8px;
+}
+
+#flipSideCardV80 {
+  position: absolute;
+  left: 58px;
+  bottom: 52px;
+  width: 72px;
+  height: 8px;
+  background: #ddd;
+  border-radius: 4px;
+  transform-origin: 50% 50%;
+}
+
+#flipPowerOuterV80 {
+  height: 12px;
+  background: #111;
+  border: 1px solid #666;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+#flipPowerInnerV80 {
+  height: 100%;
+  width: 0%;
+  background: #eee;
+}
+
+#flipPanelV80 button {
+  margin: 0 5px 0 0;
+  padding: 5px 8px;
+  font-size: 11px;
+}
+
+
+/* v81 battlefield bounds + pile drop confirmation */
+#battlefieldBoundsV81 {
+  position: fixed;
+  left: 0;
+  top: 50vh;
+  width: calc(100vw - 260px);
+  height: calc(50vh - 92px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+#battlefieldBoundsV81.debug {
+  outline: 2px dashed rgba(255, 80, 80, .75);
+  background: rgba(255, 0, 0, .035);
+}
+
+#libraryDropChoiceV81.hidden {
+  display: none !important;
+}
+
+#libraryDropChoiceV81 {
+  position: fixed;
+  z-index: 2147483600;
+  background: rgba(10,10,10,.92);
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+#libraryDropChoiceV81 button {
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
+
+/* v82 green-menu flip buttons */
+#menuFlipOrbBtn,
+#menuFlipStarBtn {
+  background: #111;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.35);
+}
+
+/* v82 sideboard editor drag-layer fix */
+#sideboardDragLayer {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483000 !important;
+  pointer-events: none !important;
+}
+
+#sideboardDragLayer * {
+  z-index: 2147483001 !important;
+  pointer-events: none !important;
+}
+
+.sideboard-free-card.dragging,
+.sideboard-stack-card.dragging,
+.sideboard-free-card.is-dragging,
+.sideboard-stack-card.is-dragging {
+  z-index: 2147483001 !important;
+  pointer-events: none !important;
+}
+
+.sideboard-box,
+.sideboard-columns,
+#mainboardGrid,
+#sideboardGrid,
+.sideboard-grid {
+  overflow: visible !important;
+}
+
+
+/* v83: fixed green menu flip buttons */
+#menuFlipOrbBtn,
+#menuFlipStarBtn {
+  background: #111 !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,.35) !important;
+}
+
+/* v83 sideboard drag should always be above editor surfaces */
+.sideboard-free-card,
+.sideboard-stack-card,
+.sideboard-card,
+.sb-card {
+  position: absolute;
+}
+
+.sideboard-free-card.dragging,
+.sideboard-stack-card.dragging,
+.sideboard-card.dragging,
+.sb-card.dragging,
+.sideboard-free-card[data-dragging="1"],
+.sideboard-stack-card[data-dragging="1"] {
+  z-index: 2147483200 !important;
+  pointer-events: none !important;
+}
+
+#sideboardModal,
+#sideboardModal * {
+  overflow: visible !important;
+}
+
+#sideboardModal .modal-card,
+#sideboardModal .sideboard-free-card,
+#sideboardModal .sideboard-stack-card {
+  z-index: 50;
+}
+
+/* v83 transparent flip overlay: only card + shadow + small panel */
+#flipOverlayV80 {
+  background: transparent !important;
+}
+
+
+/* v84 clean flip overlay + green menu buttons */
+#menuFlipOrbBtn,
+#menuFlipStarBtn {
+  background: #111 !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,.35) !important;
+}
+
+#flipOverlayV80.hidden {
+  display: none !important;
+}
+
+#flipOverlayV80 {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147482200 !important;
+  pointer-events: none !important;
+  background: transparent !important;
+}
+
+#flipCardV80 {
+  position: fixed !important;
+  width: 170px !important;
+  height: 237px !important;
+  border-radius: 8px !important;
+  z-index: 2147482400 !important;
+  pointer-events: auto !important;
+  cursor: grab !important;
+  transform-origin: 50% 50% !important;
+  box-shadow: 0 8px 22px rgba(0,0,0,.55) !important;
+}
+
+#flipCardV80.dragging { cursor: grabbing !important; }
+#flipCardV80.aiming { outline: 3px solid rgba(255,255,255,.75) !important; }
+#flipCardV80.flipping { pointer-events: none !important; }
+
+#flipImgV80 {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+  border-radius: inherit !important;
+  pointer-events: none !important;
+}
+
+#flipShadowV80 {
+  position: fixed !important;
+  width: 170px !important;
+  height: 237px !important;
+  border-radius: 8px !important;
+  background: rgba(0,0,0,.25) !important;
+  filter: blur(10px) !important;
+  z-index: 2147482250 !important;
+  pointer-events: none !important;
+}
+
+#flipForceV80 {
+  position: fixed !important;
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 50% !important;
+  background: #fff !important;
+  box-shadow: 0 0 12px #fff !important;
+  transform: translate(-50%,-50%) !important;
+  z-index: 2147482500 !important;
+  pointer-events: none !important;
+  display: none;
+}
+
+#flipPanelV80 {
+  position: fixed !important;
+  left: 18px !important;
+  top: calc(50vh + 18px) !important;
+  width: 190px !important;
+  height: 178px !important;
+  background: rgba(10,10,10,.82) !important;
+  border: 1px solid rgba(255,255,255,.28) !important;
+  border-radius: 10px !important;
+  padding: 10px !important;
+  box-sizing: border-box !important;
+  color: #fff !important;
+  z-index: 2147482600 !important;
+  pointer-events: auto !important;
+  font-family: Arial, sans-serif !important;
+  font-size: 11px !important;
+}
+
+#flipHeightV80 { font-weight: 700 !important; margin-bottom: 4px !important; }
+
+#flipSideSceneV80 {
+  position: relative !important;
+  height: 82px !important;
+  border-left: 1px solid #777 !important;
+  border-bottom: 2px solid #aaa !important;
+  margin-bottom: 8px !important;
+}
+
+#flipSideCardV80 {
+  position: absolute !important;
+  left: 58px !important;
+  bottom: 52px;
+  width: 72px !important;
+  height: 8px !important;
+  background: #ddd !important;
+  border-radius: 4px !important;
+  transform-origin: 50% 50% !important;
+}
+
+#flipPowerOuterV80 {
+  height: 12px !important;
+  background: #111 !important;
+  border: 1px solid #666 !important;
+  border-radius: 999px !important;
+  overflow: hidden !important;
+  margin-bottom: 8px !important;
+}
+
+#flipPowerInnerV80 {
+  height: 100% !important;
+  width: 0%;
+  background: #eee !important;
+}
+
+#flipPanelV80 button {
+  margin: 0 5px 0 0 !important;
+  padding: 5px 8px !important;
+  font-size: 11px !important;
+}
+
+
+/* v85: larger movable side-height diagram, better scale */
+#flipPanelV80 {
+  width: 260px !important;
+  height: 250px !important;
+  cursor: default !important;
+}
+
+#flipHeightV80 {
+  cursor: move !important;
+  user-select: none !important;
+}
+
+#flipSideSceneV80 {
+  height: 158px !important;
+  margin-bottom: 9px !important;
+}
+
+#flipSideCardV80 {
+  left: 72px !important;
+  width: 112px !important;
+  height: 5px !important;
+}
+
+
+/* v86: flip side diagram proportions */
+#flipPanelV80 {
+  width: 260px !important;
+  height: 260px !important;
+}
+
+#flipHeightV80 {
+  cursor: move !important;
+  user-select: none !important;
+}
+
+#flipSideSceneV80 {
+  height: 170px !important;
+  margin-bottom: 9px !important;
+}
+
+#flipSideCardV80 {
+  left: 108px !important;
+  width: 38px !important;   /* about one third of previous */
+  height: 5px !important;
+}
+
+/* v86: sideboard editor drag cards must be topmost */
+.sb-drag-proxy-v86 {
+  position: fixed !important;
+  z-index: 2147483600 !important;
+  pointer-events: none !important;
+  border-radius: 6px;
+  box-shadow: 0 12px 26px rgba(0,0,0,.65);
+}
+
+.sb-drag-proxy-v86 img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+}
+
+#sideboardModal,
+#sideboardModal * {
+  overflow: visible !important;
+}
+
+#sideboardModal .sideboard-free-card,
+#sideboardModal .sideboard-stack-card,
+#sideboardModal .sideboard-card,
+#sideboardModal .sb-card {
+  z-index: 50;
+}
+
+#sideboardModal .sideboard-free-card.dragging,
+#sideboardModal .sideboard-stack-card.dragging,
+#sideboardModal .sideboard-card.dragging,
+#sideboardModal .sb-card.dragging {
+  opacity: .35;
+}
+
+
+/* v87 flip / free movement / playmat */
+#flipSideCardV80 {
+  width: 38px !important;
+  height: 5px !important;
+}
+
+.menu-playmat-row {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+}
+
+#menuPlaymatSelect {
+  display: block;
+  width: 100%;
+  margin-top: 3px;
+  background: #111;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 5px;
+  padding: 4px;
+}
+
+.playmat-v87 {
+  position: fixed;
+  inset: 50vh 0 0 0;
+  z-index: 0;
+  pointer-events: none;
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  opacity: 1;
+}
+
+.battle-card {
+  z-index: auto;
+}
+
+
+/* v88: restore movable flip side panel */
+#flipPanelV80 {
+  cursor: default !important;
+}
+
+#flipHeightV80 {
+  cursor: move !important;
+  user-select: none !important;
+}
+
+#flipSideCardV80 {
+  width: 38px !important;
+  height: 5px !important;
+}
+
+
+/* v89: sideboard drag proxy and corrected flip side panel */
+#flipPanelV80 {
+  width: 250px !important;
+  height: 240px !important;
+  cursor: default !important;
+}
+
+#flipHeightV80 {
+  cursor: move !important;
+  user-select: none !important;
+}
+
+#flipSideSceneV80 {
+  height: 80px !important;       /* ~8 cm visual height */
+  margin-bottom: 10px !important;
+}
+
+#flipSideCardV80 {
+  left: 100px !important;
+  width: 42px !important;
+  height: 5px !important;
+}
+
+.sbProxyV89 {
+  position: fixed !important;
+  z-index: 2147483646 !important;
+  pointer-events: none !important;
+  border-radius: 6px;
+  box-shadow: 0 12px 28px rgba(0,0,0,.75);
+  background: transparent;
+}
+
+.sbProxyV89 img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+}
+
+.sb-source-hidden-v89 {
+  opacity: .18 !important;
+}
+
+#sideboardModal,
+#sideboardModal * {
+  overflow: visible !important;
+}
+
+
+/* v91: sideboard editor clean drag overlay fix only */
+#sbDragOverlayV91 {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  pointer-events: none;
+}
+
+#sbDragProxyV91 {
+  position: fixed;
+  z-index: 2147483647;
+  pointer-events: none;
+  border-radius: 6px;
+  box-shadow: 0 14px 30px rgba(0,0,0,.75);
+  background: transparent;
+}
+
+#sbDragProxyV91 img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.sbHiddenWhileDraggingV91 {
+  opacity: .12 !important;
+}
+
+#sideboardModal,
+#sideboardModal .modal-content,
+#sideboardModal .sideboard-editor,
+#sideboardModal .sideboard-area,
+#sideboardModal .main-area,
+#sideboardModal [class*="main"],
+#sideboardModal [class*="side"] {
+  overflow: visible !important;
+}
+
+
+/* v92 rebuilt sideboard editor */
+#sideboardModal.v92-sideboard { background: transparent !important; }
+
+#sideboardModal.v92-sideboard .v92-board {
+  position: fixed;
+  left: 22px;
+  top: 22px;
+  right: 22px;
+  bottom: 22px;
+  z-index: 2147482000;
+  background: rgba(15,15,15,.96);
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 12px;
+  padding: 14px 18px 18px 18px;
+  box-sizing: border-box;
+  color: #fff;
+  overflow: hidden;
+}
+
+.v92-sb-top {
+  height: 42px;
+  display: grid;
+  grid-template-columns: 120px 1fr 1fr;
+  align-items: center;
+  gap: 18px;
+}
+
+.v92-ready {
+  width: 82px;
+  height: 34px;
+  border: 0;
+  border-radius: 7px;
+  background: #333;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.v92-title {
+  font-size: 25px;
+  font-family: Arial, sans-serif;
+  font-weight: 900;
+  font-style: italic;
+  text-align: center;
+}
+
+.v92-zones {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 62px;
+  bottom: 18px;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 18px;
+}
+
+.v92-zone {
+  position: relative;
+  border: 1px solid rgba(255,255,255,.23);
+  border-radius: 8px;
+  background: rgba(0,0,0,.25);
+  overflow: hidden;
+}
+
+.v92-zone.drag-over { outline: 2px solid rgba(255,255,255,.75); }
+
+.v92-card {
+  position: absolute;
+  width: 110px;
+  height: 154px;
+  border-radius: 6px;
+  background: #111;
+  box-shadow: 0 5px 12px rgba(0,0,0,.55);
+  cursor: grab;
+  user-select: none;
+}
+
+.v92-card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.v92-card.v92-hidden-source { opacity: .15; }
+
+#v92SideboardProxy {
+  position: fixed;
+  z-index: 2147483647;
+  pointer-events: none;
+  width: 110px;
+  height: 154px;
+  border-radius: 6px;
+  box-shadow: 0 14px 30px rgba(0,0,0,.75);
+}
+
+#v92SideboardProxy img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+
+/* v93 sideboard rebuilt editor event fix */
+#sideboardModal.v93-sideboard {
+  background: transparent !important;
+  pointer-events: auto !important;
+}
+
+#sideboardModal.v93-sideboard .v93-board {
+  position: fixed;
+  left: 22px;
+  top: 22px;
+  right: 22px;
+  bottom: 22px;
+  z-index: 2147482000;
+  background: rgba(15,15,15,.96);
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 12px;
+  padding: 14px 18px 18px 18px;
+  box-sizing: border-box;
+  color: #fff;
+  overflow: hidden;
+  pointer-events: auto !important;
+}
+
+.v93-sb-top {
+  height: 42px;
+  display: grid;
+  grid-template-columns: 120px 1fr 1fr;
+  align-items: center;
+  gap: 18px;
+}
+
+.v93-ready {
+  width: 82px;
+  height: 34px;
+  border: 0;
+  border-radius: 7px;
+  background: #333;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  pointer-events: auto !important;
+}
+
+.v93-title {
+  font-size: 25px;
+  font-family: Arial, sans-serif;
+  font-weight: 900;
+  font-style: italic;
+  text-align: center;
+}
+
+.v93-zones {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 62px;
+  bottom: 18px;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 18px;
+  pointer-events: auto !important;
+}
+
+.v93-zone {
+  position: relative;
+  border: 1px solid rgba(255,255,255,.23);
+  border-radius: 8px;
+  background: rgba(0,0,0,.25);
+  overflow: hidden;
+  pointer-events: auto !important;
+}
+
+.v93-zone.drag-over { outline: 2px solid rgba(255,255,255,.75); }
+
+.v93-card {
+  position: absolute;
+  width: 110px;
+  height: 154px;
+  border-radius: 6px;
+  background: #111;
+  box-shadow: 0 5px 12px rgba(0,0,0,.55);
+  cursor: grab;
+  user-select: none;
+  pointer-events: auto !important;
+  z-index: 10;
+}
+
+.v93-card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  pointer-events: none !important;
+}
+
+.v93-card.v93-hidden-source { opacity: .15; }
+
+#v93SideboardProxy {
+  position: fixed;
+  z-index: 2147483647;
+  pointer-events: none !important;
+  width: 110px;
+  height: 154px;
+  border-radius: 6px;
+  box-shadow: 0 14px 30px rgba(0,0,0,.75);
+}
+
+#v93SideboardProxy img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+
+/* v94 sideboard editor multi-select */
+.v93-card.v94-selected {
+  outline: 3px solid #fff;
+  box-shadow: 0 0 16px rgba(255,255,255,.85), 0 5px 12px rgba(0,0,0,.55);
+}
+
+#v93SideboardProxy.v94-multi {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20,20,20,.78);
+  border: 1px solid rgba(255,255,255,.5);
+  color: #fff;
+  font-family: Arial, sans-serif;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+#v93SideboardProxy.v94-multi img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: .78;
+}
+
+
+/* v95 sideboard refinements */
+.v93-card.v94-selected,
+.v93-card.v95-selected {
+  outline: 1px solid rgba(255,255,255,.55) !important;
+  box-shadow: 0 0 7px rgba(255,255,255,.35), 0 5px 12px rgba(0,0,0,.55) !important;
+}
+
+#v93SideboardProxy.v95-multi {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  width: 190px !important;
+  height: 190px !important;
+}
+
+#v93SideboardProxy.v95-multi img {
+  position: absolute;
+  width: 110px;
+  height: 154px;
+  border-radius: 6px;
+  box-shadow: 0 8px 18px rgba(0,0,0,.6);
+  opacity: .92;
+}
+
+#v93SideboardProxy.v95-multi img:nth-child(1) { left: 0; top: 0; }
+#v93SideboardProxy.v95-multi img:nth-child(2) { left: 18px; top: 14px; }
+#v93SideboardProxy.v95-multi img:nth-child(3) { left: 36px; top: 28px; }
+#v93SideboardProxy.v95-multi img:nth-child(4) { left: 54px; top: 42px; }
+#v93SideboardProxy.v95-multi img:nth-child(n+5) { display: none; }
+
+
+/* v97: sideboard drag proxy no-flicker */
+#v93SideboardProxy {
+  z-index: 2147483647 !important;
+  will-change: transform;
+  transform: translateZ(0);
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.v93-card.v97-drag-source {
+  opacity: .35 !important;
+  filter: brightness(.75);
+}
+
+.v93-card.v93-hidden-source {
+  opacity: .35 !important;
+  filter: brightness(.75);
+}
+
+
+/* v98 inspector: compact text, font controls, default opponent button area */
+#cardInspectorV79,
+#cardInspectorV62 {
+  width: 270px !important;
+  height: 185px !important;
+}
+
+#inspectorDragBarV79 {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+#inspectorDragBarV79 .inspectorTitleV98 {
+  flex: 1;
+}
+
+#inspectorDragBarV79 .inspectorFontBtnV98 {
+  width: 18px;
+  height: 18px;
+  line-height: 16px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 4px;
+  background: #111;
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+#inspectorContentV79,
+#inspectorContentV78,
+#inspectorContentV77,
+#inspectorContentV62 {
+  line-height: 1.12 !important;
+}
+
+#inspectorContentV79 .ci-name,
+#inspectorContentV78 .ci-name,
+#inspectorContentV62 .ci-name {
+  font-weight: 700 !important;
+  margin: 0 !important;
+}
+
+#inspectorContentV79 .ci-type,
+#inspectorContentV78 .ci-type,
+#inspectorContentV62 .ci-type {
+  font-style: italic !important;
+  color: #ddd !important;
+  margin: 0 !important;
+}
+
+#inspectorContentV79 .ci-oracle,
+#inspectorContentV78 .ci-oracle,
+#inspectorContentV62 .ci-oracle {
+  font-weight: 400 !important;
+  font-style: normal !important;
+  margin: 0 !important;
+}
+
+/* v98 hide opponent deck control panel if identifiable */
+#p2DeckControls,
+#p2LibraryControls,
+.opponent-deck-controls,
+.p2-deck-controls,
+[data-player="p2"].deck-controls,
+[data-owner="p2"].deck-controls {
+  display: none !important;
+}
+
+
+/* v99: orb flip side gauge based on supplied diagram */
+#flipPanelV80 {
+  width: 330px !important;
+  height: 560px !important;
+  background: #211f1f !important;
+  border: 1px solid rgba(255,255,255,.25) !important;
+  border-radius: 0 !important;
+  padding: 12px !important;
+  box-sizing: border-box !important;
+}
+
+#flipHeightV80 {
+  cursor: move !important;
+  user-select: none !important;
+  color: #eee !important;
+  font-size: 11px !important;
+  height: 18px !important;
+  line-height: 18px !important;
+}
+
+#flipSideSceneV80 {
+  position: relative !important;
+  width: 300px !important;
+  height: 500px !important;
+  margin: 0 auto 8px auto !important;
+  border: 0 !important;
+  background: transparent !important;
+  overflow: hidden !important;
+}
+
+#flipSideSceneV80::before {
+  content: "";
+  position: absolute;
+  left: 48px;
+  top: 22px;
+  width: 2px;
+  height: 450px;
+  background: #57b85d;
+}
+
+#flipSideSceneV80::after {
+  content: "";
+  position: absolute;
+  left: 48px;
+  top: 472px;
+  width: 235px;
+  height: 2px;
+  background: #57b85d;
+}
+
+.flipTickV99 {
+  position: absolute;
+  left: 38px;
+  width: 18px;
+  height: 2px;
+  background: #57b85d;
+}
+
+.flipTickLabelV99 {
+  position: absolute;
+  left: 4px;
+  transform: translateY(-50%);
+  color: #f0443e;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 22px;
+  line-height: 1;
+}
+
+#flipSideCardV80 {
+  position: absolute !important;
+  left: 130px !important;
+  width: 64px !important;
+  height: 6px !important;
+  background: #a98258 !important;
+  border-radius: 0 !important;
+  transform-origin: 50% 50% !important;
+  z-index: 3 !important;
+}
+
+#flipSideFingerV99 {
+  position: absolute;
+  left: 214px;
+  top: 175px;
+  width: 72px;
+  height: 54px;
+  opacity: .95;
+  pointer-events: none;
+}
+
+#flipSideFingerV99 svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#flipPowerOuterV80 {
+  height: 10px !important;
+  margin: 4px 0 8px 0 !important;
+}
+
+#flipPanelV80 button {
+  font-size: 10px !important;
+  padding: 4px 7px !important;
+}
+
+/* === PLAYMAT PICKER + FINAL Z / SIDEBOARD PATCH === */
+#p1Playmat,
+#p2Playmat {
+  position: fixed !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 50vh !important;
+  background-size: cover !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+}
+
+#p1Playmat {
+  bottom: 0 !important;
+}
+
+#p2Playmat {
+  top: 0 !important;
+  transform: rotate(180deg) !important;
+}
+
+#table {
+  background: transparent !important;
+  z-index: 2 !important;
+}
+
+#diceLayer {
+  z-index: 30000 !important;
+}
+
+.die {
+  z-index: inherit;
+}
+
+.playmat-menu-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin: 8px 0;
+}
+
+.playmat-menu-row button {
+  min-height: 28px;
+  padding: 4px 6px;
+  font-size: 11px;
+}
+
+#playmatPicker {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  display: none;
+  background: rgba(0,0,0,.62);
+}
+
+#playmatPickerInner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 156px;
+  background: rgba(12,12,12,.96);
+  border-top: 1px solid rgba(255,255,255,.25);
+  padding: 14px 16px 20px;
+  box-shadow: 0 -12px 32px rgba(0,0,0,.65);
+}
+
+#playmatPickerTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+#playmatPickerTitle {
+  color: #eee;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+#playmatGrid {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 6px 4px 14px;
+  scroll-behavior: smooth;
+  cursor: grab;
+}
+
+#playmatGrid.dragging {
+  cursor: grabbing;
+}
+
+#playmatGrid::-webkit-scrollbar {
+  height: 8px;
+}
+
+#playmatGrid::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 999px;
+}
+
+.pm-thumb {
+  min-width: 142px;
+  height: 92px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 9px;
+  background-color: #333;
+  background-size: cover;
+  background-position: center;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,.45);
+}
+
+.pm-thumb.selected {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+.pm-color-thumb {
+  background:
+    linear-gradient(135deg, #e33, #fc3 28%, #3c6 50%, #39f 72%, #a4f);
+  color: #fff;
+  font-weight: 700;
+  text-shadow: 0 1px 4px #000;
+}
+
+#playmatColorControls {
+  display: none;
+  gap: 12px;
+  align-items: center;
+  color: #eee;
+  padding: 4px;
+}
+
+#playmatColorControls.open {
+  display: flex;
+}
+
+#playmatColorControls label {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+
+#sideboardModal .sideboard-free-card {
+  position: absolute !important;
+}
+
+
+
+
+/* layer13: final hand hover behavior.
+   Hand cards keep exact fan geometry on hover; only the inner card image gets a small brightness lift. */
+#p1HandFan .card.hand-card,
+#p1HandFan .card.hand-card:hover,
+#p1HandFan .card.hand-card:focus,
+#p1HandFan .card.hand-card:active,
+#p2HandFan .card.hand-card,
+#p2HandFan .card.hand-card:hover,
+#p2HandFan .card.hand-card:focus,
+#p2HandFan .card.hand-card:active {
+  transform: var(--hand-transform) !important;
+  transform-origin: 0 100% !important;
+  z-index: var(--hand-z) !important;
+  filter: none !important;
+  translate: 0 0 !important;
+  scale: 1 !important;
+  transition: none !important;
+  will-change: auto !important;
+}
+
+#p1HandFan .card.hand-card:hover .card-face,
+#p1HandFan .card.hand-card:hover .card-back,
+#p2HandFan .card.hand-card:hover .card-face,
+#p2HandFan .card.hand-card:hover .card-back {
+  filter: brightness(1.06) !important;
+  transform: none !important;
+  transition: none !important;
+}
+
+/* layer14/layer15: stacked card slots for tutor and sideboard editor */
+:root {
+  --named-stack-card-w: 150px;
+  --named-stack-card-h: calc(var(--named-stack-card-w) * 1.397);
+  --named-stack-step: 28px; /* about 1 cm of each card name/top edge visible */
+  --named-stack-slot-h: calc(var(--named-stack-card-h) + (var(--named-stack-step) * 3));
+}
+
+.library-box {
+  width: min(1320px, calc(100vw - 32px)) !important;
+  height: min(900px, calc(100vh - 32px)) !important;
+}
+
+.library-stack-slot,
+.side-main-stack-slot {
+  position: relative !important;
+  width: var(--named-stack-card-w) !important;
+  height: var(--named-stack-slot-h) !important;
+  border-radius: 8px !important;
+  cursor: pointer;
+}
+
+.library-stack-slot.selected,
+.side-main-stack-slot.selected {
+  outline: 3px solid #20bf55 !important;
+}
+
+.library-stack-slot .stacked-card-img,
+.side-main-stack-slot .stacked-card-img {
+  position: absolute;
+  left: 0 !important;
+  width: var(--named-stack-card-w);
+  height: auto;
+  border-radius: 7px;
+  display: block;
+  box-shadow: 0 3px 10px rgba(0,0,0,.55);
+  pointer-events: auto;
+}
+
+.library-stack-slot:hover,
+.side-main-stack-slot:hover {
+  outline: 1px solid rgba(255,255,255,.85);
+}
+
+
+#libraryGrid {
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)) !important;
+  align-items: start !important;
+  gap: 22px 22px !important;
+}
+
+#mainboardGrid.sideboard-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, 170px) !important;
+  gap: 22px !important;
+  align-items: start !important;
+  overflow: auto !important;
+}
+
+#sideboardGrid.sideboard-grid {
+  display: block !important;
+  overflow: auto !important;
+  min-width: 300px !important;
+}
+
+.side-one-stack {
+  position: relative;
+  width: 230px;
+  min-height: 720px;
+  margin: 36px auto 80px auto;
+}
+
+.side-one-stack-card {
+  position: absolute;
+  width: 150px;
+  border-radius: 7px;
+  display: block;
+  box-shadow: 0 3px 10px rgba(0,0,0,.55);
+  cursor: pointer;
+}
+
+
+/* layer19: sideboard editor layout tuning
+   MAIN: six named 4-card stacks per row, vertical scroll.
+   SIDE: two long 15-card stacks. */
+#sideboardModal.v99-sideboard .v93-zones {
+  grid-template-columns: minmax(940px, 1fr) 300px !important;
+  gap: 18px !important;
+}
+
+#sideboardModal.v99-sideboard #v93MainZone {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  min-width: 940px !important;
+}
+
+#sideboardModal.v99-sideboard #v93SideZone {
+  overflow: hidden !important;
+  width: 300px !important;
+}
+
+#sideboardModal.v99-sideboard .v93-card {
+  width: 110px !important;
+  height: 154px !important;
+}
+
+/* layer20: sideboard editor interaction + visual finish */
+#sideboardModal.v99-sideboard .v93-board {
+  background: #6b6b6b !important;
+}
+
+#sideboardModal.v99-sideboard .v93-zone {
+  background: #777 !important;
+  border-color: rgba(255,255,255,.35) !important;
+}
+
+#sideboardModal.v99-sideboard .v93-card.v20-selected,
+#sideboardModal.v99-sideboard .v93-card.v95-selected {
+  outline: 1px solid #fff !important;
+  outline-offset: -1px !important;
+  box-shadow: 0 5px 12px rgba(0,0,0,.55) !important;
+}
+
+#sideboardModal.v99-sideboard .v93-card.v20-drag-source {
+  opacity: .35 !important;
+  filter: brightness(.75) !important;
+}
+
+#v20SideboardProxy {
+  position: fixed;
+  z-index: 2147483647 !important;
+  pointer-events: none !important;
+  width: 110px;
+  height: 154px;
+  border-radius: 6px;
+  transform: translateZ(0);
+}
+
+#v20SideboardProxy img {
+  position: absolute;
+  width: 110px;
+  height: 154px;
+  border-radius: 6px;
+  box-shadow: 0 10px 22px rgba(0,0,0,.72);
+}
+
+
+/* layer21: static sideboard editor slots */
+#sideboardModal.v99-sideboard .v93-board {
+  background: #777 !important;
+}
+#sideboardModal.v99-sideboard #v93MainZone {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  background: #777 !important;
+}
+#sideboardModal.v99-sideboard #v93SideZone {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  background: #777 !important;
+}
+#sideboardModal.v99-sideboard .v93-card.v95-selected,
+#sideboardModal.v99-sideboard .v93-card.v20-selected {
+  outline: 1px solid #fff !important;
+  outline-offset: 0 !important;
+}
+
+/* layer22: keep own dice visible above deck controls and compact side editor width */
+#table {
+  z-index: auto !important;
+}
+
+#diceLayer {
+  position: fixed !important;
+  z-index: 2147482500 !important;
+  pointer-events: none !important;
+}
+
+#sideboardModal.v99-sideboard .v93-zones {
+  grid-template-columns: 880px 286px !important;
+  gap: 10px !important;
+  justify-content: start !important;
+}
+
+#sideboardModal.v99-sideboard #v93MainZone {
+  min-width: 0 !important;
+  width: 880px !important;
+}
+
+#sideboardModal.v99-sideboard #v93SideZone {
+  width: 286px !important;
+}
+
+/* layer24: compact sideboard editor board + keep life dice off deck controls */
+#sideboardModal.v99-sideboard .v93-board {
+  right: auto !important;
+  width: 1224px !important;
+  max-width: calc(100vw - 44px) !important;
+  background: #777 !important;
+}
+
+#sideboardModal.v99-sideboard .v93-sb-top {
+  display: grid !important;
+  grid-template-columns: 82px 880px 286px !important;
+  gap: 10px !important;
+  align-items: center !important;
+}
+
+#sideboardModal.v99-sideboard .v93-title {
+  text-align: center !important;
+}
+
+#sideboardModal.v99-sideboard .v93-zones {
+  left: 18px !important;
+  right: auto !important;
+  width: 1176px !important;
+  grid-template-columns: 880px 286px !important;
+  gap: 10px !important;
+}
+
+#sideboardModal.v99-sideboard #v93MainZone {
+  width: 880px !important;
+  min-width: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+#sideboardModal.v99-sideboard #v93SideZone {
+  width: 286px !important;
+  min-width: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+
+/* layer25: MAIN scrolls vertically; SIDE stays fixed/no scroll. */
+#sideboardModal.v99-sideboard #v93MainZone {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+#sideboardModal.v99-sideboard #v93SideZone {
+  overflow: hidden !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+#sideboardModal.v99-sideboard .v99-scroll-spacer { display: block !important; }
+
+
+/* layer26: one two-row playmat picker, no dark backdrop */
+.playmat-menu-row {
+  display: block !important;
+  margin: 8px 0 !important;
+}
+
+.playmat-menu-row button,
+#menuPlaymatBtn {
+  width: 100% !important;
+  min-height: 28px !important;
+  padding: 4px 6px !important;
+  font-size: 11px !important;
+}
+
+#playmatPicker {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 999999 !important;
+  display: none;
+  background: transparent !important;
+  pointer-events: none !important;
+}
+
+#playmatPickerInner {
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  min-height: 286px !important;
+  background: rgba(12,12,12,.92) !important;
+  border-top: 1px solid rgba(255,255,255,.25) !important;
+  padding: 10px 16px 14px !important;
+  box-shadow: 0 -12px 32px rgba(0,0,0,.55) !important;
+  pointer-events: auto !important;
+}
+
+#playmatPickerTop {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  margin-bottom: 6px !important;
+}
+
+#playmatPickerTitle,
+.playmat-row-label {
+  color: #eee !important;
+  font-weight: 700 !important;
+  letter-spacing: .04em !important;
+}
+
+.playmat-row-label {
+  font-size: 11px !important;
+  margin: 5px 0 3px !important;
+  opacity: .8 !important;
+}
+
+.playmat-grid {
+  display: flex !important;
+  gap: 10px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 4px 4px 10px !important;
+  scroll-behavior: smooth !important;
+  cursor: grab !important;
+}
+
+.playmat-grid.dragging {
+  cursor: grabbing !important;
+}
+
+.playmat-grid::-webkit-scrollbar {
+  height: 7px !important;
+}
+
+.playmat-grid::-webkit-scrollbar-thumb {
+  background: #888 !important;
+  border-radius: 999px !important;
+}
+
+#playmatGrid {
+  display: none !important;
+}
+
+.pm-thumb {
+  min-width: 116px !important;
+  height: 62px !important;
+  flex: 0 0 auto !important;
+  border: 1px solid rgba(255,255,255,.22) !important;
+  border-radius: 8px !important;
+  background-color: #333 !important;
+  background-size: cover !important;
+  background-position: center !important;
+  color: #fff !important;
+  display: grid !important;
+  place-items: center !important;
+  cursor: pointer !important;
+  box-shadow: 0 3px 10px rgba(0,0,0,.45) !important;
+}
+
+.pm-thumb.selected {
+  outline: 3px solid #fff !important;
+  outline-offset: 2px !important;
+}
+
+#playmatColorControls {
+  display: none !important;
+  gap: 12px !important;
+  align-items: center !important;
+  color: #eee !important;
+  padding: 4px !important;
+}
+
+#playmatColorControls.open {
+  display: flex !important;
+}
+
+#playmatColorControls label {
+  display: flex !important;
+  gap: 7px !important;
+  align-items: center !important;
+}
+
+
+/* layer27: library control panel has mulligan below reveal */
+.library-controls {
+  grid-template-rows: repeat(9, minmax(0, 1fr)) !important;
+}
+
+/* layer29: dice color slider is directly visible in the context menu. */
+#diceMenu button[data-die-action="color"] {
+  display: none !important;
+}
+#dieColorBox {
+  display: block !important;
+  padding: 8px 10px 10px !important;
+  background: #111 !important;
+}
+#dieHue {
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+/* layer31: OG BACK 2 uses lapi2.png as the actual sleeve/back image. */
+body.sleeve-ogback2 .sleeve-back,
+body.sleeve-ogback2 .card-back,
+body.sleeve-ogback2 .pile-visual {
+  background-color: #000 !important;
+  background-image: url("lapi2.png") !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+body.sleeve-ogback2 .transparent-sleeve {
+  background-image: url("lapi2.png") !important;
+  background-size: cover !important;
+  background-position: center !important;
+}
+
+/* Opponent hand must stay as card backs facing the local player. */
+#p2HandFan .card.hand-card.opponent-hand-back .card-face {
+  display: none !important;
+}
+
+#p2HandFan .card.hand-card.opponent-hand-back .card-back {
+  display: block !important;
+}
+
+/* layer33: opponent hand privacy hard lock */
+.card.opponent-hand-private {
+  pointer-events: auto !important;
+  cursor: default !important;
+}
+.card.opponent-hand-private:hover {
+  transform: var(--hand-transform) !important;
+  z-index: var(--hand-z) !important;
+  filter: none !important;
+}
+.card.opponent-hand-private .card-face,
+.card.opponent-hand-private .card-back {
+  pointer-events: none !important;
+}
+
+/* layer38: actual redesigned library / graveyard / exile block */
+:root { --l38-panel-gap: 14px; --l38-control-h: 265px; --l38-exile-h: 155px; }
+.pile-column { width: calc(var(--deck-card-w) * 2 + var(--l38-panel-gap)) !important; grid-template-columns: var(--deck-card-w) var(--deck-card-w) !important; grid-template-rows: var(--deck-card-h) var(--l38-control-h) var(--l38-exile-h) !important; column-gap: var(--l38-panel-gap) !important; row-gap: 14px !important; overflow: visible !important; }
+.pile-zone[data-kind="library"] { grid-column: 1 !important; grid-row: 1 !important; width: var(--deck-card-w) !important; height: var(--deck-card-h) !important; overflow: visible !important; }
+.pile-zone[data-kind="library"] .pile-title { top: auto !important; bottom: calc(-1.45em - 8px) !important; font-size: clamp(18px, 1.8vw, 26px) !important; z-index: 25 !important; }
+.pile-zone[data-kind="graveyard"] { grid-column: 2 !important; grid-row: 1 / span 3 !important; width: var(--deck-card-w) !important; height: calc(var(--deck-card-h) + var(--l38-control-h) + var(--l38-exile-h) + 28px) !important; overflow: hidden !important; background: #050505 !important; border: 0 !important; }
+.pile-zone[data-kind="graveyard"] .pile-title { top: auto !important; bottom: -2.1em !important; color: #0b6cff !important; font-size: clamp(14px, 1.4vw, 20px) !important; z-index: 40 !important; }
+.pile-zone[data-kind="exile"] { grid-column: 1 !important; grid-row: 3 !important; width: var(--deck-card-w) !important; height: var(--l38-exile-h) !important; overflow: hidden !important; background: #000 !important; }
+.pile-zone[data-kind="exile"] .pile-title { top: auto !important; bottom: calc(-1.45em - 8px) !important; font-size: clamp(16px, 1.6vw, 24px) !important; z-index: 25 !important; }
+.library-controls { position: absolute !important; left: 0 !important; right: auto !important; top: calc(100% + 46px) !important; width: var(--deck-card-w) !important; height: var(--l38-control-h) !important; display: grid !important; grid-template-rows: 54px 1fr !important; gap: 9px !important; padding: 9px !important; background: #0c0c0c !important; border: 1px solid rgba(255,255,255,.28) !important; border-radius: 8px !important; z-index: 35 !important; overflow: hidden !important; }
+.library-controls > label, .library-controls > input[type="range"], .library-controls > button { display: none !important; }
+.l38-draw-row { display: grid !important; grid-template-columns: 1fr 28px !important; gap: 7px !important; min-height: 0 !important; }
+.l38-draw-button { display: block !important; height: 100% !important; min-height: 0 !important; padding: 0 !important; font-size: clamp(18px, 2vw, 28px) !important; font-style: normal !important; text-transform: lowercase !important; background: #f7f7f7 !important; color: #111 !important; border: 1px solid #222 !important; border-radius: 0 !important; box-shadow: none !important; cursor: ns-resize !important; }
+.l38-draw-arrows { display: grid !important; grid-template-rows: 1fr 1fr !important; gap: 5px !important; }
+.l38-draw-arrows button { display: grid !important; place-items: center !important; min-height: 0 !important; height: auto !important; padding: 0 !important; background: #eee !important; color: #111 !important; border: 1px solid #222 !important; border-radius: 0 !important; box-shadow: none !important; font-size: 18px !important; }
+.l38-button-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; grid-template-rows: repeat(4, 1fr) !important; gap: 8px !important; min-height: 0 !important; }
+.l38-button-grid button { display: block !important; width: 100% !important; height: 100% !important; min-height: 0 !important; padding: 0 3px !important; border-radius: 0 !important; border: 1px solid #777 !important; background: #f7f7f7 !important; color: #111 !important; box-shadow: none !important; font-size: clamp(8px, .8vw, 12px) !important; line-height: 1 !important; }
+.l38-button-grid button.l38-future-button { opacity: 1 !important; color: transparent !important; pointer-events: none !important; }
+.l38-grave-scroll { position: absolute !important; inset: 0 !important; overflow-y: auto !important; overflow-x: hidden !important; scrollbar-width: thin !important; background: #050505 !important; border-radius: inherit !important; }
+.l38-grave-inner { position: relative !important; width: 100% !important; min-height: 100% !important; }
+.l38-grave-card { position: absolute !important; left: 0 !important; width: 100% !important; border-radius: 5.5% / 4% !important; background: #050505 !important; box-shadow: 0 2px 5px rgba(0,0,0,.75) !important; cursor: grab !important; pointer-events: auto !important; }
+.l38-grave-card img { width: 100% !important; display: block !important; border-radius: inherit !important; pointer-events: none !important; }
+.l38-grave-card:hover img { filter: brightness(1.08) !important; }
+.l38-exile-box { position: absolute !important; inset: 0 !important; display: grid !important; place-items: center !important; background: #000 !important; color: #eee !important; border-radius: inherit !important; font-weight: 700 !important; cursor: pointer !important; text-align: center !important; }
+.l38-exile-box:hover { filter: brightness(1.12) !important; }
+#l38ExileModal { background: rgba(0,0,0,.15) !important; }
+#l38ExileModal .modal-box { width: min(980px, calc(100vw - 48px)) !important; height: min(760px, calc(100vh - 48px)) !important; display: grid !important; grid-template-rows: auto 1fr auto !important; }
+#l38ExileGrid { overflow: auto !important; display: grid !important; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)) !important; gap: 14px !important; padding: 12px !important; background: #151515 !important; border: 1px solid #444 !important; border-radius: 8px !important; }
+.l38-exile-card { width: 118px !important; border-radius: 7px !important; cursor: pointer !important; position: relative !important; }
+.l38-exile-card img { width: 118px !important; border-radius: 7px !important; display: block !important; pointer-events: none !important; }
+.l38-exile-card.selected { outline: 2px solid #fff !important; }
+.pile-visual.l38-shuffling, .sleeve-back.l38-shuffling { animation: l38LibraryShake 2s linear !important; }
+@keyframes l38LibraryShake { 0%,100%{transform:translate(0,0) rotate(0deg)} 5%{transform:translate(-6px,3px) rotate(-3deg)} 10%{transform:translate(5px,-2px) rotate(3deg)} 15%{transform:translate(-5px,-3px) rotate(2deg)} 20%{transform:translate(6px,2px) rotate(-3deg)} 25%{transform:translate(-4px,2px) rotate(2deg)} 30%{transform:translate(4px,-3px) rotate(-2deg)} 35%{transform:translate(-6px,1px) rotate(3deg)} 40%{transform:translate(6px,-1px) rotate(-3deg)} 45%{transform:translate(-4px,-2px) rotate(2deg)} 50%{transform:translate(5px,2px) rotate(-2deg)} 55%{transform:translate(-5px,3px) rotate(-3deg)} 60%{transform:translate(4px,-2px) rotate(3deg)} 65%{transform:translate(-6px,-1px) rotate(-2deg)} 70%{transform:translate(6px,1px) rotate(2deg)} 75%{transform:translate(-3px,2px) rotate(-2deg)} 80%{transform:translate(3px,-2px) rotate(2deg)} 85%{transform:translate(-2px,1px) rotate(-1deg)} 90%{transform:translate(2px,-1px) rotate(1deg)} }
+.life-die { z-index: 12000 !important; }
+
+/* layer39: correct SVG-like library area proportions */
+:root {
+  --l39-panel-gap: 14px;
+  --l39-exile-h: 72px;
+  --l39-grave-h: 235px;
+  --l39-control-h: calc(var(--l39-exile-h) + var(--l39-grave-h) + var(--l39-panel-gap));
+}
+
+.pile-column {
+  width: calc(var(--deck-card-w) * 2 + var(--l39-panel-gap)) !important;
+  grid-template-columns: var(--deck-card-w) var(--deck-card-w) !important;
+  grid-template-rows: var(--deck-card-h) var(--l39-exile-h) var(--l39-grave-h) !important;
+  column-gap: var(--l39-panel-gap) !important;
+  row-gap: var(--l39-panel-gap) !important;
+  overflow: visible !important;
+}
+
+.pile-zone[data-kind="library"] {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  width: var(--deck-card-w) !important;
+  height: var(--deck-card-h) !important;
+  overflow: visible !important;
+}
+
+.library-controls {
+  position: absolute !important;
+  left: 0 !important;
+  right: auto !important;
+  top: calc(100% + 46px) !important;
+  width: var(--deck-card-w) !important;
+  height: var(--l39-control-h) !important;
+  display: grid !important;
+  grid-template-rows: 54px 1fr !important;
+  gap: 9px !important;
+  padding: 9px !important;
+  background: #0c0c0c !important;
+  border: 1px solid rgba(255,255,255,.28) !important;
+  border-radius: 8px !important;
+  z-index: 35 !important;
+  overflow: hidden !important;
+}
+
+.pile-zone[data-kind="exile"] {
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+  width: var(--deck-card-w) !important;
+  height: var(--l39-exile-h) !important;
+  overflow: hidden !important;
+  background: #000 !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+  border-radius: 8px !important;
+}
+
+.pile-zone[data-kind="exile"] .pile-title {
+  display: none !important;
+}
+
+.pile-zone[data-kind="graveyard"] {
+  grid-column: 2 !important;
+  grid-row: 3 !important;
+  width: var(--deck-card-w) !important;
+  height: var(--l39-grave-h) !important;
+  overflow: hidden !important;
+  background: #050505 !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+  border-radius: 8px !important;
+}
+
+.pile-zone[data-kind="graveyard"] .pile-title {
+  top: auto !important;
+  bottom: calc(-1.65em - 6px) !important;
+  color: #0b6cff !important;
+  font-size: clamp(14px, 1.4vw, 20px) !important;
+  z-index: 40 !important;
+}
+
+.l38-grave-scroll {
+  inset: 0 !important;
+  height: 100% !important;
+}
+
+.l38-exile-box {
+  font-size: clamp(18px, 2vw, 28px) !important;
+}
+
+/* layer40: deck widget proportions — dice row above library, library above controls */
+:root {
+  --l40-dice-row-h: 48px;
+  --l40-after-library-gap: 34px;
+  --l40-exile-h: 74px;
+  --l40-grave-h: 220px;
+  --l40-control-h: calc(var(--l40-exile-h) + var(--l40-grave-h) + var(--l39-panel-gap));
+}
+
+.pile-column {
+  grid-template-rows: var(--deck-card-h) var(--l40-exile-h) var(--l40-grave-h) !important;
+  row-gap: var(--l39-panel-gap) !important;
+}
+
+.library-controls {
+  top: calc(100% + var(--l40-after-library-gap)) !important;
+  height: var(--l40-control-h) !important;
+}
+
+.pile-zone[data-kind="exile"] {
+  height: var(--l40-exile-h) !important;
+}
+
+.pile-zone[data-kind="graveyard"] {
+  height: var(--l40-grave-h) !important;
+}
+
+/* Keep the library label tucked between the deck and controls without sharing space with dice. */
+.pile-zone[data-kind="library"] .pile-title {
+  bottom: calc(-1.15em - 4px) !important;
+}
+
+/* layer41: library-area proportions and final button styling */
+:root {
+  --l41-exile-h: 76px;
+  --l41-grave-h: 320px;
+  --l41-control-h: calc(var(--l41-exile-h) + var(--l41-grave-h) + var(--l39-panel-gap));
+}
+
+.pile-column {
+  grid-template-rows: var(--deck-card-h) var(--l41-exile-h) var(--l41-grave-h) !important;
+}
+
+.library-controls {
+  height: var(--l41-control-h) !important;
+  background: #2a2a2a !important;
+  border: 1px solid rgba(255,255,255,.32) !important;
+  border-radius: 9px !important;
+  padding: 10px !important;
+  gap: 10px !important;
+}
+
+.pile-zone[data-kind="exile"] {
+  height: var(--l41-exile-h) !important;
+}
+
+.pile-zone[data-kind="graveyard"] {
+  height: var(--l41-grave-h) !important;
+  border: 1px solid rgba(255,255,255,.24) !important;
+}
+
+.pile-zone[data-kind="graveyard"] .pile-title {
+  display: block !important;
+  color: #e8e8e8 !important;
+  bottom: calc(-1.55em - 7px) !important;
+  font-size: clamp(15px, 1.5vw, 22px) !important;
+  font-weight: 700 !important;
+}
+
+.l38-draw-button,
+.l38-draw-arrows button,
+.l38-button-grid button {
+  background: #555 !important;
+  color: #f0f0f0 !important;
+  border: 1px solid #8a8a8a !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 2px 5px rgba(0,0,0,.35) !important;
+  text-transform: uppercase !important;
+  font-style: italic !important;
+}
+
+.l38-draw-button {
+  font-size: clamp(18px, 2vw, 30px) !important;
+}
+
+.l38-button-grid button {
+  font-size: clamp(9px, .86vw, 13px) !important;
+}
+
+.l38-draw-button:active,
+.l38-draw-arrows button:active,
+.l38-button-grid button:active,
+.l38-draw-button.l41-pressed,
+.l38-draw-arrows button.l41-pressed,
+.l38-button-grid button.l41-pressed {
+  background: #1f8f45 !important;
+  border-color: #5fda83 !important;
+  color: #fff !important;
+  filter: none !important;
+}
+
+.l38-button-grid button.l38-future-button {
+  background: #444 !important;
+  border-color: #6c6c6c !important;
+  color: transparent !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08) !important;
+}
+
+.pile-visual.l38-shuffling,
+.sleeve-back.l38-shuffling {
+  animation: l41LibraryShake 2s linear !important;
+  transform-origin: 50% 50% !important;
+}
+
+@keyframes l41LibraryShake {
+  0%,100%{transform:translate(0,0) rotate(0deg)}
+  4%{transform:translate(-7px,3px) rotate(-3deg)}
+  8%{transform:translate(7px,-2px) rotate(3deg)}
+  12%{transform:translate(-6px,-3px) rotate(2deg)}
+  16%{transform:translate(6px,2px) rotate(-3deg)}
+  20%{transform:translate(-5px,3px) rotate(3deg)}
+  24%{transform:translate(5px,-3px) rotate(-3deg)}
+  28%{transform:translate(-7px,2px) rotate(-2deg)}
+  32%{transform:translate(7px,-1px) rotate(2deg)}
+  36%{transform:translate(-5px,-2px) rotate(3deg)}
+  40%{transform:translate(5px,2px) rotate(-3deg)}
+  44%{transform:translate(-6px,1px) rotate(-2deg)}
+  48%{transform:translate(6px,-2px) rotate(2deg)}
+  52%{transform:translate(-5px,3px) rotate(3deg)}
+  56%{transform:translate(5px,-3px) rotate(-3deg)}
+  60%{transform:translate(-6px,-1px) rotate(2deg)}
+  64%{transform:translate(6px,1px) rotate(-2deg)}
+  68%{transform:translate(-4px,2px) rotate(2deg)}
+  72%{transform:translate(4px,-2px) rotate(-2deg)}
+  76%{transform:translate(-3px,1px) rotate(1deg)}
+  80%{transform:translate(3px,-1px) rotate(-1deg)}
+  86%{transform:translate(-2px,1px) rotate(1deg)}
+  92%{transform:translate(2px,-1px) rotate(-1deg)}
+}
+
+
+/* layer42: library block proportions, labels, and robust shuffle */
+:root {
+  --l42-exile-h: 58px;
+  --l42-grave-h: 270px;
+  --l42-control-h: 238px;
+  --l42-gap: 12px;
+}
+
+.pile-column {
+  grid-template-rows: var(--deck-card-h) var(--l42-exile-h) var(--l42-grave-h) !important;
+  row-gap: var(--l42-gap) !important;
+}
+
+.library-controls {
+  top: calc(100% + 32px) !important;
+  height: var(--l42-control-h) !important;
+  grid-template-rows: 52px 1fr !important;
+  gap: 8px !important;
+  padding: 8px !important;
+  background: #2f2f2f !important;
+}
+
+.l38-button-grid {
+  gap: 7px !important;
+}
+
+.pile-zone[data-kind="library"] .pile-title {
+  bottom: calc(-1.05em - 4px) !important;
+  font-size: clamp(13px, 1.05vw, 17px) !important;
+  color: #ddd !important;
+}
+
+.pile-zone[data-kind="exile"] {
+  height: var(--l42-exile-h) !important;
+  overflow: hidden !important;
+}
+
+.l38-exile-box {
+  font-size: clamp(12px, 1vw, 16px) !important;
+  letter-spacing: .02em !important;
+  text-transform: uppercase !important;
+  line-height: 1 !important;
+}
+
+.pile-zone[data-kind="graveyard"] {
+  height: var(--l42-grave-h) !important;
+  overflow: visible !important;
+}
+
+.l38-grave-scroll {
+  inset: 0 !important;
+  height: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  border-radius: inherit !important;
+}
+
+.pile-zone[data-kind="graveyard"] .pile-title {
+  display: block !important;
+  position: absolute !important;
+  top: auto !important;
+  bottom: calc(-1.55em - 5px) !important;
+  color: #ddd !important;
+  font-size: clamp(13px, 1.05vw, 17px) !important;
+  font-weight: 700 !important;
+  z-index: 100 !important;
+  pointer-events: none !important;
+}
+
+.l38-draw-button {
+  text-transform: uppercase !important;
+  cursor: pointer !important;
+}
+
+.pile-zone[data-kind="library"].l42-shuffling,
+.pile-zone[data-kind="library"].l42-shuffling .pile-visual,
+.pile-visual.l42-shuffling,
+.sleeve-back.l42-shuffling {
+  animation: l42LibraryShake 2s linear !important;
+  transform-origin: 50% 50% !important;
+}
+
+@keyframes l42LibraryShake {
+  0%,100%{ transform:translate(0,0) rotate(0deg); }
+  4%{ transform:translate(-8px,3px) rotate(-3deg); }
+  8%{ transform:translate(8px,-2px) rotate(3deg); }
+  12%{ transform:translate(-7px,-3px) rotate(2deg); }
+  16%{ transform:translate(7px,2px) rotate(-3deg); }
+  20%{ transform:translate(-6px,3px) rotate(3deg); }
+  24%{ transform:translate(6px,-3px) rotate(-3deg); }
+  28%{ transform:translate(-8px,2px) rotate(-2deg); }
+  32%{ transform:translate(8px,-1px) rotate(2deg); }
+  36%{ transform:translate(-6px,-2px) rotate(3deg); }
+  40%{ transform:translate(6px,2px) rotate(-3deg); }
+  44%{ transform:translate(-7px,1px) rotate(-2deg); }
+  48%{ transform:translate(7px,-2px) rotate(2deg); }
+  52%{ transform:translate(-6px,3px) rotate(3deg); }
+  56%{ transform:translate(6px,-3px) rotate(-3deg); }
+  60%{ transform:translate(-7px,-1px) rotate(2deg); }
+  64%{ transform:translate(7px,1px) rotate(-2deg); }
+  68%{ transform:translate(-5px,2px) rotate(2deg); }
+  72%{ transform:translate(5px,-2px) rotate(-2deg); }
+  76%{ transform:translate(-4px,1px) rotate(1deg); }
+  80%{ transform:translate(4px,-1px) rotate(-1deg); }
+  86%{ transform:translate(-3px,1px) rotate(1deg); }
+  92%{ transform:translate(3px,-1px) rotate(-1deg); }
+}
+
+/* layer43: keep the whole deck widget below/above the center line. */
+:root {
+  --l43-dice-space: 64px;
+  --l43-center-gap: 10px;
+}
+
+/* Local player: dice row, library, controls, exile and graveyard all stay below the center line. */
+.self-piles {
+  top: calc(50vh + var(--l43-dice-space) + var(--l43-center-gap)) !important;
+  bottom: auto !important;
+  right: var(--zone-side-pad) !important;
+  transform: none !important;
+}
+
+/* Opponent side mirrors the same rule above the center line. */
+.opponent-piles {
+  bottom: calc(50vh + var(--l43-dice-space) + var(--l43-center-gap)) !important;
+  top: auto !important;
+  left: var(--zone-side-pad) !important;
+  transform: rotate(180deg) !important;
+}
+
+/* layer44: final locked library-zone layout + draw/shuffle fixes */
+:root {
+  --l44-gap: 14px;
+  --l44-exile-h: 72px;
+  --l44-controls-top-gap: 44px;
+  --l44-control-h: 235px;
+  --l44-total-h: calc(var(--deck-card-h) + var(--l44-controls-top-gap) + var(--l44-control-h));
+  --l44-grave-h: calc(var(--l44-total-h) - var(--l44-exile-h) - var(--l44-gap));
+}
+
+.pile-column {
+  width: calc(var(--deck-card-w) * 2 + var(--l44-gap)) !important;
+  height: var(--l44-total-h) !important;
+  display: block !important;
+  overflow: visible !important;
+}
+
+.pile-zone[data-kind="library"] {
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: var(--deck-card-w) !important;
+  height: var(--deck-card-h) !important;
+  grid-column: auto !important;
+  grid-row: auto !important;
+  overflow: visible !important;
+}
+
+.pile-zone[data-kind="library"] .pile-title {
+  bottom: calc(-1.05em - 4px) !important;
+  font-size: clamp(13px, 1.05vw, 17px) !important;
+  color: #ddd !important;
+}
+
+.library-controls {
+  position: absolute !important;
+  left: 0 !important;
+  top: calc(var(--deck-card-h) + var(--l44-controls-top-gap)) !important;
+  width: var(--deck-card-w) !important;
+  height: var(--l44-control-h) !important;
+  padding: 8px !important;
+  gap: 8px !important;
+  grid-template-rows: 52px 1fr !important;
+  background: #303030 !important;
+  border: 1px solid rgba(255,255,255,.35) !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+}
+
+.pile-zone[data-kind="exile"] {
+  position: absolute !important;
+  left: calc(var(--deck-card-w) + var(--l44-gap)) !important;
+  top: 0 !important;
+  width: var(--deck-card-w) !important;
+  height: var(--l44-exile-h) !important;
+  grid-column: auto !important;
+  grid-row: auto !important;
+  overflow: hidden !important;
+  background: #000 !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+  border-radius: 8px !important;
+}
+
+.pile-zone[data-kind="graveyard"] {
+  position: absolute !important;
+  left: calc(var(--deck-card-w) + var(--l44-gap)) !important;
+  top: calc(var(--l44-exile-h) + var(--l44-gap)) !important;
+  width: var(--deck-card-w) !important;
+  height: var(--l44-grave-h) !important;
+  grid-column: auto !important;
+  grid-row: auto !important;
+  overflow: visible !important;
+  background: #050505 !important;
+  border: 1px solid rgba(255,255,255,.24) !important;
+  border-radius: 8px !important;
+}
+
+.pile-zone[data-kind="graveyard"] .pile-title {
+  display: block !important;
+  position: absolute !important;
+  top: auto !important;
+  bottom: calc(-1.55em - 5px) !important;
+  color: #ddd !important;
+  font-size: clamp(13px, 1.05vw, 17px) !important;
+  font-weight: 700 !important;
+  z-index: 100 !important;
+  pointer-events: none !important;
+}
+
+.l38-exile-box {
+  font-size: clamp(12px, 1vw, 16px) !important;
+  text-transform: uppercase !important;
+  letter-spacing: .02em !important;
+}
+
+.l38-grave-scroll {
+  inset: 0 !important;
+  height: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  border-radius: inherit !important;
+}
+
+.l38-draw-button,
+.l38-draw-arrows button,
+.l38-button-grid button {
+  background: #555 !important;
+  color: #f0f0f0 !important;
+  border: 1px solid #8a8a8a !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 2px 5px rgba(0,0,0,.35) !important;
+  text-transform: uppercase !important;
+  font-style: italic !important;
+}
+
+.l38-draw-button { cursor: pointer !important; }
+.l38-draw-button:active,
+.l38-draw-arrows button:active,
+.l38-button-grid button:active,
+.l38-draw-button.l41-pressed,
+.l38-draw-arrows button.l41-pressed,
+.l38-button-grid button.l41-pressed {
+  background: #1f8f45 !important;
+  border-color: #5fda83 !important;
+  color: #fff !important;
+}
+
+/* Only the actual library/back may shake. Nothing around it moves. */
+.pile-zone[data-kind="library"].l42-shuffling,
+.pile-zone[data-kind="library"].l38-shuffling,
+.pile-zone[data-kind="library"] .pile-title.l38-shuffling,
+.library-controls.l38-shuffling,
+.library-controls.l42-shuffling {
+  animation: none !important;
+  transform: none !important;
+}
+
+.pile-visual.l44-shuffling {
+  animation: l44LibraryOnlyShake 2s linear !important;
+  transform-origin: 50% 50% !important;
+}
+
+@keyframes l44LibraryOnlyShake {
+  0%,100%{ transform:translate(0,0) rotate(0deg); }
+  4%{ transform:translate(-8px,3px) rotate(-3deg); }
+  8%{ transform:translate(8px,-2px) rotate(3deg); }
+  12%{ transform:translate(-7px,-3px) rotate(2deg); }
+  16%{ transform:translate(7px,2px) rotate(-3deg); }
+  20%{ transform:translate(-6px,3px) rotate(3deg); }
+  24%{ transform:translate(6px,-3px) rotate(-3deg); }
+  28%{ transform:translate(-8px,2px) rotate(-2deg); }
+  32%{ transform:translate(8px,-1px) rotate(2deg); }
+  36%{ transform:translate(-6px,-2px) rotate(3deg); }
+  40%{ transform:translate(6px,2px) rotate(-3deg); }
+  44%{ transform:translate(-7px,1px) rotate(-2deg); }
+  48%{ transform:translate(7px,-2px) rotate(2deg); }
+  52%{ transform:translate(-6px,3px) rotate(3deg); }
+  56%{ transform:translate(6px,-3px) rotate(-3deg); }
+  60%{ transform:translate(-7px,-1px) rotate(2deg); }
+  64%{ transform:translate(7px,1px) rotate(-2deg); }
+  68%{ transform:translate(-5px,2px) rotate(2deg); }
+  72%{ transform:translate(5px,-2px) rotate(-2deg); }
+  76%{ transform:translate(-4px,1px) rotate(1deg); }
+  80%{ transform:translate(4px,-1px) rotate(-1deg); }
+  86%{ transform:translate(-3px,1px) rotate(1deg); }
+  92%{ transform:translate(3px,-1px) rotate(-1deg); }
+}
+
+/* layer45: local/private overlays and toggle buttons */
+#libraryModal,
+#sideboardModal,
+#opponentGraveModal45,
+.local-private-modal {
+  background: transparent !important;
+  pointer-events: none !important;
+}
+
+#libraryModal .modal-box,
+#sideboardModal .modal-box,
+#opponentGraveModal45 .modal-box,
+.local-private-modal .modal-box {
+  pointer-events: auto !important;
+}
+
+#libraryModal {
+  align-items: center !important;
+  justify-items: center !important;
+}
+
+#menuFlipOrbBtn.l45-toggle-on,
+#menuFlipStarBtn.l45-toggle-on,
+.l38-button-grid button.l45-toggle-on {
+  background: #1f8f45 !important;
+  color: #fff !important;
+}
+
+#opponentGraveModal45 {
+  z-index: 7000 !important;
+}
+
+.opponent-grave-box45 {
+  width: min(900px, calc(100vw - 40px)) !important;
+  height: min(720px, calc(100vh - 40px)) !important;
+  display: grid !important;
+  grid-template-rows: auto 1fr auto !important;
+  background: #1e1e1e !important;
+}
+
+#opponentGraveGrid45 {
+  overflow: auto !important;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)) !important;
+  gap: 14px !important;
+  padding: 12px !important;
+  background: #151515 !important;
+  border: 1px solid #444 !important;
+  border-radius: 8px !important;
+}
+
+.opponent-grave-card45 {
+  width: 118px !important;
+  border-radius: 7px !important;
+  cursor: default !important;
+}
+
+.opponent-grave-card45 img {
+  width: 118px !important;
+  border-radius: 7px !important;
+  display: block !important;
+}
+
+.l45-opponent-grave-btn {
+  font-size: clamp(7px, .7vw, 10px) !important;
+}
+
+/* layer47 clean DRAW X row: replaces old l38 draw controls so old duplicate listeners cannot fire. */
+.l47-draw-row {
+  display: grid;
+  grid-template-columns: 1fr 24px;
+  gap: 3px;
+  min-height: 24px;
+}
+.l47-draw-button,
+.l47-draw-arrows button {
+  background: #4f4f4f !important;
+  color: #f2f2f2 !important;
+  border: 0 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 1px 3px rgba(0,0,0,.45) !important;
+}
+.l47-draw-arrows {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px;
+}
+.l47-draw-arrows button {
+  min-height: 0 !important;
+  height: 11px !important;
+  padding: 0 !important;
+  font-size: 8px !important;
+  line-height: 1 !important;
+}
+
+/* layer48: card-stack shuffle + hidden draw flight */
+.l48-shuffle-stack {
+  position: fixed;
+  pointer-events: none;
+  z-index: 2147482000;
+  left: 0;
+  top: 0;
+}
+
+.l48-shuffle-card {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 7px;
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(0,0,0,.55);
+  animation: l48ShuffleLayer 2s ease-in-out forwards;
+  transform-origin: 50% 50%;
+}
+
+@keyframes l48ShuffleLayer {
+  0%   { transform: translate(0,0) rotate(0deg); }
+  10%  { transform: translate(var(--x1), var(--y1)) rotate(var(--r1)); }
+  22%  { transform: translate(var(--x2), var(--y2)) rotate(var(--r2)); }
+  35%  { transform: translate(var(--x3), var(--y3)) rotate(var(--r3)); }
+  48%  { transform: translate(var(--x4), var(--y4)) rotate(var(--r4)); }
+  62%  { transform: translate(var(--x5), var(--y5)) rotate(var(--r5)); }
+  78%  { transform: translate(var(--x6), var(--y6)) rotate(var(--r6)); }
+  100% { transform: translate(0,0) rotate(0deg); }
+}
+
+.l48-draw-flight {
+  position: fixed;
+  pointer-events: none;
+  z-index: 2147482100;
+  border-radius: 7px;
+  object-fit: cover;
+  box-shadow: 0 8px 22px rgba(0,0,0,.65);
+  transform-origin: 50% 50%;
+  transition: left .34s ease-in, top .34s ease-in, transform .34s ease-in;
+}
+
+/* layer49: faster scaling draw flight; draw-many leaves as a bundled fan */
+.l49-draw-flight {
+  position: fixed;
+  pointer-events: none;
+  z-index: 2147482100;
+  border-radius: 7px;
+  object-fit: cover;
+  box-shadow: 0 8px 22px rgba(0,0,0,.65);
+  transform-origin: 50% 50%;
+  transition-property: left, top, width, height, transform;
+  transition-timing-function: cubic-bezier(.2,.72,.12,1);
+  transition-duration: 230ms;
+}
+
+
+/* layer50: draw flight scales via transform, so size visibly changes from library size to hand zoom size. */
+.l50-draw-flight {
+  transform-origin: 50% 50% !important;
+  transition-property: left, top, transform !important;
+  transition-timing-function: cubic-bezier(.18,.75,.1,1) !important;
+}
+
+
+/* layer51: red discard mark on hand cards */
+.card.discard-marked-hand,
+body.hide-selection .card.discard-marked-hand,
+.card.discard-marked-hand:hover {
+  outline: 3px solid #ff2020 !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 2px rgba(0,0,0,.75), 0 0 12px rgba(255,32,32,.65) !important;
+}
+
+/* layer52: stronger public discard marking + library drag/draw/mulligan animation helpers */
+.card.discard-marked-hand {
+  position: absolute !important;
+}
+.card.discard-marked-hand::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: -4px !important;
+  border: 3px solid #ff1717 !important;
+  border-radius: 7% / 5% !important;
+  box-shadow: 0 0 0 2px rgba(0,0,0,.78), 0 0 16px rgba(255,0,0,.85) !important;
+  pointer-events: none !important;
+  z-index: 999999 !important;
+}
+.l52-library-drag-card,
+.l52-mulligan-flight {
+  position: fixed !important;
+  display: block !important;
+  border-radius: 5.5% / 4% !important;
+  box-shadow: 0 8px 22px rgba(0,0,0,.72) !important;
+  pointer-events: none !important;
+  z-index: 2147482500 !important;
+  transform-origin: 50% 50% !important;
+}
+.l52-mulligan-flight {
+  transition-property: left, top, width, height, transform, opacity !important;
+  transition-duration: 260ms !important;
+  transition-timing-function: cubic-bezier(.2,.75,.12,1) !important;
+}
+
+/* layer54: draw flight uses real element size, not transform-only guess */
+.l54-draw-flight {
+  position: fixed;
+  pointer-events: none;
+  z-index: 2147483100;
+  border-radius: 7px;
+  object-fit: cover;
+  box-shadow: 0 8px 22px rgba(0,0,0,.65);
+  transform-origin: 50% 50%;
+  transition-property: left, top, width, height, transform;
+  transition-duration: 210ms;
+  transition-timing-function: cubic-bezier(.18,.75,.1,1);
+}
+
+/* layer58: visible discard mark on sleeve/back side too */
+.card.discard-marked-hand,
+.card.opponent-hand-private.discard-marked-hand,
+.card.opponent-hand-back.discard-marked-hand {
+  outline: 0 !important;
+  box-shadow: 0 0 0 3px #ff1212, 0 0 0 5px rgba(0,0,0,.82), 0 0 16px rgba(255,0,0,.9) !important;
+}
+.card .discard-mark-overlay-l58 {
+  position: absolute !important;
+  inset: -5px !important;
+  border: 4px solid #ff1212 !important;
+  border-radius: 7% / 5% !important;
+  box-shadow: 0 0 0 2px rgba(0,0,0,.82), 0 0 16px rgba(255,0,0,.9) !important;
+  pointer-events: none !important;
+  z-index: 2147483000 !important;
+  display: block !important;
+}
+.card.opponent-hand-private.discard-marked-hand .card-back,
+.card.opponent-hand-back.discard-marked-hand .card-back {
+  box-shadow: inset 0 0 0 2px rgba(255,18,18,.85) !important;
+}
+
+/* layer59: final discard selection border. Visible around the whole card, front or sleeve/back. */
+.card.discard-marked-hand,
+.card.discard-marked-hand:hover,
+.card.opponent-hand-private.discard-marked-hand,
+.card.opponent-hand-back.discard-marked-hand,
+body.hide-selection .card.discard-marked-hand {
+  outline: 2px solid #ff1a1a !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.9), 0 0 10px rgba(255,0,0,.8) !important;
+}
+.card.discard-marked-hand::after,
+.card .discard-mark-overlay-l58 {
+  display: none !important;
+}
+
+/* layer62: local HELP overlay */
+.help-overlay-local {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(760px, calc(100vw - 40px));
+  max-height: min(760px, calc(100vh - 40px));
+  overflow: auto;
+  z-index: 2147483200;
+  background: rgba(18,18,18,.96);
+  color: #eeeeee;
+  border: 1px solid rgba(255,255,255,.34);
+  border-radius: 12px;
+  box-shadow: 0 18px 48px rgba(0,0,0,.55);
+  padding: 18px 20px 20px;
+  font-family: "Arial Narrow", Arial, sans-serif;
+  font-style: italic;
+  text-transform: none;
+}
+.help-overlay-local.hidden { display: none !important; }
+.help-overlay-local h1 {
+  margin: 0 0 12px;
+  font-size: 22px;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.help-overlay-local pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: "Arial Narrow", Arial, sans-serif;
+  font-style: italic;
+  font-size: 16px;
+  line-height: 1.28;
+  color: #f2f2f2;
+  text-transform: none;
+}
+.help-overlay-local .help-close-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+.help-overlay-local button {
+  background: #3a3a3a;
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 14px;
+  cursor: pointer;
+}
+.l62-help-button.is-active,
+.l62-help-button:active {
+  background: #168b3d !important;
+}
