@@ -6609,3 +6609,50 @@ body.local-p2 #p1HandFan {
   }
   #menuPanel { transform: scale(.78); transform-origin: left bottom; }
 }
+
+/* layer8: normalized shared-world fixes. */
+:root {
+  --fit-scale8: 1;
+}
+
+/* Life dice are fixed layout widgets above/below the visible owner library. */
+.life-die {
+  position: absolute !important;
+  z-index: 30000 !important;
+}
+
+/* Keep player-specific deck panels local only. */
+body.local-p1 #p2DrawPopover,
+body.local-p2 #p1DrawPopover {
+  display: none !important;
+  pointer-events: none !important;
+}
+body.local-p1 #p1DrawPopover,
+body.local-p2 #p2DrawPopover {
+  display: grid !important;
+  pointer-events: auto !important;
+}
+
+/* Cards using normalized world coordinates are placed by JS only. */
+.battle-card[data-layer8-world="layer8-normalized-world"] {
+  will-change: left, top, transform;
+}
+
+/* Make the tabletop scale down more aggressively on smaller landscape screens. */
+@media (orientation: landscape) and (max-width: 1200px) {
+  #menuPanel {
+    transform: scale(var(--fit-scale8));
+    transform-origin: left bottom;
+  }
+  .pile-column {
+    transform-origin: center center !important;
+  }
+  body.local-p1 #p2Piles,
+  body.local-p2 #p1Piles {
+    transform: rotate(180deg) scale(var(--fit-scale8)) !important;
+  }
+  body.local-p1 #p1Piles,
+  body.local-p2 #p2Piles {
+    transform: scale(var(--fit-scale8)) !important;
+  }
+}

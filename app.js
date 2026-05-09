@@ -11232,3 +11232,305 @@ press orb with the mouse from the spot you want to target the flipping force fro
   window.addEventListener('DOMContentLoaded', () => requestAnimationFrame(applyCommonWorldView));
   requestAnimationFrame(applyCommonWorldView);
 })();
+
+// layer8: normalized shared world coordinates + locked life dice + fit scaling.
+(function(){
+  'use strict';
+  const BASE_W = 1536;
+  const BASE_H = 864;
+  const MARK = 'layer8-normalized-world';
+
+  function localSeat8(){
+    return (window.__LOCAL_PLAYER__ || localStorage.getItem('oldschoolLocalPlayer') || 'p1') === 'p2' ? 'p2' : 'p1';
+  }
+  function isP2View8(){ return localSeat8() === 'p2'; }
+  function cardOwnerBase8(card){ return ((card && card.owner) || 'p1') === localSeat8() ? 0 : 180; }
+  function clamp8(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+  function screenW8(){ return Math.max(1, window.innerWidth); }
+  function screenH8(){ return Math.max(1, window.innerHeight); }
+
+  function elementSize8(el){
+    const r = el && el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+    return { w: (r && r.width) || CARD_W, h: (r && r.height) || CARD_H };
+  }
+
+  function ensureNorm8(card){
+    if(!card || card.zone !== 'battlefield') return;
+    if(typeof card.nx !== 'number' || typeof card.ny !== 'number'){
+      const x = Number(card.x || 0);
+      const y = Number(card.y || 0);
+      card.nx = clamp8(x / screenW8(), -0.5, 1.5);
+      card.ny = clamp8(y / screenH8(), -0.5, 1.5);
+    }
+  }
+
+  function normToScreen8(card, w, h){
+    ensureNorm8(card);
+    const x = Number(card.nx || 0) * screenW8();
+    const y = Number(card.ny || 0) * screenH8();
+    if(!isP2View8()) return { left:x, top:y };
+    return { left: screenW8() - x - w, top: screenH8() - y - h };
+  }
+
+  function screenToNorm8(left, top, w, h){
+    let x = left;
+    let y = top;
+    if(isP2View8()){
+      x = screenW8() - left - w;
+      y = screenH8() - top - h;
+    }
+    return { nx: x / screenW8(), ny: y / screenH8(), x, y };
+  }
+
+  function applyBattleCard8(el, card){
+    if(!el || !card || card.zone !== 'battlefield') return;
+    const s = elementSize8(el);
+    const pos = normToScreen8(card, s.w, s.h);
+    el.style.left = pos.left + 'px';
+    el.style.top = pos.top + 'px';
+    el.style.transformOrigin = '0 0';
+    const base = cardOwnerBase8(card);
+    if(card.tapped){
+      el.style.transform = `translate(${s.h}px, ${s.h - s.w}px) rotate(${base + 90}deg)`;
+    } else {
+      el.style.transform = `rotate(${base}deg)`;
+    }
+    el.dataset.layer8World = MARK;
+  }
+
+  function normalizeBattlefieldState8(){
+    if(!state || !Array.isArray(state.cards)) return;
+    state.cards.forEach(c => {
+      if(c.zone === 'battlefield'){
+        ensureNorm8(c);
+        c.x = Number(c.nx || 0) * screenW8();
+        c.y = Number(c.ny || 0) * screenH8();
+      }
+    });
+  }
+
+  function applyWorld8(){
+    document.body.classList.toggle('local-p1', localSeat8() === 'p1');
+    document.body.classList.toggle('local-p2', localSeat8() === 'p2');
+    if(state) state.activePlayer = localSeat8();
+    if(els && els.activePlayerSelect) els.activePlayerSelect.value = localSeat8();
+    normalizeBattlefieldState8();
+    document.querySelectorAll('.battle-card').forEach(el => {
+      const card = state.cards.find(c => c.id === el.dataset.cardId);
+      if(card) applyBattleCard8(el, card);
+    });
+    lockLifeDice8(false);
+    applyFitScale8();
+  }
+  window.applySharedWorldLayer8 = applyWorld8;
+
+  function pointerPile8(e, drag){
+    const left = e.clientX - (drag?.offsetX || 0);
+    const top = e.clientY - (drag?.offsetY || 0);
+    const r = {left, top, right:left + CARD_W, bottom:top + CARD_H};
+    let best = null;
+    document.querySelectorAll('.pile-zone').forEach(el => {
+      const b = el.getBoundingClientRect();
+      if(!(r.right < b.left || r.left > b.right || r.bottom < b.top || r.top > b.bottom)) best = el;
+    });
+    return best;
+  }
+
+  getHandDrop = function(y){
+    const local = localSeat8();
+    const opp = local === 'p1' ? 'p2' : 'p1';
+    if(y >= window.innerHeight - HAND_HEIGHT) return local;
+    if(y <= HAND_HEIGHT) return opp;
+    return null;
+  };
+
+  onCardDragMove = function(e){
+    window.__lastPointerX = e.clientX;
+    const drag = state.dragging;
+    if(!drag || drag.type !== 'card') return;
+    const card = state.cards.find(c => c.id === drag.cardId);
+    if(!card) return;
+    drag.moved = true;
+
+    if(drag.fromHand){
+      if(typeof v24MoveGhost === 'function') v24MoveGhost(drag, e.clientX, e.clientY);
+    } else if(drag.group){
+      const dx = (isP2View8() ? -1 : 1) * (e.clientX - drag.startX) / screenW8();
+      const dy = (isP2View8() ? -1 : 1) * (e.clientY - drag.startY) / screenH8();
+      drag.group.forEach(g => {
+        const c = state.cards.find(x => x.id === g.id);
+        if(!c) return;
+        if(typeof g.nx !== 'number') g.nx = Number(g.x || 0) / screenW8();
+        if(typeof g.ny !== 'number') g.ny = Number(g.y || 0) / screenH8();
+        c.zone = 'battlefield';
+        c.nx = g.nx + dx;
+        c.ny = g.ny + dy;
+        c.x = c.nx * screenW8();
+        c.y = c.ny * screenH8();
+        const el = els.table.querySelector(`[data-card-id="${c.id}"]`);
+        if(el) applyBattleCard8(el, c);
+      });
+    } else {
+      card.zone = 'battlefield';
+      const el = els.table.querySelector(`[data-card-id="${card.id}"]`);
+      const s = elementSize8(el);
+      const n = screenToNorm8(e.clientX - drag.offsetX, e.clientY - drag.offsetY, s.w, s.h);
+      card.nx = n.nx;
+      card.ny = n.ny;
+      card.x = n.x;
+      card.y = n.y;
+      if(el){
+        el.style.zIndex = String(card.z || 1);
+        applyBattleCard8(el, card);
+      }
+    }
+
+    const targetHand = getHandDrop(e.clientY);
+    els.p1HandZone.classList.toggle('drop-hover', targetHand === 'p1');
+    els.p2HandZone.classList.toggle('drop-hover', targetHand === 'p2');
+    const pile = pointerPile8(e, drag);
+    if(pile && kindOfZone(pile.dataset.zone) === 'library') showDropHint('put on bottom', e.clientX + 10, e.clientY + 10);
+    else hideDropHint();
+  };
+
+  onCardDragEnd = function(e){
+    document.removeEventListener('pointermove', onCardDragMove);
+    els.p1HandZone.classList.remove('drop-hover');
+    els.p2HandZone.classList.remove('drop-hover');
+    const drag = state.dragging;
+    const card = state.cards.find(c => c.id === drag?.cardId);
+    state.dragging = null;
+    hideDropHint();
+    if(!card){ if(drag?.ghost) drag.ghost.remove(); return; }
+    const movedDistance = Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY);
+    if(drag.ghost) drag.ghost.remove();
+
+    if(drag.fromHand && movedDistance < 6){
+      card.zone = drag.fromZone;
+      saveState();
+      render();
+      return;
+    }
+
+    const pile = pointerPile8(e, drag);
+    if(pile){
+      const zone = pile.dataset.zone;
+      const kind = kindOfZone(zone);
+      if(kind === 'library'){
+        card.zone = zone;
+        card.faceDown = false;
+        card.tapped = false;
+        delete card.nx; delete card.ny;
+        state.cards = [card].concat(state.cards.filter(c => c.id !== card.id));
+      } else if(kind === 'graveyard' || kind === 'exile'){
+        delete card.nx; delete card.ny;
+        moveCardToPublicPile(card, zone);
+        card.tapped = false;
+      }
+      saveState();
+      render();
+      return;
+    }
+
+    const hand = getHandDrop(e.clientY);
+    if(hand){
+      delete card.nx; delete card.ny;
+      if(drag.fromHand){
+        card.zone = `${hand}-hand`;
+        card.tapped = false;
+        card.faceDown = false;
+        const handCards = state.cards.filter(c => c.zone === `${hand}-hand` && c.id !== card.id);
+        const others = state.cards.filter(c => c.zone !== `${hand}-hand` && c.id !== card.id);
+        const fan = hand === 'p1' ? els.p1HandFan : els.p2HandFan;
+        const rect = fan.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / Math.max(1, rect.width)));
+        handCards.splice(Math.round(ratio * handCards.length), 0, card);
+        state.cards = others.concat(handCards);
+      } else {
+        insertCardIntoHand(card, hand, e.clientX);
+      }
+    } else {
+      const el = els.table.querySelector(`[data-card-id="${card.id}"]`);
+      const s = elementSize8(el);
+      const n = screenToNorm8(e.clientX - drag.offsetX, e.clientY - drag.offsetY, s.w, s.h);
+      card.zone = 'battlefield';
+      card.nx = n.nx;
+      card.ny = n.ny;
+      card.x = n.x;
+      card.y = n.y;
+    }
+    saveState();
+    render();
+  };
+
+  // Patch drag start group snapshots so selected cards use normalized coordinates.
+  const prevStartCardDrag8 = startCardDrag;
+  startCardDrag = function(e, card){
+    prevStartCardDrag8(e, card);
+    if(state.dragging && state.dragging.type === 'card'){
+      if(state.dragging.group){
+        state.dragging.group.forEach(g => {
+          const c = state.cards.find(x => x.id === g.id);
+          if(c){ ensureNorm8(c); g.nx = c.nx; g.ny = c.ny; }
+        });
+      }
+      state.dragging.originalNx = card.nx;
+      state.dragging.originalNy = card.ny;
+    }
+  };
+
+  // Life dice are layout widgets, not free synced table objects. Lock them to each player's visible library.
+  function lockLifeDice8(doRender){
+    if(!state || !Array.isArray(state.dice)) return;
+    const byOwner = {p1:0, p2:0};
+    state.dice.forEach(d => {
+      if(d.kind !== 'life') return;
+      const owner = d.owner === 'p2' ? 'p2' : 'p1';
+      const lib = document.getElementById(owner + 'LibraryZone');
+      if(!lib) return;
+      const r = lib.getBoundingClientRect();
+      const i = byOwner[owner]++;
+      d.x = r.left + 4 + i * 44;
+      d.y = r.top > window.innerHeight / 2 ? r.top - 50 : r.bottom + 8;
+      d.z = 30000 + i;
+    });
+    if(doRender && typeof renderDice === 'function') renderDice();
+  }
+  window.lockLifeDiceLayer8 = lockLifeDice8;
+
+  const prevRenderDice8 = renderDice;
+  renderDice = function(){
+    lockLifeDice8(false);
+    prevRenderDice8();
+  };
+
+  // Save normalized coords instead of window-specific pixel coords.
+  const prevSave8 = saveState;
+  saveState = function(){
+    normalizeBattlefieldState8();
+    return prevSave8();
+  };
+
+  // Fit scale: when window is smaller than the reference desktop, shrink cards/UI together.
+  function applyFitScale8(){
+    const s = Math.min(1, window.innerWidth / BASE_W, window.innerHeight / BASE_H);
+    document.documentElement.style.setProperty('--fit-scale8', String(s));
+    document.documentElement.style.setProperty('--base-card-w', (118 * s) + 'px');
+    document.documentElement.style.setProperty('--deck-card-w', (168 * s) + 'px');
+    document.documentElement.style.setProperty('--hand-drop-width', Math.min(760 * s, window.innerWidth * 0.58) + 'px');
+  }
+
+  const prevRender8 = render;
+  render = function(){
+    if(state) state.activePlayer = localSeat8();
+    if(els && els.activePlayerSelect) els.activePlayerSelect.value = localSeat8();
+    prevRender8();
+    requestAnimationFrame(applyWorld8);
+  };
+
+  window.addEventListener('resize', () => requestAnimationFrame(applyWorld8));
+  window.addEventListener('DOMContentLoaded', () => requestAnimationFrame(applyWorld8));
+  applyFitScale8();
+  requestAnimationFrame(applyWorld8);
+})();
