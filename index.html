@@ -33,14 +33,13 @@
       <div class="pile-title">Library (<span id="p1LibraryCount">0</span>)</div>
       <div id="p1LibraryVisual" class="pile-visual"></div>
       <div class="library-controls" id="p1DrawPopover">
-        <button type="button" id="p1RevealHandBtn">reveal hand</button>
+        <button type="button" id="p1Draw7Btn">draw 7</button>
         <label>draw <span id="p1DrawAmountLabel">1</span></label>
         <input id="p1DrawAmountSlider" type="range" min="1" max="1" value="1">
         <button type="button" id="p1DrawManyBtn">draw</button>
         <button type="button" id="p1TutorBtn">tutor</button>
         <button type="button" id="p1ShuffleBtn">shuffle</button>
         <button type="button" id="p1RevealBtn">reveal top</button>
-        <button type="button" id="p1MulliganBtn">mulligan</button>
       </div>
     </section>
     <section id="p1GraveyardZone" class="pile-zone expandable-pile" data-zone="p1-graveyard" data-player="p1" data-kind="graveyard">
@@ -56,14 +55,13 @@
       <div class="pile-title">Library (<span id="p2LibraryCount">0</span>)</div>
       <div id="p2LibraryVisual" class="pile-visual"></div>
       <div class="library-controls" id="p2DrawPopover">
-        <button type="button" id="p2RevealHandBtn">reveal hand</button>
+        <button type="button" id="p2Draw7Btn">draw 7</button>
         <label>draw <span id="p2DrawAmountLabel">1</span></label>
         <input id="p2DrawAmountSlider" type="range" min="1" max="1" value="1">
         <button type="button" id="p2DrawManyBtn">draw</button>
         <button type="button" id="p2TutorBtn">tutor</button>
         <button type="button" id="p2ShuffleBtn">shuffle</button>
         <button type="button" id="p2RevealBtn">reveal top</button>
-        <button type="button" id="p2MulliganBtn">mulligan</button>
       </div>
     </section>
     <section id="p2GraveyardZone" class="pile-zone expandable-pile opponent-pile" data-zone="p2-graveyard" data-player="p2" data-kind="graveyard">
@@ -82,8 +80,9 @@
         <option value="p1">you</option>
         <option value="p2">opponent</option>
       </select>
-      <div class="playmat-menu-row">
-        <button type="button" id="menuPlaymatBtn">PLAYMATS</button>
+      <div class="menu-row-2 playmat-menu-row">
+        <button type="button" id="menuPlaymat1">PLAYMAT 1</button>
+        <button type="button" id="menuPlaymat2">PLAYMAT 2</button>
       </div>
 
         <label>Hand zoom</label>
@@ -184,7 +183,7 @@
     <div class="modal-row">
       <button type="button" id="libraryToHandBtn">to hand</button>
       <button type="button" id="libraryToBattlefieldBtn">to battlefield</button>
-      <button type="button" id="closeLibraryBtn">close</button>
+      <button type="button" id="closeLibraryBtn">close + shuffle</button>
     </div>
   </div>
 </div>
@@ -202,6 +201,12 @@
   <button type="button" data-card-action="front">bring to front</button>
 </div>
 
+<div id="libraryMenu" class="context-menu">
+  <button type="button" data-library-action="shuffle">shuffle</button>
+  <button type="button" data-library-action="tutor">tutor</button>
+  <button type="button" data-library-action="field">field of dreams</button>
+  <button type="button" data-library-action="reveal">reveal to opponent</button>
+</div>
 
 <div id="diceMenu" class="context-menu">
   <button type="button" data-die-value="1">1</button>
@@ -211,6 +216,7 @@
   <button type="button" data-die-value="5">5</button>
   <button type="button" data-die-value="6">6</button>
   <button type="button" data-die-action="add">add dice</button>
+  <button type="button" data-die-action="color">change color</button>
   <div id="dieColorBox"><input id="dieHue" type="range" min="0" max="360" value="0"></div>
 </div>
 
@@ -229,6 +235,7 @@
     </div>
   </div>
 </div>
+</div>
 
 <div id="sideboardModal" class="modal hidden">
   <div class="modal-box sideboard-box">
@@ -243,8 +250,32 @@
   </div>
 </div>
 <script src="scryfall.js"></script>
-<script src="orbflip.js"></script>
 <script src="app.js"></script>
+<script type="module" src="firebase-sync.js"></script>
+<script src="orbflip.js"></script>
+<div id="orbflipV68" class="orbflip-v68 hidden">
+  <div id="orbflipShadowV68"></div>
+  <div id="orbflipCardV68"><img id="orbflipImgV68" src="" alt=""></div>
+  <div id="orbflipForceV68"></div>
+  <div id="orbflipPanelV68">
+    <div id="orbflipHeightLabelV68">HEIGHT 30 CM</div>
+    <div id="orbflipSideSceneV68"><div id="orbflipSideCardV68"></div></div>
+    <div id="orbflipPowerOuterV68"><div id="orbflipPowerInnerV68"></div></div>
+    <div class="orbflip-buttons-v68">
+      <button type="button" id="orbflipAgainV68">AGAIN</button>
+      <button type="button" id="orbflipCloseV68">CLOSE</button>
+    </div>
+    <div id="orbflipStatusV68">SHIFT + HOLD</div>
+  </div>
+</div>
+
+<div id="simpleOrbflipV70" class="simple-orbflip hidden">
+  <div id="simpleOrbCardV70"><img id="simpleOrbImgV70" src="chaosfront.png" alt=""></div>
+  <div id="simpleOrbShadowV70"></div>
+  <div id="simpleOrbForceV70"></div>
+  <div id="simpleOrbPanelV70">
+    <div id="simpleOrbHeightV70">HEIGHT 30 CM</div>
+    <div id="simpleOrbSideV70"><div id="simpleOrbSideCardV70"></div></div>
     <div id="simpleOrbPowerOuterV70"><div id="simpleOrbPowerInnerV70"></div></div>
     <button type="button" id="simpleOrbAgainV70">AGAIN</button>
     <button type="button" id="simpleOrbCloseV70">CLOSE</button>
