@@ -6532,3 +6532,23 @@ body.local-p1 #p2Playmat {
   bottom: auto !important;
   transform: rotate(180deg) !important;
 }
+
+/* layer4: battlefield card direction is local-perspective, not absolute owner-perspective. */
+body.local-p1 .battle-card.owner-p1,
+body.local-p2 .battle-card.owner-p2 {
+  transform-origin: 0 0 !important;
+}
+body.local-p1 .battle-card.owner-p2,
+body.local-p2 .battle-card.owner-p1 {
+  transform-origin: 0 0 !important;
+}
+
+/* keep opponent controls hidden; only the selected local player's panel is visible */
+body.local-p1 #p2DrawPopover,
+body.local-p2 #p1DrawPopover {
+  display: none !important;
+}
+body.local-p1 #p1DrawPopover,
+body.local-p2 #p2DrawPopover {
+  display: grid !important;
+}

@@ -10873,3 +10873,156 @@ press orb with the mouse from the spot you want to target the flipping force fro
 
   setActiveToLocal();
 })();
+
+
+// layer4: local-seat battlefield perspective and shared-table safety.
+// Absolute ownership stays p1/p2 in state/Firebase. Rendering is local: own cards face you, opponent cards face away.
+(function(){
+  function localSeat(){
+    return (typeof localPlayerId === 'function' ? localPlayerId() : (window.__LOCAL_PLAYER__ || localStorage.getItem('oldschoolLocalPlayer') || 'p1')) === 'p2' ? 'p2' : 'p1';
+  }
+  function opponentSeat(){ return localSeat() === 'p2' ? 'p1' : 'p2'; }
+  function ownerOf(card){ return (card && card.owner) || 'p1'; }
+  function localBaseRotation(card){ return ownerOf(card) === localSeat() ? 0 : 180; }
+  function forceLocalActive(){
+    const p = localSeat();
+    if(typeof state === 'object' && state) state.activePlayer = p;
+    if(typeof els === 'object' && els && els.activePlayerSelect) els.activePlayerSelect.value = p;
+    document.body.classList.toggle('local-p1', p === 'p1');
+    document.body.classList.toggle('local-p2', p === 'p2');
+  }
+  window.__forceLocalActiveLayer4 = forceLocalActive;
+
+  // Replace older owner-based rotation helpers with local-perspective helpers.
+  if(typeof v23BaseRotation === 'function'){
+    v23BaseRotation = function(card){ return localBaseRotation(card); };
+  }
+  if(typeof v23ApplyCardTransform === 'function'){
+    v23ApplyCardTransform = function(el, card){
+      if(!el || !card || card.zone !== 'battlefield') return;
+      const base = localBaseRotation(card);
+      el.style.transformOrigin = '0 0';
+      if(card.tapped){
+        const w = el.offsetWidth || CARD_W;
+        const h = el.offsetHeight || CARD_H;
+        el.style.transform = `translate(${h}px, ${h - w}px) rotate(${base + 90}deg)`;
+      } else {
+        el.style.transform = `rotate(${base}deg)`;
+      }
+    };
+  }
+
+  function applyLocalBattlefieldPerspective(){
+    document.querySelectorAll('.battle-card').forEach(el => {
+      const card = state.cards.find(c => c.id === el.dataset.cardId);
+      if(!card) return;
+      const base = localBaseRotation(card);
+      el.classList.toggle('local-own-card', ownerOf(card) === localSeat());
+      el.classList.toggle('local-opponent-card', ownerOf(card) !== localSeat());
+      el.style.transformOrigin = '0 0';
+      if(card.tapped){
+        const w = el.offsetWidth || CARD_W;
+        const h = el.offsetHeight || CARD_H;
+        el.style.transform = `translate(${h}px, ${h - w}px) rotate(${base + 90}deg)`;
+      } else {
+        el.style.transform = `rotate(${base}deg)`;
+      }
+    });
+  }
+  window.applyLocalBattlefieldPerspective = applyLocalBattlefieldPerspective;
+
+  const previousCreateCardElement = createCardElement;
+  createCardElement = function(card, className){
+    const el = previousCreateCardElement(card, className);
+    if(!card) return el;
+
+    // Own hand is always visible to self. Opponent hand is always sleeve/back unless reveal-hand is on.
+    if(card.zone === `${localSeat()}-hand`){
+      el.classList.remove('face-down', 'opponent-hand-back', 'opponent-hand-private');
+    }
+    if(card.zone === `${opponentSeat()}-hand`){
+      el.classList.add('opponent-hand-private');
+      if(!(state.revealedHand && state.revealedHand[opponentSeat()])){
+        el.classList.add('face-down', 'opponent-hand-back');
+      }
+    }
+
+    return el;
+  };
+
+  // Make common actions always target the selected local seat when the caller does not explicitly pass p1/p2.
+  const previousDrawCard = drawCard;
+  drawCard = function(player){
+    forceLocalActive();
+    return previousDrawCard(player === 'p1' || player === 'p2' ? player : localSeat());
+  };
+
+  if(typeof drawMany === 'function'){
+    const previousDrawMany = drawMany;
+    drawMany = function(player, n){
+      forceLocalActive();
+      return previousDrawMany(player === 'p1' || player === 'p2' ? player : localSeat(), n);
+    };
+  }
+
+  if(typeof shuffleLibrary === 'function'){
+    const previousShuffleLibrary = shuffleLibrary;
+    shuffleLibrary = function(player){
+      forceLocalActive();
+      return previousShuffleLibrary(player === 'p1' || player === 'p2' ? player : localSeat());
+    };
+  }
+
+  if(typeof loadDeck === 'function'){
+    const previousLoadDeck = loadDeck;
+    loadDeck = async function(){
+      forceLocalActive();
+      return previousLoadDeck.apply(this, arguments);
+    };
+  }
+
+  if(typeof newDeck === 'function'){
+    const previousNewDeck = newDeck;
+    newDeck = function(){
+      forceLocalActive();
+      return previousNewDeck.apply(this, arguments);
+    };
+  }
+
+  if(typeof addToken === 'function'){
+    const previousAddToken = addToken;
+    addToken = function(player){
+      forceLocalActive();
+      return previousAddToken(player === 'p1' || player === 'p2' ? player : localSeat());
+    };
+  }
+
+  if(typeof openSideboardEditor === 'function'){
+    const previousOpenSideboardEditor = openSideboardEditor;
+    openSideboardEditor = function(){
+      forceLocalActive();
+      return previousOpenSideboardEditor.apply(this, arguments);
+    };
+  }
+
+  // Re-assert hand drop zones: bottom = local hand, top = opponent hand. The table itself remains common space.
+  getHandDrop = function(y){
+    if(y >= window.innerHeight - HAND_HEIGHT) return localSeat();
+    if(y <= HAND_HEIGHT) return opponentSeat();
+    return null;
+  };
+
+  const previousRenderLayer4 = render;
+  render = function(){
+    forceLocalActive();
+    previousRenderLayer4();
+    requestAnimationFrame(applyLocalBattlefieldPerspective);
+  };
+
+  window.addEventListener('DOMContentLoaded', () => {
+    forceLocalActive();
+    requestAnimationFrame(applyLocalBattlefieldPerspective);
+  });
+  forceLocalActive();
+  requestAnimationFrame(applyLocalBattlefieldPerspective);
+})();
