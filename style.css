@@ -6406,7 +6406,50 @@ body.hide-selection .card.discard-marked-hand {
 .l62-help-button:active {
   background: #168b3d !important;
 }
-/* hide opponent deck control panel completely */
+
+
+/* firebase room sync: hide opponent private deck controls */
 .opponent-piles .library-controls {
   display: none !important;
+}
+
+/* firebase room selector overlay */
+#firebaseRoomGate {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483600;
+  display: grid;
+  place-items: center;
+  background: #242424;
+  color: #eee;
+}
+#firebaseRoomGate.hidden { display: none !important; }
+#firebaseRoomGate .room-box {
+  width: min(420px, calc(100vw - 40px));
+  background: #111;
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 14px;
+  padding: 22px;
+  box-shadow: 0 20px 70px rgba(0,0,0,.65);
+  text-align: center;
+}
+#firebaseRoomGate h1 {
+  margin: 0 0 18px;
+  font-size: 28px;
+}
+#firebaseRoomGate .room-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+#firebaseRoomGate button {
+  min-height: 60px;
+  font-size: 22px;
+  background: #3a3a3a;
+}
+#firebaseRoomGate .room-status {
+  margin-top: 14px;
+  min-height: 18px;
+  font-size: 12px;
+  opacity: .82;
 }

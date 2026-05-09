@@ -1,3 +1,4 @@
+var __PLAYMAT_FILES__ = ["allergy1.png", "allergy1b.png", "allergy2.png", "bluemana1.png", "bluemana2.png", "boris.png", "camel.png", "cland.png", "cross.png", "dance.png", "farm.png", "flash.png", "flash2.png", "gate.png", "geddon.png", "golem.png", "grem1.png", "grem2.png", "hell.png", "hordes.png", "kudzu.png", "life.png", "mesa.png", "miracle.png", "mire.png", "mold.png", "pesti.png", "phantom.png", "purge.png", "spawn.png", "terracorn.png", "terrain.png", "unicorn.png", "urzaglas.png", "vault.png", "zombi.png"];
 const SLEEVE_COLORS = {
   black: "#050505",
   turquoise: "#00a8a8",
@@ -10717,81 +10718,4 @@ press orb with the mouse from the spot you want to target the flipping force fro
 
   setTimeout(insertHelpButtons, 0);
   setTimeout(insertHelpButtons, 250);
-})();
-
-
-// firebase sync adapter v1 — appended only; does not change tabletop rules/UI.
-// It wraps the existing saveState/loadState flow and lets firebase-sync.js move
-// the same localStorage state between browsers.
-(() => {
-  const STORAGE_KEY = "oldschoolTabletopV99";
-  const LOCAL_ONLY_KEYS = [
-    "activePlayer",
-    "showOraclePanel",
-    "showSelection",
-    "handPosition",
-    "handFan",
-    "handDepth",
-    "handZoom",
-    "battlefieldZoom",
-    "tableZoom",
-    "zoom"
-  ];
-
-  let applyingRemote = false;
-  let saveTimer = null;
-
-  function readLocalStateObject() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch (err) {
-      console.warn("Could not read local tabletop state", err);
-      return null;
-    }
-  }
-
-  function writeLocalStateObject(obj) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
-  }
-
-  function preserveLocalOnly(remoteObj) {
-    const localObj = readLocalStateObject() || {};
-    const merged = { ...(remoteObj || {}) };
-    for (const key of LOCAL_ONLY_KEYS) {
-      if (Object.prototype.hasOwnProperty.call(localObj, key)) {
-        merged[key] = localObj[key];
-      }
-    }
-    return merged;
-  }
-
-  window.__oldschoolGetSyncState = function () {
-    return readLocalStateObject();
-  };
-
-  window.__oldschoolApplySyncState = function (remoteObj) {
-    if (!remoteObj || typeof remoteObj !== "object") return;
-    applyingRemote = true;
-    try {
-      writeLocalStateObject(preserveLocalOnly(remoteObj));
-      if (typeof loadState === "function") loadState();
-      if (typeof render === "function") render();
-    } finally {
-      setTimeout(() => { applyingRemote = false; }, 80);
-    }
-  };
-
-  const originalSaveState = saveState;
-  saveState = function () {
-    const result = originalSaveState.apply(this, arguments);
-    if (!applyingRemote && typeof window.__oldschoolPushSyncState === "function") {
-      clearTimeout(saveTimer);
-      saveTimer = setTimeout(() => {
-        const stateObj = readLocalStateObject();
-        if (stateObj) window.__oldschoolPushSyncState(stateObj);
-      }, 25);
-    }
-    return result;
-  };
 })();
