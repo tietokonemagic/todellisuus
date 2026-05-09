@@ -11026,3 +11026,209 @@ press orb with the mouse from the spot you want to target the flipping force fro
   forceLocalActive();
   requestAnimationFrame(applyLocalBattlefieldPerspective);
 })();
+
+// layer7: true shared table world + local rotated viewport correction.
+// State card.x/card.y are always PLAYER 1/world-screen coordinates.
+// Player 2 sees the same world rotated 180°, but dragging writes back to the same world coordinates.
+(function(){
+  const WORLD_MARK = 'layer7-common-world';
+  function localSeat(){
+    return (window.__LOCAL_PLAYER__ || localStorage.getItem('oldschoolLocalPlayer') || 'p1') === 'p2' ? 'p2' : 'p1';
+  }
+  function opponentSeat(){ return localSeat() === 'p2' ? 'p1' : 'p2'; }
+  function isP2View(){ return localSeat() === 'p2'; }
+  function cardElSize(el){
+    const r = el && el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+    return { w: (r && r.width) || CARD_W, h: (r && r.height) || CARD_H };
+  }
+  function screenToWorldRect(left, top, w, h){
+    if(!isP2View()) return { x:left, y:top };
+    return { x: window.innerWidth - left - w, y: window.innerHeight - top - h };
+  }
+  function worldToScreenRect(x, y, w, h){
+    if(!isP2View()) return { left:x, top:y };
+    return { left: window.innerWidth - x - w, top: window.innerHeight - y - h };
+  }
+  function localCardBase(card){ return ((card && card.owner) || 'p1') === localSeat() ? 0 : 180; }
+  function applyOneBattleCard(el, card){
+    if(!el || !card || card.zone !== 'battlefield') return;
+    const s = cardElSize(el);
+    const pos = worldToScreenRect(Number(card.x || 0), Number(card.y || 0), s.w, s.h);
+    el.style.left = pos.left + 'px';
+    el.style.top = pos.top + 'px';
+    el.style.transformOrigin = '0 0';
+    const base = localCardBase(card);
+    if(card.tapped){
+      el.style.transform = `translate(${s.h}px, ${s.h - s.w}px) rotate(${base + 90}deg)`;
+    } else {
+      el.style.transform = `rotate(${base}deg)`;
+    }
+    el.dataset.layer7World = WORLD_MARK;
+  }
+  function applyCommonWorldView(){
+    document.body.classList.toggle('local-p1', localSeat() === 'p1');
+    document.body.classList.toggle('local-p2', localSeat() === 'p2');
+    if(typeof state === 'object' && state) state.activePlayer = localSeat();
+    if(typeof els === 'object' && els && els.activePlayerSelect) els.activePlayerSelect.value = localSeat();
+    document.querySelectorAll('.battle-card').forEach(el => {
+      const card = state.cards.find(c => c.id === el.dataset.cardId);
+      if(card) applyOneBattleCard(el, card);
+    });
+  }
+  window.applyCommonWorldViewLayer7 = applyCommonWorldView;
+
+  // Final hand drop: bottom is always own local hand, top is opponent hand.
+  getHandDrop = function(y){
+    if(y >= window.innerHeight - HAND_HEIGHT) return localSeat();
+    if(y <= HAND_HEIGHT) return opponentSeat();
+    return null;
+  };
+
+  // Final battlefield move/end handlers. They preserve old hand/pile behavior but convert screen coords <-> world coords.
+  onCardDragMove = function(e){
+    window.__lastPointerX = e.clientX;
+    const drag = state.dragging;
+    if(!drag || drag.type !== 'card') return;
+    const card = state.cards.find(c => c.id === drag.cardId);
+    if(!card) return;
+    drag.moved = true;
+
+    if(drag.fromHand){
+      if(typeof v24MoveGhost === 'function') v24MoveGhost(drag, e.clientX, e.clientY);
+    } else if(drag.group){
+      const dx = isP2View() ? -(e.clientX - drag.startX) : (e.clientX - drag.startX);
+      const dy = isP2View() ? -(e.clientY - drag.startY) : (e.clientY - drag.startY);
+      drag.group.forEach(g => {
+        const c = state.cards.find(x => x.id === g.id);
+        if(!c) return;
+        c.x = g.x + dx;
+        c.y = g.y + dy;
+        const el = els.table.querySelector(`[data-card-id="${c.id}"]`);
+        if(el) applyOneBattleCard(el, c);
+      });
+    } else {
+      card.zone = 'battlefield';
+      const probeEl = els.table.querySelector(`[data-card-id="${card.id}"]`);
+      const s = cardElSize(probeEl);
+      const left = e.clientX - drag.offsetX;
+      const top = e.clientY - drag.offsetY;
+      const world = screenToWorldRect(left, top, s.w, s.h);
+      card.x = world.x;
+      card.y = world.y;
+      if(probeEl){
+        probeEl.style.zIndex = String(card.z || 1);
+        applyOneBattleCard(probeEl, card);
+      }
+    }
+
+    const targetHand = getHandDrop(e.clientY);
+    els.p1HandZone.classList.toggle('drop-hover', targetHand === 'p1');
+    els.p2HandZone.classList.toggle('drop-hover', targetHand === 'p2');
+
+    const pileProbe = (() => {
+      const s = {w:CARD_W, h:CARD_H};
+      const left = e.clientX - (drag.offsetX || 0);
+      const top = e.clientY - (drag.offsetY || 0);
+      // pile hit testing is screen-space, so use the displayed rect directly
+      const r = {left, top, right:left+s.w, bottom:top+s.h};
+      let best = null;
+      document.querySelectorAll('.pile-zone').forEach(el => {
+        const b = el.getBoundingClientRect();
+        if(!(r.right < b.left || r.left > b.right || r.bottom < b.top || r.top > b.bottom)) best = el;
+      });
+      return best;
+    })();
+    if(pileProbe && kindOfZone(pileProbe.dataset.zone) === 'library') showDropHint('put on bottom', e.clientX + 10, e.clientY + 10);
+    else hideDropHint();
+  };
+
+  onCardDragEnd = function(e){
+    document.removeEventListener('pointermove', onCardDragMove);
+    els.p1HandZone.classList.remove('drop-hover');
+    els.p2HandZone.classList.remove('drop-hover');
+    const drag = state.dragging;
+    const card = state.cards.find(c => c.id === drag?.cardId);
+    state.dragging = null;
+    hideDropHint();
+    if(!card){ if(drag?.ghost) drag.ghost.remove(); return; }
+    const movedDistance = Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY);
+    if(drag.ghost) drag.ghost.remove();
+
+    if(drag.fromHand && movedDistance < 6){
+      card.zone = drag.fromZone;
+      saveState();
+      render();
+      return;
+    }
+
+    // Pile drops are screen-space: if a card visually overlaps a pile, use that pile.
+    let pile = null;
+    {
+      const left = e.clientX - (drag.offsetX || 0);
+      const top = e.clientY - (drag.offsetY || 0);
+      const r = {left, top, right:left+CARD_W, bottom:top+CARD_H};
+      document.querySelectorAll('.pile-zone').forEach(el => {
+        const b = el.getBoundingClientRect();
+        if(!(r.right < b.left || r.left > b.right || r.bottom < b.top || r.top > b.bottom)) pile = el;
+      });
+    }
+    if(pile){
+      const zone = pile.dataset.zone;
+      const kind = kindOfZone(zone);
+      if(kind === 'library'){
+        card.zone = zone;
+        card.faceDown = false;
+        card.tapped = false;
+        state.cards = [card].concat(state.cards.filter(c => c.id !== card.id));
+      } else if(kind === 'graveyard' || kind === 'exile'){
+        moveCardToPublicPile(card, zone);
+        card.tapped = false;
+      }
+      saveState();
+      render();
+      return;
+    }
+
+    const hand = getHandDrop(e.clientY);
+    if(hand){
+      if(drag.fromHand){
+        card.zone = `${hand}-hand`;
+        card.tapped = false;
+        card.faceDown = false;
+        const handCards = state.cards.filter(c => c.zone === `${hand}-hand` && c.id !== card.id);
+        const others = state.cards.filter(c => c.zone !== `${hand}-hand` && c.id !== card.id);
+        const fan = hand === 'p1' ? els.p1HandFan : els.p2HandFan;
+        const rect = fan.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / Math.max(1, rect.width)));
+        handCards.splice(Math.round(ratio * handCards.length), 0, card);
+        state.cards = others.concat(handCards);
+      } else {
+        insertCardIntoHand(card, hand, e.clientX);
+      }
+    } else {
+      const probeEl = els.table.querySelector(`[data-card-id="${card.id}"]`);
+      const s = cardElSize(probeEl);
+      const left = e.clientX - drag.offsetX;
+      const top = e.clientY - drag.offsetY;
+      const world = screenToWorldRect(left, top, s.w, s.h);
+      card.zone = 'battlefield';
+      card.x = world.x;
+      card.y = world.y;
+    }
+    saveState();
+    render();
+  };
+
+  // Wrap render last so all earlier render overrides run first, then this applies final common-world perspective.
+  const prevRenderLayer7 = render;
+  render = function(){
+    if(typeof state === 'object' && state) state.activePlayer = localSeat();
+    if(typeof els === 'object' && els && els.activePlayerSelect) els.activePlayerSelect.value = localSeat();
+    prevRenderLayer7();
+    requestAnimationFrame(applyCommonWorldView);
+  };
+
+  window.addEventListener('resize', () => requestAnimationFrame(applyCommonWorldView));
+  window.addEventListener('DOMContentLoaded', () => requestAnimationFrame(applyCommonWorldView));
+  requestAnimationFrame(applyCommonWorldView);
+})();

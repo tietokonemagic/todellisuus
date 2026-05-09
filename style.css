@@ -6552,3 +6552,60 @@ body.local-p1 #p1DrawPopover,
 body.local-p2 #p2DrawPopover {
   display: grid !important;
 }
+
+/* layer7: force local hand zones to be genuinely local and keep the table responsive. */
+body.local-p1 #p1HandZone,
+body.local-p2 #p2HandZone {
+  left: 50% !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: 0 !important;
+  width: var(--hand-drop-width) !important;
+  height: 150px !important;
+  transform: translateX(-50%) !important;
+  pointer-events: auto !important;
+}
+body.local-p1 #p2HandZone,
+body.local-p2 #p1HandZone {
+  left: 50% !important;
+  right: auto !important;
+  top: 0 !important;
+  bottom: auto !important;
+  width: var(--hand-drop-width) !important;
+  height: 150px !important;
+  transform: translateX(-50%) rotate(180deg) !important;
+  pointer-events: none !important;
+}
+body.local-p1 #p1HandFan,
+body.local-p2 #p2HandFan,
+body.local-p1 #p2HandFan,
+body.local-p2 #p1HandFan {
+  left: 50% !important;
+  bottom: -14px !important;
+  top: auto !important;
+  transform: translateX(-50%) !important;
+}
+
+/* Player 2 sees the same table from the other side; only local perspective changes. */
+.battle-card[data-layer7-world="layer7-common-world"] {
+  will-change: left, top, transform;
+}
+
+/* Scale the board down on narrow landscape screens instead of letting it spill offscreen. */
+@media (orientation: landscape) and (max-width: 900px) {
+  :root {
+    --base-card-w: clamp(58px, 7vw, 94px) !important;
+    --deck-card-w: clamp(72px, 9vw, 112px) !important;
+    --hand-drop-width: min(620px, 58vw) !important;
+  }
+  .die {
+    width: 26px !important;
+    height: 26px !important;
+    padding: 3px !important;
+  }
+  .pip {
+    width: 4px !important;
+    height: 4px !important;
+  }
+  #menuPanel { transform: scale(.78); transform-origin: left bottom; }
+}
