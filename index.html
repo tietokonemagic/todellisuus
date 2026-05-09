@@ -8,6 +8,22 @@
   <link rel="stylesheet" href="orbflip.css">
 </head>
 <body>
+<div id="roomSeatOverlay" class="room-seat-overlay">
+  <div class="room-seat-box">
+    <h1>SELECT ROOM</h1>
+    <div class="room-seat-section">
+      <button type="button" class="room-choice" data-room="room1">ROOM 1</button>
+      <button type="button" class="room-choice" data-room="room2">ROOM 2</button>
+    </div>
+    <h1>SELECT PLAYER</h1>
+    <div class="room-seat-section">
+      <button type="button" class="player-choice" data-player="p1">PLAYER 1</button>
+      <button type="button" class="player-choice" data-player="p2">PLAYER 2</button>
+    </div>
+    <button type="button" id="roomSeatStartBtn" disabled>START</button>
+  </div>
+</div>
+
 <div id="app">
   <div id="p2Playmat"></div>
   <div id="p1Playmat"></div>
@@ -242,12 +258,10 @@
     </div>
   </div>
 </div>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="scryfall.js"></script>
 <script src="orbflip.js"></script>
 <script src="app.js"></script>
-<script src="firebase-sync.js"></script>
+<script type="module" src="firebase-sync.js"></script>
     <div id="simpleOrbPowerOuterV70"><div id="simpleOrbPowerInnerV70"></div></div>
     <button type="button" id="simpleOrbAgainV70">AGAIN</button>
     <button type="button" id="simpleOrbCloseV70">CLOSE</button>

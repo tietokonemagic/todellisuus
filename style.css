@@ -6407,49 +6407,128 @@ body.hide-selection .card.discard-marked-hand {
   background: #168b3d !important;
 }
 
-
-/* firebase room sync: hide opponent private deck controls */
-.opponent-piles .library-controls {
-  display: none !important;
-}
-
-/* firebase room selector overlay */
-#firebaseRoomGate {
+/* === Firebase room/player selection + local-seat perspective === */
+.room-seat-overlay {
   position: fixed;
   inset: 0;
   z-index: 2147483600;
+  background: rgba(0,0,0,.82);
   display: grid;
   place-items: center;
-  background: #242424;
-  color: #eee;
 }
-#firebaseRoomGate.hidden { display: none !important; }
-#firebaseRoomGate .room-box {
-  width: min(420px, calc(100vw - 40px));
-  background: #111;
-  border: 1px solid rgba(255,255,255,.22);
+.room-seat-overlay.hidden { display: none !important; }
+.room-seat-box {
+  width: min(520px, calc(100vw - 42px));
+  background: #181818;
+  border: 1px solid rgba(255,255,255,.28);
   border-radius: 14px;
   padding: 22px;
-  box-shadow: 0 20px 70px rgba(0,0,0,.65);
+  box-shadow: 0 18px 60px rgba(0,0,0,.7);
   text-align: center;
 }
-#firebaseRoomGate h1 {
-  margin: 0 0 18px;
-  font-size: 28px;
+.room-seat-box h1 {
+  margin: 0 0 12px 0;
+  font-size: 24px;
+  color: #eee;
 }
-#firebaseRoomGate .room-buttons {
+.room-seat-section {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+  margin: 0 0 22px 0;
 }
-#firebaseRoomGate button {
-  min-height: 60px;
+.room-seat-box button {
+  min-height: 58px;
   font-size: 22px;
-  background: #3a3a3a;
+  border-radius: 10px;
+  background: #3f3f3f;
+  border: 2px solid rgba(255,255,255,.16);
 }
-#firebaseRoomGate .room-status {
-  margin-top: 14px;
-  min-height: 18px;
-  font-size: 12px;
-  opacity: .82;
+.room-seat-box button.selected {
+  background: #197a38 !important;
+  border-color: #50d46f !important;
+}
+#roomSeatStartBtn {
+  width: 100%;
+  background: #555;
+}
+#roomSeatStartBtn:not(:disabled) {
+  background: #197a38;
+}
+#roomSeatStartBtn:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+/* Active-player dropdown is replaced by the start screen seat choice. */
+#menuPanel label:has(+ #activePlayerSelect),
+#activePlayerSelect {
+  display: none !important;
+}
+
+/* Only local player's deck controls are visible. */
+body.local-p1 #p2DrawPopover,
+body.local-p2 #p1DrawPopover {
+  display: none !important;
+}
+body.local-p1 #p1DrawPopover,
+body.local-p2 #p2DrawPopover {
+  display: grid !important;
+}
+
+/* Player 2 local perspective: p2 is bottom, p1 is top/upside-down. */
+body.local-p2 #p2Piles {
+  right: var(--zone-side-pad) !important;
+  left: auto !important;
+  bottom: 14px !important;
+  top: auto !important;
+  transform: none !important;
+}
+body.local-p2 #p1Piles {
+  left: var(--zone-side-pad) !important;
+  right: auto !important;
+  top: 28px !important;
+  bottom: auto !important;
+  transform: rotate(180deg) !important;
+}
+body.local-p2 #p2HandZone {
+  left: var(--p1-hand-left, 50%) !important;
+  top: var(--p1-hand-top, auto) !important;
+  bottom: var(--p1-hand-bottom, 0px) !important;
+  right: auto !important;
+  width: var(--hand-drop-width) !important;
+  transform: translate(-50%, 0) !important;
+  pointer-events: auto !important;
+}
+body.local-p2 #p1HandZone {
+  left: 50% !important;
+  right: auto !important;
+  width: var(--hand-drop-width) !important;
+  top: 0 !important;
+  bottom: auto !important;
+  transform: translateX(-50%) rotate(180deg) !important;
+  pointer-events: none !important;
+}
+
+/* Player 2 local playmat perspective. */
+body.local-p2 #p2Playmat {
+  top: auto !important;
+  bottom: 0 !important;
+  transform: none !important;
+}
+body.local-p2 #p1Playmat {
+  bottom: auto !important;
+  top: 0 !important;
+  transform: rotate(180deg) !important;
+}
+
+body.local-p1 #p1Playmat {
+  bottom: 0 !important;
+  top: auto !important;
+  transform: none !important;
+}
+body.local-p1 #p2Playmat {
+  top: 0 !important;
+  bottom: auto !important;
+  transform: rotate(180deg) !important;
 }

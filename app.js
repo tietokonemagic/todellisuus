@@ -1,4 +1,3 @@
-var __PLAYMAT_FILES__ = ["allergy1.png", "allergy1b.png", "allergy2.png", "bluemana1.png", "bluemana2.png", "boris.png", "camel.png", "cland.png", "cross.png", "dance.png", "farm.png", "flash.png", "flash2.png", "gate.png", "geddon.png", "golem.png", "grem1.png", "grem2.png", "hell.png", "hordes.png", "kudzu.png", "life.png", "mesa.png", "miracle.png", "mire.png", "mold.png", "pesti.png", "phantom.png", "purge.png", "spawn.png", "terracorn.png", "terrain.png", "unicorn.png", "urzaglas.png", "vault.png", "zombi.png"];
 const SLEEVE_COLORS = {
   black: "#050505",
   turquoise: "#00a8a8",
@@ -14,6 +13,21 @@ const SLEEVE_COLORS = {
 };
 
 const PIPS = { 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,3,4,6,7,9] };
+
+
+// Net-seat helpers. Local-only; synced game state still uses absolute p1/p2 owners.
+function localPlayerId(){
+  return window.__LOCAL_PLAYER__ || localStorage.getItem("oldschoolLocalPlayer") || "p1";
+}
+function opponentPlayerId(){
+  return localPlayerId() === "p2" ? "p1" : "p2";
+}
+function opponentHandZone(){
+  return `${opponentPlayerId()}-hand`;
+}
+function ownHandZone(){
+  return `${localPlayerId()}-hand`;
+}
 
 const TOKEN_NAMES = ["wolf","rukh","minor demon","sand warrior","camarid","thrull","saproling","djinn","tetravite","stangg","snake","citizen","goblin","wasp"];
 function tokenPath(setName, tokenName){
@@ -2435,7 +2449,7 @@ shuffleLibrary = function(player){
 (function(){
   // Token fan always belongs to bottom player in local test.
   function v37SpawnToken(src, name, backSrc, x, y){
-    const p = "p1";
+    const p = localPlayerId();
     state.cards.push({
       id: uid(),
       owner: p,
@@ -2461,7 +2475,7 @@ shuffleLibrary = function(player){
   // Override token modal open: no panel, click token = appears middle of my battlefield.
   addToken = function(player = "p1"){
     state.selectedToken = null;
-    state.activePlayer = "p1";
+    state.activePlayer = localPlayerId();
     if(els.activePlayerSelect) els.activePlayerSelect.value = "p1";
     renderTokenGrid();
     els.tokenModal.classList.remove("hidden");
@@ -2572,8 +2586,8 @@ shuffleLibrary = function(player){
   }
 
   renderSideboardEditor = function(){
-    const p = "p1";
-    state.activePlayer = "p1";
+    const p = localPlayerId();
+    state.activePlayer = localPlayerId();
     if(els.activePlayerSelect) els.activePlayerSelect.value = "p1";
 
     els.mainboardGrid.innerHTML = "";
@@ -2595,7 +2609,7 @@ shuffleLibrary = function(player){
 
   // Move one card by name from any main zone to sideboard.
   moveOneToSide = function(name){
-    const p = "p1";
+    const p = localPlayerId();
     const card = state.cards.find(c => (c.owner || "p1") === p && !c.token && c.name === name && c.zone !== "sideboard");
     if(!card) return;
     state.cards = state.cards.filter(c => c.id !== card.id);
@@ -2605,7 +2619,7 @@ shuffleLibrary = function(player){
   };
 
   moveOneToMain = function(name){
-    const p = "p1";
+    const p = localPlayerId();
     const card = (state.sideboardCards || []).find(c => (c.owner || "p1") === p && c.name === name);
     if(!card) return;
     state.sideboardCards = state.sideboardCards.filter(c => c.id !== card.id);
@@ -3066,8 +3080,8 @@ shuffleLibrary = function(player){
   }
 
   renderSideboardEditor = function(){
-    const p = "p1";
-    state.activePlayer = "p1";
+    const p = localPlayerId();
+    state.activePlayer = localPlayerId();
     if(els.activePlayerSelect) els.activePlayerSelect.value = "p1";
 
     els.mainboardGrid.innerHTML = "";
@@ -3089,7 +3103,7 @@ shuffleLibrary = function(player){
   };
 
   moveOneToSide = function(name){
-    const p = "p1";
+    const p = localPlayerId();
     const main = v41MainCards(p).filter(c => c.name === name);
     const card = main[main.length - 1];
     if(!card) return;
@@ -3101,7 +3115,7 @@ shuffleLibrary = function(player){
   };
 
   moveOneToMain = function(name){
-    const p = "p1";
+    const p = localPlayerId();
     const cards = v41SideCards(p).filter(c => c.name === name);
     const card = cards[cards.length - 1];
     if(!card) return;
@@ -3324,8 +3338,8 @@ shuffleLibrary = function(player){
   }
 
   renderSideboardEditor = function(){
-    const p = "p1";
-    state.activePlayer = "p1";
+    const p = localPlayerId();
+    state.activePlayer = localPlayerId();
     if(els.activePlayerSelect) els.activePlayerSelect.value = "p1";
 
     const main = v43SideMainCards(p);
@@ -3837,8 +3851,8 @@ shuffleLibrary = function(player){
   }
 
   renderSideboardEditor = function(resetLayout=false){
-    const p = "p1";
-    state.activePlayer = "p1";
+    const p = localPlayerId();
+    state.activePlayer = localPlayerId();
     if(els.activePlayerSelect) els.activePlayerSelect.value = "p1";
 
     ensureSideboardLayout();
@@ -3920,7 +3934,7 @@ shuffleLibrary = function(player){
 
     // Never show opponent hand or any library.
     if(card.zone && card.zone.endsWith("-library")) return true;
-    if(card.zone === "p2-hand") return true;
+    if(card.zone === opponentHandZone()) return true;
 
     // Own hand is allowed. Battlefield/grave/exile/sideboard/editor are allowed.
     return false;
@@ -4291,7 +4305,7 @@ shuffleLibrary = function(player){
     function allowed(card){
       if(!card) return false;
       if(card.zone && card.zone.endsWith("-library")) return false;
-      if(card.zone === "p2-hand") return false;
+      if(card.zone === opponentHandZone()) return false;
       return true;
     }
 
@@ -6165,7 +6179,7 @@ shuffleLibrary = function(player){
     function allowed(card){
       if(!card) return false;
       if(card.zone && card.zone.endsWith("-library")) return false;
-      if(card.zone === "p2-hand") return false;
+      if(card.zone === opponentHandZone()) return false;
       return true;
     }
     function cardFromTarget(target){
@@ -6727,6 +6741,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   function savePlaymatState() {
     localStorage.setItem(PLAYMAT_STORAGE, JSON.stringify(playmatState));
+    if (window.__firebaseSchedulePush) window.__firebaseSchedulePush();
   }
 
   function pmEl(player) {
@@ -6899,8 +6914,14 @@ document.addEventListener("DOMContentLoaded", ()=>{
   function renderPlaymatPicker() {
     const picker = ensurePlaymatPicker();
     const controls = picker.querySelector("#playmatColorControls");
-    buildPlaymatRow(picker.querySelector("#playmatGridP2"), "p2");
-    buildPlaymatRow(picker.querySelector("#playmatGridP1"), "p1");
+    const local = localPlayerId();
+    const opp = opponentPlayerId();
+    const topLabel = picker.querySelectorAll(".playmat-row-label")[0];
+    const bottomLabel = picker.querySelectorAll(".playmat-row-label")[1];
+    if (topLabel) topLabel.textContent = `OPPONENT / TOP PLAYMAT (${opp.toUpperCase()})`;
+    if (bottomLabel) bottomLabel.textContent = `YOU / BOTTOM PLAYMAT (${local.toUpperCase()})`;
+    buildPlaymatRow(picker.querySelector("#playmatGridP2"), opp);
+    buildPlaymatRow(picker.querySelector("#playmatGridP1"), local);
     controls.classList.remove("open");
     markPlaymatSelection();
   }
@@ -7007,8 +7028,8 @@ document.addEventListener("DOMContentLoaded", ()=>{
   function resetSideboardEditorLayoutStable() {
     ensureSideLayout();
     state.sideboardLayout = {
-      ...sideInitialLayout(sideSortMain("p1"), "main"),
-      ...sideInitialLayout(sideSortSide("p1"), "side")
+      ...sideInitialLayout(sideSortMain(localPlayerId()), "main"),
+      ...sideInitialLayout(sideSortSide(localPlayerId()), "side")
     };
   }
 
@@ -7034,7 +7055,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     ensureSideLayout();
 
     if (!state.sideboardLayout[card.id]) {
-      const cards = area === "main" ? sideSortMain("p1") : sideSortSide("p1");
+      const cards = area === "main" ? sideSortMain(localPlayerId()) : sideSortSide(localPlayerId());
       state.sideboardLayout[card.id] = rightmostBottomStable(cards, area);
     }
 
@@ -7120,7 +7141,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     ensureSideLayout();
     state.sideboardLayout[cardId] = keepPos
       ? { ...keepPos, area: "side" }
-      : rightmostBottomStable(sideSortSide("p1"), "side");
+      : rightmostBottomStable(sideSortSide(localPlayerId()), "side");
 
     saveState();
   }
@@ -7135,14 +7156,14 @@ document.addEventListener("DOMContentLoaded", ()=>{
     ensureSideLayout();
     state.sideboardLayout[cardId] = keepPos
       ? { ...keepPos, area: "main" }
-      : rightmostBottomStable(sideSortMain("p1"), "main");
+      : rightmostBottomStable(sideSortMain(localPlayerId()), "main");
 
     saveState();
   }
 
   window.renderSideboardEditor = function(resetLayout = false) {
-    const p = "p1";
-    state.activePlayer = "p1";
+    const p = localPlayerId();
+    state.activePlayer = localPlayerId();
     if (els.activePlayerSelect) els.activePlayerSelect.value = "p1";
 
     ensureSideLayout();
@@ -7181,17 +7202,17 @@ document.addEventListener("DOMContentLoaded", ()=>{
   };
 
   window.moveOneToSide = function(name) {
-    const card = sideSortMain("p1").find(c => c.name === name);
+    const card = sideSortMain(localPlayerId()).find(c => c.name === name);
     if (card) moveCardToSideStable(card.id);
   };
 
   window.moveOneToMain = function(name) {
-    const card = sideSortSide("p1").find(c => c.name === name);
+    const card = sideSortSide(localPlayerId()).find(c => c.name === name);
     if (card) moveCardToMainStable(card.id);
   };
 
   window.finishSideboarding = function() {
-    const p = "p1";
+    const p = localPlayerId();
     const others = state.cards.filter(c => c.zone !== `${p}-library`);
     const lib = shuffleArray(zoneCards(`${p}-library`));
     state.cards = others.concat(lib);
@@ -7211,6 +7232,17 @@ document.addEventListener("DOMContentLoaded", ()=>{
       openSideboardEditor();
     }, true);
   }
+
+  window.getPlaymatStateSync = function(){
+    return cloneObj(playmatState);
+  };
+
+  window.setPlaymatStateSync = function(next){
+    playmatState = Object.assign(cloneObj(playmatDefaults), cloneObj(next || {}));
+    savePlaymatState();
+    applyPlaymats();
+    markPlaymatSelection();
+  };
 
   function initPatch() {
     applyPlaymats();
@@ -7492,7 +7524,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
   }
 
   renderSideboardEditor = function(resetLayout=false){
-    state.activePlayer = "p1";
+    state.activePlayer = localPlayerId();
     if(els.activePlayerSelect) els.activePlayerSelect.value = "p1";
 
     els.mainboardGrid.innerHTML = "";
@@ -7573,7 +7605,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
     if(!confirm("reset game and go to editor ?")) return;
 
-    state.activePlayer = "p1";
+    state.activePlayer = localPlayerId();
     if(els.activePlayerSelect) els.activePlayerSelect.value = "p1";
 
     state.cards = state.cards.map(c=>{
@@ -8742,7 +8774,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
     // Opponent hand is private information: always render it as a sleeved back locally,
     // without changing the actual card data. Drag/drop logic still sees the real card.
-    if(card && card.zone === "p2-hand"){
+    if(card && card.zone === opponentHandZone()){
       el.classList.add("face-down", "opponent-hand-back");
     }
 
@@ -8797,9 +8829,9 @@ document.addEventListener("DOMContentLoaded", ()=>{
   const previousCreateCardElement33 = createCardElement;
   createCardElement = function(card, className){
     const el = previousCreateCardElement33(card, className);
-    if(card && card.zone === "p2-hand"){
+    if(card && card.zone === opponentHandZone()){
       el.classList.add("opponent-hand-private");
-      if(!handIsRevealed("p2")){
+      if(!handIsRevealed(opponentPlayerId())){
         el.classList.add("face-down", "opponent-hand-back");
         el.setAttribute("title", "opponent hand");
       } else {
@@ -8814,7 +8846,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     const cardEl = e.target && e.target.closest ? e.target.closest('.card[data-card-id]') : null;
     if(!cardEl) return;
     const card = state.cards.find(c => c.id === cardEl.dataset.cardId);
-    if(card && card.zone === 'p2-hand'){
+    if(card && card.zone === opponentHandZone()){
       e.preventDefault();
       e.stopImmediatePropagation();
 
@@ -8884,8 +8916,8 @@ document.addEventListener("DOMContentLoaded", ()=>{
 // layer34: keep opponent private hand out of inspector + restrict double-click draw to the actual library stack.
 (function(){
   function isOpponentPrivateHandCard34(card){
-    if(!card || card.zone !== 'p2-hand') return false;
-    return !(state.revealedHand && state.revealedHand.p2);
+    if(!card || card.zone !== opponentHandZone()) return false;
+    return !(state.revealedHand && state.revealedHand[opponentPlayerId()]);
   }
 
   const previousShowOracle34 = showOracle;
@@ -8918,7 +8950,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
 // layer35: hard-block inspector from unrevealed opponent hand cards.
 (function(){
   function isUnrevealedOpponentHandCard(card){
-    return !!(card && card.zone === 'p2-hand' && !(state.revealedHand && state.revealedHand.p2));
+    return !!(card && card.zone === opponentHandZone() && !(state.revealedHand && state.revealedHand[opponentPlayerId()]));
   }
 
   function cardFromTarget35(target){
@@ -10073,7 +10105,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
   }
 
   function isOpponentHand52(card){
-    return !!(card && card.zone === 'p2-hand');
+    return !!(card && card.zone === opponentHandZone());
   }
 
   function cleanupDiscardMarks52(){
@@ -10563,7 +10595,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     return id ? state.cards.find(c => c.id === id) || null : null;
   }
   function isOpponentHand59(card){
-    return !!(card && card.zone === 'p2-hand');
+    return !!(card && card.zone === opponentHandZone());
   }
   function markClass59(card, el){
     const marked = !!(card && card.discardMarked && card.zone && card.zone.endsWith('-hand'));
@@ -10718,4 +10750,126 @@ press orb with the mouse from the spot you want to target the flipping force fro
 
   setTimeout(insertHelpButtons, 0);
   setTimeout(insertHelpButtons, 250);
+})();
+
+
+// Firebase/room seat adapter. Keeps local seat private while sharing absolute p1/p2 game state.
+(function(){
+  const GAME_KEY = "oldschoolTabletopV99";
+  const PLAYER_KEY = "oldschoolLocalPlayer";
+
+  function local(){ return localPlayerId(); }
+  function other(){ return opponentPlayerId(); }
+
+  function setActiveToLocal(){
+    const p = local();
+    state.activePlayer = p;
+    if(els.activePlayerSelect) els.activePlayerSelect.value = p;
+    document.body.classList.toggle('local-p2', p === 'p2');
+    document.body.classList.toggle('local-p1', p !== 'p2');
+  }
+
+  window.setLocalPlayer = function(player){
+    const p = player === 'p2' ? 'p2' : 'p1';
+    window.__LOCAL_PLAYER__ = p;
+    localStorage.setItem(PLAYER_KEY, p);
+    setActiveToLocal();
+    if(typeof render === 'function') render();
+  };
+
+  window.getFirebaseSnapshot = function(){
+    setActiveToLocal();
+    try { saveState(); } catch(_) {}
+    let game = null;
+    try { game = JSON.parse(localStorage.getItem(GAME_KEY) || 'null'); } catch(_) {}
+    return {
+      version: 2,
+      updated: Date.now(),
+      game,
+      playmats: window.getPlaymatStateSync ? window.getPlaymatStateSync() : null
+    };
+  };
+
+  window.applyFirebaseSnapshot = function(snapshot){
+    if(!snapshot) return;
+    if(snapshot.game){
+      const incoming = Object.assign({}, snapshot.game);
+      incoming.activePlayer = local();
+      localStorage.setItem(GAME_KEY, JSON.stringify(incoming));
+      try { loadState(); } catch(err) { console.error('[firebase sync] loadState failed', err); }
+    }
+    if(snapshot.playmats && window.setPlaymatStateSync){
+      try { window.setPlaymatStateSync(snapshot.playmats); } catch(err) { console.error('[firebase sync] playmat apply failed', err); }
+    }
+    setActiveToLocal();
+    if(typeof render === 'function') render();
+  };
+
+  const previousSave = saveState;
+  saveState = function(){
+    setActiveToLocal();
+    previousSave();
+    if(window.__firebaseSchedulePush) window.__firebaseSchedulePush();
+  };
+
+  const previousLoad = loadState;
+  loadState = function(){
+    const ok = previousLoad();
+    setActiveToLocal();
+    return ok;
+  };
+
+  // Local viewpoint: bottom hand/deck/drop zone belongs to selected local player.
+  getHandDrop = function(y){
+    if(y >= window.innerHeight - HAND_HEIGHT) return local();
+    if(y <= HAND_HEIGHT) return other();
+    return null;
+  };
+
+  // Draw shortcuts should always use local player, never whichever remote client last saved.
+  window.addEventListener('keydown', function(e){
+    const tag = (document.activeElement && document.activeElement.tagName || '').toLowerCase();
+    if(tag === 'input' || tag === 'textarea' || tag === 'select') return;
+    if(e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key && e.key.toLowerCase();
+    if(e.key === 'Tab' || k === 'd'){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if(window.animatedDrawManyLayer54) window.animatedDrawManyLayer54(local(), 1);
+      else if(window.animatedDrawManyLayer49) window.animatedDrawManyLayer49(local(), 1);
+      else drawCard(local());
+    }
+  }, true);
+
+  // Later privacy correction: local player's own hand is never forced face-down; opponent hand is.
+  const previousCreate = createCardElement;
+  createCardElement = function(card, className){
+    const el = previousCreate(card, className);
+    if(card && card.zone === ownHandZone()){
+      el.classList.remove('opponent-hand-back','opponent-hand-private');
+      if(!card.faceDown) el.classList.remove('face-down');
+    }
+    if(card && card.zone === opponentHandZone()){
+      el.classList.add('opponent-hand-private');
+      if(!(state.revealedHand && state.revealedHand[other()])){
+        el.classList.add('face-down','opponent-hand-back');
+      }
+    }
+    return el;
+  };
+
+  window.addEventListener('pointerdown', function(e){
+    if(e.button !== 0) return;
+    const el = e.target && e.target.closest ? e.target.closest('.card[data-card-id]') : null;
+    if(!el) return;
+    const card = state.cards.find(c => c.id === el.dataset.cardId);
+    if(!card || card.zone !== opponentHandZone()) return;
+    card.discardMarked = !card.discardMarked;
+    saveState();
+    render();
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }, true);
+
+  setActiveToLocal();
 })();
