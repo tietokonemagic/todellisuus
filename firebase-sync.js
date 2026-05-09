@@ -10,73 +10,72 @@ const firebaseConfig = {
 };
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import {
+  getDatabase,
+  ref,
+  set,
+  onValue,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 const params = new URLSearchParams(window.location.search);
 const ROOM_ID = params.get("room") || "room1";
-const CLIENT_ID_KEY = "osmagicClientId";
-let clientId = sessionStorage.getItem(CLIENT_ID_KEY);
-if(!clientId){
-  clientId = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
-  sessionStorage.setItem(CLIENT_ID_KEY, clientId);
-}
+const CLIENT_ID = (() => {
+  const key = "oldschoolTabletopClientId";
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
+    localStorage.setItem(key, id);
+  }
+  return id;
+})();
 
-const roomRef = ref(db, "rooms/" + ROOM_ID);
-let latestRemoteUpdated = 0;
+const roomRef = ref(db, "rooms/" + ROOM_ID + "/tabletopState");
+let lastAppliedRevision = 0;
 let pushTimer = null;
-let firstSnapshot = true;
+let firebaseReady = false;
 
-function currentState(){
-  if(typeof window.__OSM_EXPORT_STATE !== "function") return null;
-  return window.__OSM_EXPORT_STATE();
+function syncStatus(text) {
+  // Deliberately console-only: do not alter the existing UI.
+  console.log("[firebase sync]", text);
 }
 
-function writeStateNow(state){
-  if(!state) return;
-  set(roomRef, {
-    updated: Date.now(),
-    clientId,
-    state
-  }).catch(err => console.error("Firebase write failed", err));
-}
-
-window.__OSM_PUSH_STATE = function(state){
-  if(window.__OSM_APPLYING_REMOTE) return;
+window.__oldschoolPushSyncState = function (stateObj) {
+  if (!firebaseReady || !stateObj) return;
   clearTimeout(pushTimer);
-  pushTimer = setTimeout(()=>writeStateNow(state || currentState()), 90);
+  pushTimer = setTimeout(() => {
+    const revision = Date.now();
+    lastAppliedRevision = Math.max(lastAppliedRevision, revision);
+    set(roomRef, {
+      revision,
+      clientId: CLIENT_ID,
+      updatedAt: serverTimestamp(),
+      state: stateObj
+    }).catch(err => console.error("Firebase sync push failed", err));
+  }, 60);
 };
 
 onValue(roomRef, snap => {
+  firebaseReady = true;
   const data = snap.val();
-
-  if(!data){
-    const local = currentState();
-    if(local) writeStateNow(local);
+  if (!data || !data.state) {
+    const current = window.__oldschoolGetSyncState && window.__oldschoolGetSyncState();
+    if (current) window.__oldschoolPushSyncState(current);
+    syncStatus("empty room, published current local state to " + ROOM_ID);
     return;
   }
 
-  if(data.clientId === clientId) return;
-  if(data.updated && data.updated < latestRemoteUpdated) return;
-  latestRemoteUpdated = data.updated || Date.now();
+  if (data.clientId === CLIENT_ID) return;
+  if (data.revision && data.revision <= lastAppliedRevision) return;
+  lastAppliedRevision = data.revision || Date.now();
 
-  if(!data.state) return;
-
-  if(typeof window.__OSM_APPLY_REMOTE_STATE === "function"){
-    window.__OSM_APPLY_REMOTE_STATE(data.state);
+  if (window.__oldschoolApplySyncState) {
+    window.__oldschoolApplySyncState(data.state);
+    syncStatus("applied remote state from " + ROOM_ID);
   }
-
-  firstSnapshot = false;
+}, err => {
+  console.error("Firebase sync listen failed", err);
 });
-
-setTimeout(()=>{
-  if(firstSnapshot){
-    const local = currentState();
-    if(local) window.__OSM_PUSH_STATE(local);
-  }
-}, 1500);
-
-window.OSMAGIC_ROOM_ID = ROOM_ID;
-window.OSMAGIC_CLIENT_ID = clientId;

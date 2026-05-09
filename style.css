@@ -10,9 +10,8 @@ html, body {
 }
 
 :root {
-  --zoom: 1;
   --base-card-w: 118px;
-  --card-w: calc(var(--base-card-w) * var(--zoom));
+  --card-w: var(--base-card-w);
   --card-ratio: 1.397;
   --card-h: calc(var(--card-w) * var(--card-ratio));
   --sleeve: #050505;
@@ -253,7 +252,7 @@ body.hide-selection .die.selected { outline: 0; box-shadow: 0 2px 6px rgba(0,0,0
 }
 
 .card:active { cursor: grabbing; }
-.card:hover { z-index: 9999 !important; filter: brightness(1.06); }
+.battle-card:hover { z-index: 9999 !important; filter: brightness(1.06); }
 .card.selected { box-shadow: 0 0 0 1px rgba(255,255,255,.9), 0 0 6px rgba(255,255,255,.45); }
 
 .card-face,
@@ -567,23 +566,6 @@ body.shift-down .draw-popover:hover {
   display: none;
 }
 
-.rotate-pile-btn {
-  position: absolute;
-  right: -9px;
-  top: -9px;
-  width: 24px;
-  height: 24px;
-  min-height: 24px;
-  padding: 0;
-  display: none;
-  z-index: 1000;
-  border-radius: 50%;
-}
-
-body.shift-down .rotate-pile-btn {
-  display: block;
-}
-
 .pile-zone {
   touch-action: none;
 }
@@ -601,11 +583,6 @@ body.shift-down .rotate-pile-btn {
   transform-origin: 50% 50%;
 }
 
-
-/* v9 reset: no movable/rotatable piles */
-.rotate-pile-btn {
-  display: none !important;
-}
 
 .pile-zone {
   cursor: default;
@@ -648,20 +625,6 @@ body.shift-down .rotate-pile-btn {
   font-size: 11px;
 }
 
-#zoomSlider {
-  width: 100%;
-}
-
-/* zoom dice too */
-.die {
-  width: calc(38px * var(--zoom));
-  height: calc(38px * var(--zoom));
-}
-
-.pip {
-  width: calc(7px * var(--zoom));
-  height: calc(7px * var(--zoom));
-}
 
 /* keep opponent piles on left, self on right */
 .opponent-piles {
@@ -820,15 +783,7 @@ body.shift-down .rotate-pile-btn {
   height: calc(var(--card-h) + 30px);
 }
 
-/* no pile rotation/moving UI */
-.rotate-pile-btn {
-  display: none !important;
-}
-
 /* disable old zoom from piles */
-#zoomSlider {
-  display: none;
-}
 
 
 .card.tapped .token-label {
@@ -980,10 +935,6 @@ body.core-2ed .card.selected,body.core-2ed .die.selected,body.core-2ed .library-
   --card-h: calc(var(--card-w) * 1.397);
 }
 
-#tableZoomSlider {
-  width: 100%;
-}
-
 /* Keep the deck-area control box locked to card size after zoom. */
 .library-controls {
   width: var(--card-w) !important;
@@ -1008,21 +959,6 @@ body, button, input, select {
   font-style: italic !important;
   text-transform: uppercase !important;
 }
-
-/* v20 positioning tweaks */
-#graveyard, #exile {
-  transform: translateY(-12px);
-}
-
-#deckArea {
-  transform: scale(1.08);
-  transform-origin: top right;
-}
-
-.dice-container {
-  left: calc(var(--grave-left, 0px));
-}
-
 
 /* v21 layout/zoom fixes */
 :root {
@@ -1603,12 +1539,6 @@ body, button, input, select {
   font-style: italic;
 }
 
-/* hand hover must not reorder/pop cards */
-.hand-card:hover {
-  z-index: inherit !important;
-  transform: var(--hand-transform, none) !important;
-}
-
 
 /* v43 sideboard layout: editor lives on right, oracle panel remains visible on left */
 #sideboardModal {
@@ -1767,13 +1697,6 @@ body, button, input, select {
   z-index: 700 !important;
 }
 
-/* hand hover must not alter order or raise anything */
-.hand-card:hover {
-  z-index: var(--hand-z) !important;
-  transform: var(--hand-transform, none) !important;
-  filter: none !important;
-}
-
 
 /* v46 definitive oracle + static hand hover */
 .oracle-panel {
@@ -1826,26 +1749,6 @@ body, button, input, select {
 .menu-open,
 #floatingMenu {
   z-index: 900 !important;
-}
-
-/* absolutely no hand hover lift / reorder / scale / filter */
-.hand-card,
-.hand-card:hover,
-.hand-card:focus,
-.hand-card:active {
-  z-index: var(--hand-z) !important;
-  transform: var(--hand-transform) !important;
-  filter: none !important;
-  scale: 1 !important;
-  translate: 0 0 !important;
-  outline-offset: 0 !important;
-}
-
-.hand-card:hover img,
-.hand-card:hover .card-face,
-.hand-card:hover .card-back {
-  transform: none !important;
-  filter: none !important;
 }
 
 
@@ -3832,15 +3735,6 @@ body, button, input, select {
 #inspectorContentV78 .ci-name { font-weight: 700; margin-bottom: 5px; }
 #inspectorContentV78 .ci-type { color: #ddd; margin-bottom: 8px; }
 
-/* v78: prevent temporary hover-to-front behavior on battlefield cards */
-.card:hover,
-.battle-card:hover,
-.card.hover,
-.battle-card.hover {
-  z-index: unset;
-  transform-origin: inherit;
-}
-
 
 /* v79 inspector. Important: movable properties are NOT locked with !important. */
 #cardInspectorV79 {
@@ -5183,3 +5077,1336 @@ body, button, input, select {
   position: absolute !important;
 }
 
+
+
+
+/* layer13: final hand hover behavior.
+   Hand cards keep exact fan geometry on hover; only the inner card image gets a small brightness lift. */
+#p1HandFan .card.hand-card,
+#p1HandFan .card.hand-card:hover,
+#p1HandFan .card.hand-card:focus,
+#p1HandFan .card.hand-card:active,
+#p2HandFan .card.hand-card,
+#p2HandFan .card.hand-card:hover,
+#p2HandFan .card.hand-card:focus,
+#p2HandFan .card.hand-card:active {
+  transform: var(--hand-transform) !important;
+  transform-origin: 0 100% !important;
+  z-index: var(--hand-z) !important;
+  filter: none !important;
+  translate: 0 0 !important;
+  scale: 1 !important;
+  transition: none !important;
+  will-change: auto !important;
+}
+
+#p1HandFan .card.hand-card:hover .card-face,
+#p1HandFan .card.hand-card:hover .card-back,
+#p2HandFan .card.hand-card:hover .card-face,
+#p2HandFan .card.hand-card:hover .card-back {
+  filter: brightness(1.06) !important;
+  transform: none !important;
+  transition: none !important;
+}
+
+/* layer14/layer15: stacked card slots for tutor and sideboard editor */
+:root {
+  --named-stack-card-w: 150px;
+  --named-stack-card-h: calc(var(--named-stack-card-w) * 1.397);
+  --named-stack-step: 28px; /* about 1 cm of each card name/top edge visible */
+  --named-stack-slot-h: calc(var(--named-stack-card-h) + (var(--named-stack-step) * 3));
+}
+
+.library-box {
+  width: min(1320px, calc(100vw - 32px)) !important;
+  height: min(900px, calc(100vh - 32px)) !important;
+}
+
+.library-stack-slot,
+.side-main-stack-slot {
+  position: relative !important;
+  width: var(--named-stack-card-w) !important;
+  height: var(--named-stack-slot-h) !important;
+  border-radius: 8px !important;
+  cursor: pointer;
+}
+
+.library-stack-slot.selected,
+.side-main-stack-slot.selected {
+  outline: 3px solid #20bf55 !important;
+}
+
+.library-stack-slot .stacked-card-img,
+.side-main-stack-slot .stacked-card-img {
+  position: absolute;
+  left: 0 !important;
+  width: var(--named-stack-card-w);
+  height: auto;
+  border-radius: 7px;
+  display: block;
+  box-shadow: 0 3px 10px rgba(0,0,0,.55);
+  pointer-events: auto;
+}
+
+.library-stack-slot:hover,
+.side-main-stack-slot:hover {
+  outline: 1px solid rgba(255,255,255,.85);
+}
+
+
+#libraryGrid {
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)) !important;
+  align-items: start !important;
+  gap: 22px 22px !important;
+}
+
+#mainboardGrid.sideboard-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, 170px) !important;
+  gap: 22px !important;
+  align-items: start !important;
+  overflow: auto !important;
+}
+
+#sideboardGrid.sideboard-grid {
+  display: block !important;
+  overflow: auto !important;
+  min-width: 300px !important;
+}
+
+.side-one-stack {
+  position: relative;
+  width: 230px;
+  min-height: 720px;
+  margin: 36px auto 80px auto;
+}
+
+.side-one-stack-card {
+  position: absolute;
+  width: 150px;
+  border-radius: 7px;
+  display: block;
+  box-shadow: 0 3px 10px rgba(0,0,0,.55);
+  cursor: pointer;
+}
+
+
+/* layer19: sideboard editor layout tuning
+   MAIN: six named 4-card stacks per row, vertical scroll.
+   SIDE: two long 15-card stacks. */
+#sideboardModal.v99-sideboard .v93-zones {
+  grid-template-columns: minmax(940px, 1fr) 300px !important;
+  gap: 18px !important;
+}
+
+#sideboardModal.v99-sideboard #v93MainZone {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  min-width: 940px !important;
+}
+
+#sideboardModal.v99-sideboard #v93SideZone {
+  overflow: hidden !important;
+  width: 300px !important;
+}
+
+#sideboardModal.v99-sideboard .v93-card {
+  width: 110px !important;
+  height: 154px !important;
+}
+
+/* layer20: sideboard editor interaction + visual finish */
+#sideboardModal.v99-sideboard .v93-board {
+  background: #6b6b6b !important;
+}
+
+#sideboardModal.v99-sideboard .v93-zone {
+  background: #777 !important;
+  border-color: rgba(255,255,255,.35) !important;
+}
+
+#sideboardModal.v99-sideboard .v93-card.v20-selected,
+#sideboardModal.v99-sideboard .v93-card.v95-selected {
+  outline: 1px solid #fff !important;
+  outline-offset: -1px !important;
+  box-shadow: 0 5px 12px rgba(0,0,0,.55) !important;
+}
+
+#sideboardModal.v99-sideboard .v93-card.v20-drag-source {
+  opacity: .35 !important;
+  filter: brightness(.75) !important;
+}
+
+#v20SideboardProxy {
+  position: fixed;
+  z-index: 2147483647 !important;
+  pointer-events: none !important;
+  width: 110px;
+  height: 154px;
+  border-radius: 6px;
+  transform: translateZ(0);
+}
+
+#v20SideboardProxy img {
+  position: absolute;
+  width: 110px;
+  height: 154px;
+  border-radius: 6px;
+  box-shadow: 0 10px 22px rgba(0,0,0,.72);
+}
+
+
+/* layer21: static sideboard editor slots */
+#sideboardModal.v99-sideboard .v93-board {
+  background: #777 !important;
+}
+#sideboardModal.v99-sideboard #v93MainZone {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  background: #777 !important;
+}
+#sideboardModal.v99-sideboard #v93SideZone {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  background: #777 !important;
+}
+#sideboardModal.v99-sideboard .v93-card.v95-selected,
+#sideboardModal.v99-sideboard .v93-card.v20-selected {
+  outline: 1px solid #fff !important;
+  outline-offset: 0 !important;
+}
+
+/* layer22: keep own dice visible above deck controls and compact side editor width */
+#table {
+  z-index: auto !important;
+}
+
+#diceLayer {
+  position: fixed !important;
+  z-index: 2147482500 !important;
+  pointer-events: none !important;
+}
+
+#sideboardModal.v99-sideboard .v93-zones {
+  grid-template-columns: 880px 286px !important;
+  gap: 10px !important;
+  justify-content: start !important;
+}
+
+#sideboardModal.v99-sideboard #v93MainZone {
+  min-width: 0 !important;
+  width: 880px !important;
+}
+
+#sideboardModal.v99-sideboard #v93SideZone {
+  width: 286px !important;
+}
+
+/* layer24: compact sideboard editor board + keep life dice off deck controls */
+#sideboardModal.v99-sideboard .v93-board {
+  right: auto !important;
+  width: 1224px !important;
+  max-width: calc(100vw - 44px) !important;
+  background: #777 !important;
+}
+
+#sideboardModal.v99-sideboard .v93-sb-top {
+  display: grid !important;
+  grid-template-columns: 82px 880px 286px !important;
+  gap: 10px !important;
+  align-items: center !important;
+}
+
+#sideboardModal.v99-sideboard .v93-title {
+  text-align: center !important;
+}
+
+#sideboardModal.v99-sideboard .v93-zones {
+  left: 18px !important;
+  right: auto !important;
+  width: 1176px !important;
+  grid-template-columns: 880px 286px !important;
+  gap: 10px !important;
+}
+
+#sideboardModal.v99-sideboard #v93MainZone {
+  width: 880px !important;
+  min-width: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+#sideboardModal.v99-sideboard #v93SideZone {
+  width: 286px !important;
+  min-width: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+
+/* layer25: MAIN scrolls vertically; SIDE stays fixed/no scroll. */
+#sideboardModal.v99-sideboard #v93MainZone {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+#sideboardModal.v99-sideboard #v93SideZone {
+  overflow: hidden !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+#sideboardModal.v99-sideboard .v99-scroll-spacer { display: block !important; }
+
+
+/* layer26: one two-row playmat picker, no dark backdrop */
+.playmat-menu-row {
+  display: block !important;
+  margin: 8px 0 !important;
+}
+
+.playmat-menu-row button,
+#menuPlaymatBtn {
+  width: 100% !important;
+  min-height: 28px !important;
+  padding: 4px 6px !important;
+  font-size: 11px !important;
+}
+
+#playmatPicker {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 999999 !important;
+  display: none;
+  background: transparent !important;
+  pointer-events: none !important;
+}
+
+#playmatPickerInner {
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  min-height: 286px !important;
+  background: rgba(12,12,12,.92) !important;
+  border-top: 1px solid rgba(255,255,255,.25) !important;
+  padding: 10px 16px 14px !important;
+  box-shadow: 0 -12px 32px rgba(0,0,0,.55) !important;
+  pointer-events: auto !important;
+}
+
+#playmatPickerTop {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  margin-bottom: 6px !important;
+}
+
+#playmatPickerTitle,
+.playmat-row-label {
+  color: #eee !important;
+  font-weight: 700 !important;
+  letter-spacing: .04em !important;
+}
+
+.playmat-row-label {
+  font-size: 11px !important;
+  margin: 5px 0 3px !important;
+  opacity: .8 !important;
+}
+
+.playmat-grid {
+  display: flex !important;
+  gap: 10px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 4px 4px 10px !important;
+  scroll-behavior: smooth !important;
+  cursor: grab !important;
+}
+
+.playmat-grid.dragging {
+  cursor: grabbing !important;
+}
+
+.playmat-grid::-webkit-scrollbar {
+  height: 7px !important;
+}
+
+.playmat-grid::-webkit-scrollbar-thumb {
+  background: #888 !important;
+  border-radius: 999px !important;
+}
+
+#playmatGrid {
+  display: none !important;
+}
+
+.pm-thumb {
+  min-width: 116px !important;
+  height: 62px !important;
+  flex: 0 0 auto !important;
+  border: 1px solid rgba(255,255,255,.22) !important;
+  border-radius: 8px !important;
+  background-color: #333 !important;
+  background-size: cover !important;
+  background-position: center !important;
+  color: #fff !important;
+  display: grid !important;
+  place-items: center !important;
+  cursor: pointer !important;
+  box-shadow: 0 3px 10px rgba(0,0,0,.45) !important;
+}
+
+.pm-thumb.selected {
+  outline: 3px solid #fff !important;
+  outline-offset: 2px !important;
+}
+
+#playmatColorControls {
+  display: none !important;
+  gap: 12px !important;
+  align-items: center !important;
+  color: #eee !important;
+  padding: 4px !important;
+}
+
+#playmatColorControls.open {
+  display: flex !important;
+}
+
+#playmatColorControls label {
+  display: flex !important;
+  gap: 7px !important;
+  align-items: center !important;
+}
+
+
+/* layer27: library control panel has mulligan below reveal */
+.library-controls {
+  grid-template-rows: repeat(9, minmax(0, 1fr)) !important;
+}
+
+/* layer29: dice color slider is directly visible in the context menu. */
+#diceMenu button[data-die-action="color"] {
+  display: none !important;
+}
+#dieColorBox {
+  display: block !important;
+  padding: 8px 10px 10px !important;
+  background: #111 !important;
+}
+#dieHue {
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+/* layer31: OG BACK 2 uses lapi2.png as the actual sleeve/back image. */
+body.sleeve-ogback2 .sleeve-back,
+body.sleeve-ogback2 .card-back,
+body.sleeve-ogback2 .pile-visual {
+  background-color: #000 !important;
+  background-image: url("lapi2.png") !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+body.sleeve-ogback2 .transparent-sleeve {
+  background-image: url("lapi2.png") !important;
+  background-size: cover !important;
+  background-position: center !important;
+}
+
+/* Opponent hand must stay as card backs facing the local player. */
+#p2HandFan .card.hand-card.opponent-hand-back .card-face {
+  display: none !important;
+}
+
+#p2HandFan .card.hand-card.opponent-hand-back .card-back {
+  display: block !important;
+}
+
+/* layer33: opponent hand privacy hard lock */
+.card.opponent-hand-private {
+  pointer-events: auto !important;
+  cursor: default !important;
+}
+.card.opponent-hand-private:hover {
+  transform: var(--hand-transform) !important;
+  z-index: var(--hand-z) !important;
+  filter: none !important;
+}
+.card.opponent-hand-private .card-face,
+.card.opponent-hand-private .card-back {
+  pointer-events: none !important;
+}
+
+/* layer38: actual redesigned library / graveyard / exile block */
+:root { --l38-panel-gap: 14px; --l38-control-h: 265px; --l38-exile-h: 155px; }
+.pile-column { width: calc(var(--deck-card-w) * 2 + var(--l38-panel-gap)) !important; grid-template-columns: var(--deck-card-w) var(--deck-card-w) !important; grid-template-rows: var(--deck-card-h) var(--l38-control-h) var(--l38-exile-h) !important; column-gap: var(--l38-panel-gap) !important; row-gap: 14px !important; overflow: visible !important; }
+.pile-zone[data-kind="library"] { grid-column: 1 !important; grid-row: 1 !important; width: var(--deck-card-w) !important; height: var(--deck-card-h) !important; overflow: visible !important; }
+.pile-zone[data-kind="library"] .pile-title { top: auto !important; bottom: calc(-1.45em - 8px) !important; font-size: clamp(18px, 1.8vw, 26px) !important; z-index: 25 !important; }
+.pile-zone[data-kind="graveyard"] { grid-column: 2 !important; grid-row: 1 / span 3 !important; width: var(--deck-card-w) !important; height: calc(var(--deck-card-h) + var(--l38-control-h) + var(--l38-exile-h) + 28px) !important; overflow: hidden !important; background: #050505 !important; border: 0 !important; }
+.pile-zone[data-kind="graveyard"] .pile-title { top: auto !important; bottom: -2.1em !important; color: #0b6cff !important; font-size: clamp(14px, 1.4vw, 20px) !important; z-index: 40 !important; }
+.pile-zone[data-kind="exile"] { grid-column: 1 !important; grid-row: 3 !important; width: var(--deck-card-w) !important; height: var(--l38-exile-h) !important; overflow: hidden !important; background: #000 !important; }
+.pile-zone[data-kind="exile"] .pile-title { top: auto !important; bottom: calc(-1.45em - 8px) !important; font-size: clamp(16px, 1.6vw, 24px) !important; z-index: 25 !important; }
+.library-controls { position: absolute !important; left: 0 !important; right: auto !important; top: calc(100% + 46px) !important; width: var(--deck-card-w) !important; height: var(--l38-control-h) !important; display: grid !important; grid-template-rows: 54px 1fr !important; gap: 9px !important; padding: 9px !important; background: #0c0c0c !important; border: 1px solid rgba(255,255,255,.28) !important; border-radius: 8px !important; z-index: 35 !important; overflow: hidden !important; }
+.library-controls > label, .library-controls > input[type="range"], .library-controls > button { display: none !important; }
+.l38-draw-row { display: grid !important; grid-template-columns: 1fr 28px !important; gap: 7px !important; min-height: 0 !important; }
+.l38-draw-button { display: block !important; height: 100% !important; min-height: 0 !important; padding: 0 !important; font-size: clamp(18px, 2vw, 28px) !important; font-style: normal !important; text-transform: lowercase !important; background: #f7f7f7 !important; color: #111 !important; border: 1px solid #222 !important; border-radius: 0 !important; box-shadow: none !important; cursor: ns-resize !important; }
+.l38-draw-arrows { display: grid !important; grid-template-rows: 1fr 1fr !important; gap: 5px !important; }
+.l38-draw-arrows button { display: grid !important; place-items: center !important; min-height: 0 !important; height: auto !important; padding: 0 !important; background: #eee !important; color: #111 !important; border: 1px solid #222 !important; border-radius: 0 !important; box-shadow: none !important; font-size: 18px !important; }
+.l38-button-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; grid-template-rows: repeat(4, 1fr) !important; gap: 8px !important; min-height: 0 !important; }
+.l38-button-grid button { display: block !important; width: 100% !important; height: 100% !important; min-height: 0 !important; padding: 0 3px !important; border-radius: 0 !important; border: 1px solid #777 !important; background: #f7f7f7 !important; color: #111 !important; box-shadow: none !important; font-size: clamp(8px, .8vw, 12px) !important; line-height: 1 !important; }
+.l38-button-grid button.l38-future-button { opacity: 1 !important; color: transparent !important; pointer-events: none !important; }
+.l38-grave-scroll { position: absolute !important; inset: 0 !important; overflow-y: auto !important; overflow-x: hidden !important; scrollbar-width: thin !important; background: #050505 !important; border-radius: inherit !important; }
+.l38-grave-inner { position: relative !important; width: 100% !important; min-height: 100% !important; }
+.l38-grave-card { position: absolute !important; left: 0 !important; width: 100% !important; border-radius: 5.5% / 4% !important; background: #050505 !important; box-shadow: 0 2px 5px rgba(0,0,0,.75) !important; cursor: grab !important; pointer-events: auto !important; }
+.l38-grave-card img { width: 100% !important; display: block !important; border-radius: inherit !important; pointer-events: none !important; }
+.l38-grave-card:hover img { filter: brightness(1.08) !important; }
+.l38-exile-box { position: absolute !important; inset: 0 !important; display: grid !important; place-items: center !important; background: #000 !important; color: #eee !important; border-radius: inherit !important; font-weight: 700 !important; cursor: pointer !important; text-align: center !important; }
+.l38-exile-box:hover { filter: brightness(1.12) !important; }
+#l38ExileModal { background: rgba(0,0,0,.15) !important; }
+#l38ExileModal .modal-box { width: min(980px, calc(100vw - 48px)) !important; height: min(760px, calc(100vh - 48px)) !important; display: grid !important; grid-template-rows: auto 1fr auto !important; }
+#l38ExileGrid { overflow: auto !important; display: grid !important; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)) !important; gap: 14px !important; padding: 12px !important; background: #151515 !important; border: 1px solid #444 !important; border-radius: 8px !important; }
+.l38-exile-card { width: 118px !important; border-radius: 7px !important; cursor: pointer !important; position: relative !important; }
+.l38-exile-card img { width: 118px !important; border-radius: 7px !important; display: block !important; pointer-events: none !important; }
+.l38-exile-card.selected { outline: 2px solid #fff !important; }
+.pile-visual.l38-shuffling, .sleeve-back.l38-shuffling { animation: l38LibraryShake 2s linear !important; }
+@keyframes l38LibraryShake { 0%,100%{transform:translate(0,0) rotate(0deg)} 5%{transform:translate(-6px,3px) rotate(-3deg)} 10%{transform:translate(5px,-2px) rotate(3deg)} 15%{transform:translate(-5px,-3px) rotate(2deg)} 20%{transform:translate(6px,2px) rotate(-3deg)} 25%{transform:translate(-4px,2px) rotate(2deg)} 30%{transform:translate(4px,-3px) rotate(-2deg)} 35%{transform:translate(-6px,1px) rotate(3deg)} 40%{transform:translate(6px,-1px) rotate(-3deg)} 45%{transform:translate(-4px,-2px) rotate(2deg)} 50%{transform:translate(5px,2px) rotate(-2deg)} 55%{transform:translate(-5px,3px) rotate(-3deg)} 60%{transform:translate(4px,-2px) rotate(3deg)} 65%{transform:translate(-6px,-1px) rotate(-2deg)} 70%{transform:translate(6px,1px) rotate(2deg)} 75%{transform:translate(-3px,2px) rotate(-2deg)} 80%{transform:translate(3px,-2px) rotate(2deg)} 85%{transform:translate(-2px,1px) rotate(-1deg)} 90%{transform:translate(2px,-1px) rotate(1deg)} }
+.life-die { z-index: 12000 !important; }
+
+/* layer39: correct SVG-like library area proportions */
+:root {
+  --l39-panel-gap: 14px;
+  --l39-exile-h: 72px;
+  --l39-grave-h: 235px;
+  --l39-control-h: calc(var(--l39-exile-h) + var(--l39-grave-h) + var(--l39-panel-gap));
+}
+
+.pile-column {
+  width: calc(var(--deck-card-w) * 2 + var(--l39-panel-gap)) !important;
+  grid-template-columns: var(--deck-card-w) var(--deck-card-w) !important;
+  grid-template-rows: var(--deck-card-h) var(--l39-exile-h) var(--l39-grave-h) !important;
+  column-gap: var(--l39-panel-gap) !important;
+  row-gap: var(--l39-panel-gap) !important;
+  overflow: visible !important;
+}
+
+.pile-zone[data-kind="library"] {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  width: var(--deck-card-w) !important;
+  height: var(--deck-card-h) !important;
+  overflow: visible !important;
+}
+
+.library-controls {
+  position: absolute !important;
+  left: 0 !important;
+  right: auto !important;
+  top: calc(100% + 46px) !important;
+  width: var(--deck-card-w) !important;
+  height: var(--l39-control-h) !important;
+  display: grid !important;
+  grid-template-rows: 54px 1fr !important;
+  gap: 9px !important;
+  padding: 9px !important;
+  background: #0c0c0c !important;
+  border: 1px solid rgba(255,255,255,.28) !important;
+  border-radius: 8px !important;
+  z-index: 35 !important;
+  overflow: hidden !important;
+}
+
+.pile-zone[data-kind="exile"] {
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+  width: var(--deck-card-w) !important;
+  height: var(--l39-exile-h) !important;
+  overflow: hidden !important;
+  background: #000 !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+  border-radius: 8px !important;
+}
+
+.pile-zone[data-kind="exile"] .pile-title {
+  display: none !important;
+}
+
+.pile-zone[data-kind="graveyard"] {
+  grid-column: 2 !important;
+  grid-row: 3 !important;
+  width: var(--deck-card-w) !important;
+  height: var(--l39-grave-h) !important;
+  overflow: hidden !important;
+  background: #050505 !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+  border-radius: 8px !important;
+}
+
+.pile-zone[data-kind="graveyard"] .pile-title {
+  top: auto !important;
+  bottom: calc(-1.65em - 6px) !important;
+  color: #0b6cff !important;
+  font-size: clamp(14px, 1.4vw, 20px) !important;
+  z-index: 40 !important;
+}
+
+.l38-grave-scroll {
+  inset: 0 !important;
+  height: 100% !important;
+}
+
+.l38-exile-box {
+  font-size: clamp(18px, 2vw, 28px) !important;
+}
+
+/* layer40: deck widget proportions — dice row above library, library above controls */
+:root {
+  --l40-dice-row-h: 48px;
+  --l40-after-library-gap: 34px;
+  --l40-exile-h: 74px;
+  --l40-grave-h: 220px;
+  --l40-control-h: calc(var(--l40-exile-h) + var(--l40-grave-h) + var(--l39-panel-gap));
+}
+
+.pile-column {
+  grid-template-rows: var(--deck-card-h) var(--l40-exile-h) var(--l40-grave-h) !important;
+  row-gap: var(--l39-panel-gap) !important;
+}
+
+.library-controls {
+  top: calc(100% + var(--l40-after-library-gap)) !important;
+  height: var(--l40-control-h) !important;
+}
+
+.pile-zone[data-kind="exile"] {
+  height: var(--l40-exile-h) !important;
+}
+
+.pile-zone[data-kind="graveyard"] {
+  height: var(--l40-grave-h) !important;
+}
+
+/* Keep the library label tucked between the deck and controls without sharing space with dice. */
+.pile-zone[data-kind="library"] .pile-title {
+  bottom: calc(-1.15em - 4px) !important;
+}
+
+/* layer41: library-area proportions and final button styling */
+:root {
+  --l41-exile-h: 76px;
+  --l41-grave-h: 320px;
+  --l41-control-h: calc(var(--l41-exile-h) + var(--l41-grave-h) + var(--l39-panel-gap));
+}
+
+.pile-column {
+  grid-template-rows: var(--deck-card-h) var(--l41-exile-h) var(--l41-grave-h) !important;
+}
+
+.library-controls {
+  height: var(--l41-control-h) !important;
+  background: #2a2a2a !important;
+  border: 1px solid rgba(255,255,255,.32) !important;
+  border-radius: 9px !important;
+  padding: 10px !important;
+  gap: 10px !important;
+}
+
+.pile-zone[data-kind="exile"] {
+  height: var(--l41-exile-h) !important;
+}
+
+.pile-zone[data-kind="graveyard"] {
+  height: var(--l41-grave-h) !important;
+  border: 1px solid rgba(255,255,255,.24) !important;
+}
+
+.pile-zone[data-kind="graveyard"] .pile-title {
+  display: block !important;
+  color: #e8e8e8 !important;
+  bottom: calc(-1.55em - 7px) !important;
+  font-size: clamp(15px, 1.5vw, 22px) !important;
+  font-weight: 700 !important;
+}
+
+.l38-draw-button,
+.l38-draw-arrows button,
+.l38-button-grid button {
+  background: #555 !important;
+  color: #f0f0f0 !important;
+  border: 1px solid #8a8a8a !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 2px 5px rgba(0,0,0,.35) !important;
+  text-transform: uppercase !important;
+  font-style: italic !important;
+}
+
+.l38-draw-button {
+  font-size: clamp(18px, 2vw, 30px) !important;
+}
+
+.l38-button-grid button {
+  font-size: clamp(9px, .86vw, 13px) !important;
+}
+
+.l38-draw-button:active,
+.l38-draw-arrows button:active,
+.l38-button-grid button:active,
+.l38-draw-button.l41-pressed,
+.l38-draw-arrows button.l41-pressed,
+.l38-button-grid button.l41-pressed {
+  background: #1f8f45 !important;
+  border-color: #5fda83 !important;
+  color: #fff !important;
+  filter: none !important;
+}
+
+.l38-button-grid button.l38-future-button {
+  background: #444 !important;
+  border-color: #6c6c6c !important;
+  color: transparent !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08) !important;
+}
+
+.pile-visual.l38-shuffling,
+.sleeve-back.l38-shuffling {
+  animation: l41LibraryShake 2s linear !important;
+  transform-origin: 50% 50% !important;
+}
+
+@keyframes l41LibraryShake {
+  0%,100%{transform:translate(0,0) rotate(0deg)}
+  4%{transform:translate(-7px,3px) rotate(-3deg)}
+  8%{transform:translate(7px,-2px) rotate(3deg)}
+  12%{transform:translate(-6px,-3px) rotate(2deg)}
+  16%{transform:translate(6px,2px) rotate(-3deg)}
+  20%{transform:translate(-5px,3px) rotate(3deg)}
+  24%{transform:translate(5px,-3px) rotate(-3deg)}
+  28%{transform:translate(-7px,2px) rotate(-2deg)}
+  32%{transform:translate(7px,-1px) rotate(2deg)}
+  36%{transform:translate(-5px,-2px) rotate(3deg)}
+  40%{transform:translate(5px,2px) rotate(-3deg)}
+  44%{transform:translate(-6px,1px) rotate(-2deg)}
+  48%{transform:translate(6px,-2px) rotate(2deg)}
+  52%{transform:translate(-5px,3px) rotate(3deg)}
+  56%{transform:translate(5px,-3px) rotate(-3deg)}
+  60%{transform:translate(-6px,-1px) rotate(2deg)}
+  64%{transform:translate(6px,1px) rotate(-2deg)}
+  68%{transform:translate(-4px,2px) rotate(2deg)}
+  72%{transform:translate(4px,-2px) rotate(-2deg)}
+  76%{transform:translate(-3px,1px) rotate(1deg)}
+  80%{transform:translate(3px,-1px) rotate(-1deg)}
+  86%{transform:translate(-2px,1px) rotate(1deg)}
+  92%{transform:translate(2px,-1px) rotate(-1deg)}
+}
+
+
+/* layer42: library block proportions, labels, and robust shuffle */
+:root {
+  --l42-exile-h: 58px;
+  --l42-grave-h: 270px;
+  --l42-control-h: 238px;
+  --l42-gap: 12px;
+}
+
+.pile-column {
+  grid-template-rows: var(--deck-card-h) var(--l42-exile-h) var(--l42-grave-h) !important;
+  row-gap: var(--l42-gap) !important;
+}
+
+.library-controls {
+  top: calc(100% + 32px) !important;
+  height: var(--l42-control-h) !important;
+  grid-template-rows: 52px 1fr !important;
+  gap: 8px !important;
+  padding: 8px !important;
+  background: #2f2f2f !important;
+}
+
+.l38-button-grid {
+  gap: 7px !important;
+}
+
+.pile-zone[data-kind="library"] .pile-title {
+  bottom: calc(-1.05em - 4px) !important;
+  font-size: clamp(13px, 1.05vw, 17px) !important;
+  color: #ddd !important;
+}
+
+.pile-zone[data-kind="exile"] {
+  height: var(--l42-exile-h) !important;
+  overflow: hidden !important;
+}
+
+.l38-exile-box {
+  font-size: clamp(12px, 1vw, 16px) !important;
+  letter-spacing: .02em !important;
+  text-transform: uppercase !important;
+  line-height: 1 !important;
+}
+
+.pile-zone[data-kind="graveyard"] {
+  height: var(--l42-grave-h) !important;
+  overflow: visible !important;
+}
+
+.l38-grave-scroll {
+  inset: 0 !important;
+  height: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  border-radius: inherit !important;
+}
+
+.pile-zone[data-kind="graveyard"] .pile-title {
+  display: block !important;
+  position: absolute !important;
+  top: auto !important;
+  bottom: calc(-1.55em - 5px) !important;
+  color: #ddd !important;
+  font-size: clamp(13px, 1.05vw, 17px) !important;
+  font-weight: 700 !important;
+  z-index: 100 !important;
+  pointer-events: none !important;
+}
+
+.l38-draw-button {
+  text-transform: uppercase !important;
+  cursor: pointer !important;
+}
+
+.pile-zone[data-kind="library"].l42-shuffling,
+.pile-zone[data-kind="library"].l42-shuffling .pile-visual,
+.pile-visual.l42-shuffling,
+.sleeve-back.l42-shuffling {
+  animation: l42LibraryShake 2s linear !important;
+  transform-origin: 50% 50% !important;
+}
+
+@keyframes l42LibraryShake {
+  0%,100%{ transform:translate(0,0) rotate(0deg); }
+  4%{ transform:translate(-8px,3px) rotate(-3deg); }
+  8%{ transform:translate(8px,-2px) rotate(3deg); }
+  12%{ transform:translate(-7px,-3px) rotate(2deg); }
+  16%{ transform:translate(7px,2px) rotate(-3deg); }
+  20%{ transform:translate(-6px,3px) rotate(3deg); }
+  24%{ transform:translate(6px,-3px) rotate(-3deg); }
+  28%{ transform:translate(-8px,2px) rotate(-2deg); }
+  32%{ transform:translate(8px,-1px) rotate(2deg); }
+  36%{ transform:translate(-6px,-2px) rotate(3deg); }
+  40%{ transform:translate(6px,2px) rotate(-3deg); }
+  44%{ transform:translate(-7px,1px) rotate(-2deg); }
+  48%{ transform:translate(7px,-2px) rotate(2deg); }
+  52%{ transform:translate(-6px,3px) rotate(3deg); }
+  56%{ transform:translate(6px,-3px) rotate(-3deg); }
+  60%{ transform:translate(-7px,-1px) rotate(2deg); }
+  64%{ transform:translate(7px,1px) rotate(-2deg); }
+  68%{ transform:translate(-5px,2px) rotate(2deg); }
+  72%{ transform:translate(5px,-2px) rotate(-2deg); }
+  76%{ transform:translate(-4px,1px) rotate(1deg); }
+  80%{ transform:translate(4px,-1px) rotate(-1deg); }
+  86%{ transform:translate(-3px,1px) rotate(1deg); }
+  92%{ transform:translate(3px,-1px) rotate(-1deg); }
+}
+
+/* layer43: keep the whole deck widget below/above the center line. */
+:root {
+  --l43-dice-space: 64px;
+  --l43-center-gap: 10px;
+}
+
+/* Local player: dice row, library, controls, exile and graveyard all stay below the center line. */
+.self-piles {
+  top: calc(50vh + var(--l43-dice-space) + var(--l43-center-gap)) !important;
+  bottom: auto !important;
+  right: var(--zone-side-pad) !important;
+  transform: none !important;
+}
+
+/* Opponent side mirrors the same rule above the center line. */
+.opponent-piles {
+  bottom: calc(50vh + var(--l43-dice-space) + var(--l43-center-gap)) !important;
+  top: auto !important;
+  left: var(--zone-side-pad) !important;
+  transform: rotate(180deg) !important;
+}
+
+/* layer44: final locked library-zone layout + draw/shuffle fixes */
+:root {
+  --l44-gap: 14px;
+  --l44-exile-h: 72px;
+  --l44-controls-top-gap: 44px;
+  --l44-control-h: 235px;
+  --l44-total-h: calc(var(--deck-card-h) + var(--l44-controls-top-gap) + var(--l44-control-h));
+  --l44-grave-h: calc(var(--l44-total-h) - var(--l44-exile-h) - var(--l44-gap));
+}
+
+.pile-column {
+  width: calc(var(--deck-card-w) * 2 + var(--l44-gap)) !important;
+  height: var(--l44-total-h) !important;
+  display: block !important;
+  overflow: visible !important;
+}
+
+.pile-zone[data-kind="library"] {
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: var(--deck-card-w) !important;
+  height: var(--deck-card-h) !important;
+  grid-column: auto !important;
+  grid-row: auto !important;
+  overflow: visible !important;
+}
+
+.pile-zone[data-kind="library"] .pile-title {
+  bottom: calc(-1.05em - 4px) !important;
+  font-size: clamp(13px, 1.05vw, 17px) !important;
+  color: #ddd !important;
+}
+
+.library-controls {
+  position: absolute !important;
+  left: 0 !important;
+  top: calc(var(--deck-card-h) + var(--l44-controls-top-gap)) !important;
+  width: var(--deck-card-w) !important;
+  height: var(--l44-control-h) !important;
+  padding: 8px !important;
+  gap: 8px !important;
+  grid-template-rows: 52px 1fr !important;
+  background: #303030 !important;
+  border: 1px solid rgba(255,255,255,.35) !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+}
+
+.pile-zone[data-kind="exile"] {
+  position: absolute !important;
+  left: calc(var(--deck-card-w) + var(--l44-gap)) !important;
+  top: 0 !important;
+  width: var(--deck-card-w) !important;
+  height: var(--l44-exile-h) !important;
+  grid-column: auto !important;
+  grid-row: auto !important;
+  overflow: hidden !important;
+  background: #000 !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+  border-radius: 8px !important;
+}
+
+.pile-zone[data-kind="graveyard"] {
+  position: absolute !important;
+  left: calc(var(--deck-card-w) + var(--l44-gap)) !important;
+  top: calc(var(--l44-exile-h) + var(--l44-gap)) !important;
+  width: var(--deck-card-w) !important;
+  height: var(--l44-grave-h) !important;
+  grid-column: auto !important;
+  grid-row: auto !important;
+  overflow: visible !important;
+  background: #050505 !important;
+  border: 1px solid rgba(255,255,255,.24) !important;
+  border-radius: 8px !important;
+}
+
+.pile-zone[data-kind="graveyard"] .pile-title {
+  display: block !important;
+  position: absolute !important;
+  top: auto !important;
+  bottom: calc(-1.55em - 5px) !important;
+  color: #ddd !important;
+  font-size: clamp(13px, 1.05vw, 17px) !important;
+  font-weight: 700 !important;
+  z-index: 100 !important;
+  pointer-events: none !important;
+}
+
+.l38-exile-box {
+  font-size: clamp(12px, 1vw, 16px) !important;
+  text-transform: uppercase !important;
+  letter-spacing: .02em !important;
+}
+
+.l38-grave-scroll {
+  inset: 0 !important;
+  height: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  border-radius: inherit !important;
+}
+
+.l38-draw-button,
+.l38-draw-arrows button,
+.l38-button-grid button {
+  background: #555 !important;
+  color: #f0f0f0 !important;
+  border: 1px solid #8a8a8a !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 2px 5px rgba(0,0,0,.35) !important;
+  text-transform: uppercase !important;
+  font-style: italic !important;
+}
+
+.l38-draw-button { cursor: pointer !important; }
+.l38-draw-button:active,
+.l38-draw-arrows button:active,
+.l38-button-grid button:active,
+.l38-draw-button.l41-pressed,
+.l38-draw-arrows button.l41-pressed,
+.l38-button-grid button.l41-pressed {
+  background: #1f8f45 !important;
+  border-color: #5fda83 !important;
+  color: #fff !important;
+}
+
+/* Only the actual library/back may shake. Nothing around it moves. */
+.pile-zone[data-kind="library"].l42-shuffling,
+.pile-zone[data-kind="library"].l38-shuffling,
+.pile-zone[data-kind="library"] .pile-title.l38-shuffling,
+.library-controls.l38-shuffling,
+.library-controls.l42-shuffling {
+  animation: none !important;
+  transform: none !important;
+}
+
+.pile-visual.l44-shuffling {
+  animation: l44LibraryOnlyShake 2s linear !important;
+  transform-origin: 50% 50% !important;
+}
+
+@keyframes l44LibraryOnlyShake {
+  0%,100%{ transform:translate(0,0) rotate(0deg); }
+  4%{ transform:translate(-8px,3px) rotate(-3deg); }
+  8%{ transform:translate(8px,-2px) rotate(3deg); }
+  12%{ transform:translate(-7px,-3px) rotate(2deg); }
+  16%{ transform:translate(7px,2px) rotate(-3deg); }
+  20%{ transform:translate(-6px,3px) rotate(3deg); }
+  24%{ transform:translate(6px,-3px) rotate(-3deg); }
+  28%{ transform:translate(-8px,2px) rotate(-2deg); }
+  32%{ transform:translate(8px,-1px) rotate(2deg); }
+  36%{ transform:translate(-6px,-2px) rotate(3deg); }
+  40%{ transform:translate(6px,2px) rotate(-3deg); }
+  44%{ transform:translate(-7px,1px) rotate(-2deg); }
+  48%{ transform:translate(7px,-2px) rotate(2deg); }
+  52%{ transform:translate(-6px,3px) rotate(3deg); }
+  56%{ transform:translate(6px,-3px) rotate(-3deg); }
+  60%{ transform:translate(-7px,-1px) rotate(2deg); }
+  64%{ transform:translate(7px,1px) rotate(-2deg); }
+  68%{ transform:translate(-5px,2px) rotate(2deg); }
+  72%{ transform:translate(5px,-2px) rotate(-2deg); }
+  76%{ transform:translate(-4px,1px) rotate(1deg); }
+  80%{ transform:translate(4px,-1px) rotate(-1deg); }
+  86%{ transform:translate(-3px,1px) rotate(1deg); }
+  92%{ transform:translate(3px,-1px) rotate(-1deg); }
+}
+
+/* layer45: local/private overlays and toggle buttons */
+#libraryModal,
+#sideboardModal,
+#opponentGraveModal45,
+.local-private-modal {
+  background: transparent !important;
+  pointer-events: none !important;
+}
+
+#libraryModal .modal-box,
+#sideboardModal .modal-box,
+#opponentGraveModal45 .modal-box,
+.local-private-modal .modal-box {
+  pointer-events: auto !important;
+}
+
+#libraryModal {
+  align-items: center !important;
+  justify-items: center !important;
+}
+
+#menuFlipOrbBtn.l45-toggle-on,
+#menuFlipStarBtn.l45-toggle-on,
+.l38-button-grid button.l45-toggle-on {
+  background: #1f8f45 !important;
+  color: #fff !important;
+}
+
+#opponentGraveModal45 {
+  z-index: 7000 !important;
+}
+
+.opponent-grave-box45 {
+  width: min(900px, calc(100vw - 40px)) !important;
+  height: min(720px, calc(100vh - 40px)) !important;
+  display: grid !important;
+  grid-template-rows: auto 1fr auto !important;
+  background: #1e1e1e !important;
+}
+
+#opponentGraveGrid45 {
+  overflow: auto !important;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)) !important;
+  gap: 14px !important;
+  padding: 12px !important;
+  background: #151515 !important;
+  border: 1px solid #444 !important;
+  border-radius: 8px !important;
+}
+
+.opponent-grave-card45 {
+  width: 118px !important;
+  border-radius: 7px !important;
+  cursor: default !important;
+}
+
+.opponent-grave-card45 img {
+  width: 118px !important;
+  border-radius: 7px !important;
+  display: block !important;
+}
+
+.l45-opponent-grave-btn {
+  font-size: clamp(7px, .7vw, 10px) !important;
+}
+
+/* layer47 clean DRAW X row: replaces old l38 draw controls so old duplicate listeners cannot fire. */
+.l47-draw-row {
+  display: grid;
+  grid-template-columns: 1fr 24px;
+  gap: 3px;
+  min-height: 24px;
+}
+.l47-draw-button,
+.l47-draw-arrows button {
+  background: #4f4f4f !important;
+  color: #f2f2f2 !important;
+  border: 0 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 1px 3px rgba(0,0,0,.45) !important;
+}
+.l47-draw-arrows {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px;
+}
+.l47-draw-arrows button {
+  min-height: 0 !important;
+  height: 11px !important;
+  padding: 0 !important;
+  font-size: 8px !important;
+  line-height: 1 !important;
+}
+
+/* layer48: card-stack shuffle + hidden draw flight */
+.l48-shuffle-stack {
+  position: fixed;
+  pointer-events: none;
+  z-index: 2147482000;
+  left: 0;
+  top: 0;
+}
+
+.l48-shuffle-card {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 7px;
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(0,0,0,.55);
+  animation: l48ShuffleLayer 2s ease-in-out forwards;
+  transform-origin: 50% 50%;
+}
+
+@keyframes l48ShuffleLayer {
+  0%   { transform: translate(0,0) rotate(0deg); }
+  10%  { transform: translate(var(--x1), var(--y1)) rotate(var(--r1)); }
+  22%  { transform: translate(var(--x2), var(--y2)) rotate(var(--r2)); }
+  35%  { transform: translate(var(--x3), var(--y3)) rotate(var(--r3)); }
+  48%  { transform: translate(var(--x4), var(--y4)) rotate(var(--r4)); }
+  62%  { transform: translate(var(--x5), var(--y5)) rotate(var(--r5)); }
+  78%  { transform: translate(var(--x6), var(--y6)) rotate(var(--r6)); }
+  100% { transform: translate(0,0) rotate(0deg); }
+}
+
+.l48-draw-flight {
+  position: fixed;
+  pointer-events: none;
+  z-index: 2147482100;
+  border-radius: 7px;
+  object-fit: cover;
+  box-shadow: 0 8px 22px rgba(0,0,0,.65);
+  transform-origin: 50% 50%;
+  transition: left .34s ease-in, top .34s ease-in, transform .34s ease-in;
+}
+
+/* layer49: faster scaling draw flight; draw-many leaves as a bundled fan */
+.l49-draw-flight {
+  position: fixed;
+  pointer-events: none;
+  z-index: 2147482100;
+  border-radius: 7px;
+  object-fit: cover;
+  box-shadow: 0 8px 22px rgba(0,0,0,.65);
+  transform-origin: 50% 50%;
+  transition-property: left, top, width, height, transform;
+  transition-timing-function: cubic-bezier(.2,.72,.12,1);
+  transition-duration: 230ms;
+}
+
+
+/* layer50: draw flight scales via transform, so size visibly changes from library size to hand zoom size. */
+.l50-draw-flight {
+  transform-origin: 50% 50% !important;
+  transition-property: left, top, transform !important;
+  transition-timing-function: cubic-bezier(.18,.75,.1,1) !important;
+}
+
+
+/* layer51: red discard mark on hand cards */
+.card.discard-marked-hand,
+body.hide-selection .card.discard-marked-hand,
+.card.discard-marked-hand:hover {
+  outline: 3px solid #ff2020 !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 2px rgba(0,0,0,.75), 0 0 12px rgba(255,32,32,.65) !important;
+}
+
+/* layer52: stronger public discard marking + library drag/draw/mulligan animation helpers */
+.card.discard-marked-hand {
+  position: absolute !important;
+}
+.card.discard-marked-hand::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: -4px !important;
+  border: 3px solid #ff1717 !important;
+  border-radius: 7% / 5% !important;
+  box-shadow: 0 0 0 2px rgba(0,0,0,.78), 0 0 16px rgba(255,0,0,.85) !important;
+  pointer-events: none !important;
+  z-index: 999999 !important;
+}
+.l52-library-drag-card,
+.l52-mulligan-flight {
+  position: fixed !important;
+  display: block !important;
+  border-radius: 5.5% / 4% !important;
+  box-shadow: 0 8px 22px rgba(0,0,0,.72) !important;
+  pointer-events: none !important;
+  z-index: 2147482500 !important;
+  transform-origin: 50% 50% !important;
+}
+.l52-mulligan-flight {
+  transition-property: left, top, width, height, transform, opacity !important;
+  transition-duration: 260ms !important;
+  transition-timing-function: cubic-bezier(.2,.75,.12,1) !important;
+}
+
+/* layer54: draw flight uses real element size, not transform-only guess */
+.l54-draw-flight {
+  position: fixed;
+  pointer-events: none;
+  z-index: 2147483100;
+  border-radius: 7px;
+  object-fit: cover;
+  box-shadow: 0 8px 22px rgba(0,0,0,.65);
+  transform-origin: 50% 50%;
+  transition-property: left, top, width, height, transform;
+  transition-duration: 210ms;
+  transition-timing-function: cubic-bezier(.18,.75,.1,1);
+}
+
+/* layer58: visible discard mark on sleeve/back side too */
+.card.discard-marked-hand,
+.card.opponent-hand-private.discard-marked-hand,
+.card.opponent-hand-back.discard-marked-hand {
+  outline: 0 !important;
+  box-shadow: 0 0 0 3px #ff1212, 0 0 0 5px rgba(0,0,0,.82), 0 0 16px rgba(255,0,0,.9) !important;
+}
+.card .discard-mark-overlay-l58 {
+  position: absolute !important;
+  inset: -5px !important;
+  border: 4px solid #ff1212 !important;
+  border-radius: 7% / 5% !important;
+  box-shadow: 0 0 0 2px rgba(0,0,0,.82), 0 0 16px rgba(255,0,0,.9) !important;
+  pointer-events: none !important;
+  z-index: 2147483000 !important;
+  display: block !important;
+}
+.card.opponent-hand-private.discard-marked-hand .card-back,
+.card.opponent-hand-back.discard-marked-hand .card-back {
+  box-shadow: inset 0 0 0 2px rgba(255,18,18,.85) !important;
+}
+
+/* layer59: final discard selection border. Visible around the whole card, front or sleeve/back. */
+.card.discard-marked-hand,
+.card.discard-marked-hand:hover,
+.card.opponent-hand-private.discard-marked-hand,
+.card.opponent-hand-back.discard-marked-hand,
+body.hide-selection .card.discard-marked-hand {
+  outline: 2px solid #ff1a1a !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.9), 0 0 10px rgba(255,0,0,.8) !important;
+}
+.card.discard-marked-hand::after,
+.card .discard-mark-overlay-l58 {
+  display: none !important;
+}
+
+/* layer62: local HELP overlay */
+.help-overlay-local {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(760px, calc(100vw - 40px));
+  max-height: min(760px, calc(100vh - 40px));
+  overflow: auto;
+  z-index: 2147483200;
+  background: rgba(18,18,18,.96);
+  color: #eeeeee;
+  border: 1px solid rgba(255,255,255,.34);
+  border-radius: 12px;
+  box-shadow: 0 18px 48px rgba(0,0,0,.55);
+  padding: 18px 20px 20px;
+  font-family: "Arial Narrow", Arial, sans-serif;
+  font-style: italic;
+  text-transform: none;
+}
+.help-overlay-local.hidden { display: none !important; }
+.help-overlay-local h1 {
+  margin: 0 0 12px;
+  font-size: 22px;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.help-overlay-local pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: "Arial Narrow", Arial, sans-serif;
+  font-style: italic;
+  font-size: 16px;
+  line-height: 1.28;
+  color: #f2f2f2;
+  text-transform: none;
+}
+.help-overlay-local .help-close-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+.help-overlay-local button {
+  background: #3a3a3a;
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 14px;
+  cursor: pointer;
+}
+.l62-help-button.is-active,
+.l62-help-button:active {
+  background: #168b3d !important;
+}
+/* hide opponent deck control panel completely */
+.opponent-piles .library-controls {
+  display: none !important;
+}
