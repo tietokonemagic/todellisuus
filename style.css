@@ -107,3 +107,9 @@ textarea { width: 100%; height: 300px; resize: vertical; background: #080808; co
 
 .shuffle-card, .fly-card { position: fixed; width: 118px; height: 165px; background: #050505 url("lapi2.png") center / cover no-repeat; border-radius: 7px; pointer-events: none; z-index: 200001; box-shadow: 0 8px 24px rgba(0,0,0,.7); }
 .help-box pre { text-transform: none; font-style: normal; white-space: pre-wrap; line-height: 1.35; }
+
+/* v14 */
+.hand-card,.hand-card:hover,.hand-card:focus,.hand-card:active,.hand-card:hover img,.hand-card:hover .back{filter:none!important;transform:var(--hand-transform,none)!important;scale:1!important;translate:0 0!important;outline:none!important}
+.hand-card:hover{z-index:var(--hand-z,inherit)!important;box-shadow:0 3px 8px rgba(0,0,0,.75)!important}
+.menu-subtitle{padding:8px 10px 4px;color:#aaa;font-size:11px;border-top:1px solid rgba(255,255,255,.18)}
+.shuffle-card,.fly-card{width:var(--anim-card-w,142px)!important;height:var(--anim-card-h,198px)!important}

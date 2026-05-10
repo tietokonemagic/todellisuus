@@ -36,11 +36,33 @@
   let inspectorFont = 15;
 
   const devDefaults = {
-    p1LibraryX:0,p1LibraryY:0,p1GraveX:0,p1GraveY:0,p1ExileX:0,p1ExileY:0,p1DiceX:0,p1DiceY:0,
-    p2LibraryX:0,p2LibraryY:0,p2GraveX:0,p2GraveY:0,p2ExileX:0,p2ExileY:0,p2DiceX:0,p2DiceY:0,
-    graveHeight:260,exileHeight:64,dieSize:30,dieGap:8,dieRadius:8,selWidth:2,selColor:"#ffffff",
-    shuffleSpeed:120,shuffleLength:2000,shuffleSpread:30
-  };
+    "p1LibraryX": 81,
+    "p1LibraryY": -106,
+    "p1GraveX": 77,
+    "p1GraveY": -11,
+    "p1ExileX": 77,
+    "p1ExileY": -47,
+    "p1DiceX": 98,
+    "p1DiceY": -2,
+    "p2LibraryX": -90,
+    "p2LibraryY": 109,
+    "p2GraveX": -81,
+    "p2GraveY": -142,
+    "p2ExileX": -81,
+    "p2ExileY": 34,
+    "p2DiceX": -249,
+    "p2DiceY": 13,
+    "graveHeight": 355,
+    "exileHeight": 64,
+    "dieSize": 33,
+    "dieGap": 3,
+    "dieRadius": 4,
+    "selWidth": 1,
+    "selColor": "#755929",
+    "shuffleSpeed": 64,
+    "shuffleLength": 650,
+    "shuffleSpread": 8
+};
   let dev = loadDev();
 
   let state = initialState();
@@ -73,12 +95,12 @@
   }
 
   function loadDev() {
-    try { return { ...devDefaults, ...JSON.parse(localStorage.getItem("oldschoolCleanDevV13") || "{}") }; }
+    try { return { ...devDefaults, ...JSON.parse(localStorage.getItem("oldschoolCleanDevV14") || "{}") }; }
     catch { return { ...devDefaults }; }
   }
 
   function saveDev() {
-    localStorage.setItem("oldschoolCleanDevV13", JSON.stringify(dev));
+    localStorage.setItem("oldschoolCleanDevV14", JSON.stringify(dev));
   }
 
   function push() {
@@ -441,6 +463,8 @@
       el.style.bottom = Math.max(-12, 18 - Math.pow(rel, 2) * (0.8 + t * 2.1)) + "px";
       el.style.transform = `rotate(${rel * (1.5 + t * 5.5)}deg)`;
       el.style.zIndex = String(100 + index);
+      el.style.setProperty("--hand-z", String(100 + index));
+      el.style.setProperty("--hand-transform", el.style.transform);
       container.appendChild(el);
     });
   }
@@ -481,7 +505,7 @@
       if (card.zone === otherPlayer() + "-hand") {
         card.marked = !card.marked;
         push();
-      } else if (card.zone.endsWith("-hand")) {
+      } else if (card.zone.endsWith("-hand") || card.zone === "battlefield") {
         selectedIds = new Set([card.id]);
         render();
       }
@@ -712,7 +736,11 @@
   }
 
   function playShuffleAnimation(player) {
-    const center = rectCenter(pileScreenEl(player, "library"));
+    const libEl = pileScreenEl(player, "library");
+    const center = rectCenter(libEl);
+    const rect = libEl?.getBoundingClientRect();
+    const animW = rect?.width || 142;
+    const animH = rect?.height || 198;
     const spread = Number(dev.shuffleSpread) || 30;
     const duration = Number(dev.shuffleLength) || 2000;
     const speed = Number(dev.shuffleSpeed) || 120;
@@ -720,8 +748,10 @@
     for (let i = 0; i < 5; i++) {
       const el = document.createElement("div");
       el.className = "shuffle-card";
-      el.style.left = (center.x - CARD_W / 2) + "px";
-      el.style.top = (center.y - CARD_H / 2) + "px";
+      el.style.setProperty("--anim-card-w", animW + "px");
+      el.style.setProperty("--anim-card-h", animH + "px");
+      el.style.left = (center.x - animW / 2) + "px";
+      el.style.top = (center.y - animH / 2) + "px";
       document.body.appendChild(el);
       cards.push(el);
       let alive = true;
@@ -887,6 +917,45 @@
   els.inspectorMinus.onclick = () => { inspectorFont = Math.max(9, inspectorFont - 1); els.inspector.style.fontSize = inspectorFont + "px"; };
   els.inspectorPlus.onclick = () => { inspectorFont = Math.min(28, inspectorFont + 1); els.inspector.style.fontSize = inspectorFont + "px"; };
 
+
+  document.addEventListener("dblclick", e => {
+    const el = e.target.closest?.(".card");
+    if (!el) return;
+    const card = state.cards.find(c => c.id === el.dataset.cardId);
+    if (!card || card.zone !== "battlefield") return;
+    e.preventDefault(); e.stopPropagation(); toggleTap(card);
+  }, true);
+
+  function moveHandToGraveAndDraw7(player) {
+    ownerCards(player, "hand").forEach(c => moveCardToZone(c, player + "-grave"));
+    drawMany(player, 7);
+  }
+  function timetwister(player) {
+    state.cards.forEach(c => {
+      if (c.owner === player && (c.zone === player + "-hand" || c.zone === player + "-grave")) {
+        c.zone = player + "-library"; c.tapped = false; c.faceDown = false; c.marked = false;
+      }
+    });
+    shuffleLibrary(player);
+    setTimeout(() => drawMany(player, 7), Number(dev.shuffleLength) || 650);
+  }
+  function windsOfChange(player) {
+    const n = ownerCards(player, "hand").length;
+    ownerCards(player, "hand").forEach(c => { c.zone = player + "-library"; c.tapped = false; c.faceDown = false; c.marked = false; });
+    shuffleLibrary(player);
+    setTimeout(() => drawMany(player, n), Number(dev.shuffleLength) || 650);
+  }
+  function teferisPuzzleBox(player) {
+    const hand = ownerCards(player, "hand");
+    const n = hand.length;
+    const ids = new Set(hand.map(c => c.id));
+    hand.forEach(c => { c.zone = player + "-library"; c.tapped = false; c.faceDown = false; c.marked = false; });
+    const bottom = state.cards.filter(c => ids.has(c.id));
+    const rest = state.cards.filter(c => !ids.has(c.id));
+    state.cards = bottom.concat(rest);
+    drawMany(player, n + 1);
+  }
+
   els.libraryMenu.addEventListener("click", e => {
     const a = e.target.closest("button[data-action]")?.dataset.action;
     if (!a) return;
@@ -899,6 +968,10 @@
     if (a === "revealTop") { state.revealTop[p] = !state.revealTop[p]; push(); }
     if (a === "revealHand") { state.revealHand[p] = !state.revealHand[p]; push(); }
     if (a === "opponentGrave") openOpponentGrave();
+    if (a === "wheelOfFortune") moveHandToGraveAndDraw7(p);
+    if (a === "timetwister") timetwister(p);
+    if (a === "windOfChange") windsOfChange(p);
+    if (a === "puzzleBox") teferisPuzzleBox(p);
   });
 
   els.cardMenu.addEventListener("click", e => {
@@ -938,15 +1011,14 @@
   window.addEventListener("keydown", e => {
     if (!localPlayer) return;
     if (e.key === "Tab") { e.preventDefault(); drawOne(localPlayer); return; }
+    if (e.key === "1") { e.preventDefault(); drawOne(localPlayer); return; }
+    if (e.key === "7") { e.preventDefault(); drawMany(localPlayer, 7); return; }
     if (e.key === "ArrowLeft") { if (moveSelectedHandCard(-1)) e.preventDefault(); return; }
     if (e.key === "ArrowRight") { if (moveSelectedHandCard(1)) e.preventDefault(); return; }
     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-      const die = state.dice.find(d => d.id === hoveredDieId);
-      if (die && die.kind === "life") {
-        setLife(die.owner, (state.life[die.owner] || 20) + (e.key === "ArrowUp" ? 1 : -1));
-        e.preventDefault();
-        return;
-      }
+      setLife(localPlayer, (state.life[localPlayer] || 20) + (e.key === "ArrowUp" ? 1 : -1));
+      e.preventDefault();
+      return;
     }
     const k = e.key.toLowerCase();
     if (k === "d") drawOne(localPlayer);
@@ -957,10 +1029,15 @@
     if (k === "x") { state.cards.forEach(c => { if (c.owner === localPlayer) c.tapped = false; }); push(); }
   });
 
+  let lastSideWheel = 0;
   els.myHand.addEventListener("wheel", e => {
     e.preventDefault();
     if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-      if (Math.abs(e.deltaX) > 8) moveSelectedHandCard(e.deltaX > 0 ? 1 : -1);
+      const now = performance.now();
+      if (Math.abs(e.deltaX) > 8 && now - lastSideWheel > 120) {
+        lastSideWheel = now;
+        moveSelectedHandCard(e.deltaX > 0 ? 1 : -1);
+      }
     } else {
       handFan += e.deltaY < 0 ? 12 : -12;
       handFan = Math.max(-100, Math.min(100, handFan));
