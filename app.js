@@ -149,8 +149,7 @@
   }
 
   function parseDeckList(text) {
-    return String(text || "").split(/?
-/).map(l => l.trim()).filter(Boolean).flatMap(line => {
+    return String(text || "").split(/\r?\n/).map(l => l.trim()).filter(Boolean).flatMap(line => {
       if (line.startsWith("//") || line.startsWith("#")) return [];
       const cleaned = line.replace(/^SB:\s*/i,"").replace(/\s+\([^)]+\)$/g,"").trim();
       const m = cleaned.match(/^(\d+)\s+(.+)$/);
@@ -572,9 +571,11 @@
   async function join(room, player) {
     els.seatStatus.textContent = "Joining...";
     try {
+      if (!window.FirebaseCleanSync) throw new Error("Firebase sync module not loaded yet. Wait a second and try again.");
       await window.FirebaseCleanSync.joinRoom(room, player);
     } catch (err) {
-      els.seatStatus.textContent = err.message || String(err);
+      els.seatStatus.textContent = err && err.message ? err.message : String(err);
+      console.error(err);
     }
   }
 
