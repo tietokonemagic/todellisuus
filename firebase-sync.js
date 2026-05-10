@@ -1,7 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {
-  getDatabase, ref, set, update, onValue, onDisconnect, get, remove
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { getDatabase, ref, set, update, onValue, get, remove, onDisconnect } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAP08tHu3kVqmI44kvbNzqvjGr2ZSegdD8",
@@ -21,34 +19,37 @@ let roomId = null;
 let playerId = null;
 let clientId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random();
 let suppress = false;
-let unsubRoom = null;
+let unsubState = null;
+let unsubReset = null;
 
-function roomPath(path = "") {
-  return "cleanRooms/" + roomId + (path ? "/" + path : "");
+function path(p = "") {
+  return "cleanRoomsV13/" + roomId + (p ? "/" + p : "");
 }
 
 async function joinRoom(nextRoom, nextPlayer) {
   roomId = nextRoom;
   playerId = nextPlayer;
 
-  const seatRef = ref(db, "cleanRooms/" + roomId + "/seats/" + playerId);
+  const seatRef = ref(db, "cleanRoomsV13/" + roomId + "/seats/" + playerId);
   const snap = await get(seatRef);
   const current = snap.val();
-
   if (current && current.clientId && current.clientId !== clientId && Date.now() - (current.updated || 0) < 20000) {
-    throw new Error(playerId.toUpperCase() + " is already occupied.");
+    throw new Error(playerId.toUpperCase() + " is occupied.");
   }
 
   await set(seatRef, { clientId, updated: Date.now() });
   onDisconnect(seatRef).remove();
 
-  const stateSnap = await get(ref(db, roomPath("state")));
+  const stateRef = ref(db, path("state"));
+  const stateSnap = await get(stateRef);
   if (!stateSnap.exists() && window.CleanTable) {
-    await set(ref(db, roomPath("state")), window.CleanTable.getInitialSharedState());
+    await set(stateRef, window.CleanTable.initialState());
   }
 
-  if (unsubRoom) unsubRoom();
-  unsubRoom = onValue(ref(db, roomPath("state")), snap => {
+  if (unsubState) unsubState();
+  if (unsubReset) unsubReset();
+
+  unsubState = onValue(stateRef, snap => {
     const data = snap.val();
     if (!data || !window.CleanTable) return;
     suppress = true;
@@ -56,9 +57,8 @@ async function joinRoom(nextRoom, nextPlayer) {
     suppress = false;
   });
 
-  onValue(ref(db, roomPath("resetVote")), snap => {
-    if (!window.CleanTable) return;
-    window.CleanTable.onResetVoteChanged(snap.val() || {});
+  unsubReset = onValue(ref(db, path("resetVote")), snap => {
+    if (window.CleanTable) window.CleanTable.onResetVoteChanged(snap.val() || {});
   });
 
   window.CleanTable.setLocalSeat(roomId, playerId);
@@ -66,29 +66,29 @@ async function joinRoom(nextRoom, nextPlayer) {
 
 async function pushState(state) {
   if (!roomId || !playerId || suppress) return;
-  await set(ref(db, roomPath("state")), state);
-  await update(ref(db, roomPath("seats/" + playerId)), { updated: Date.now() });
+  await set(ref(db, path("state")), state);
+  await update(ref(db, path("seats/" + playerId)), { updated: Date.now() });
 }
 
 async function voteReset(yes) {
   if (!roomId || !playerId) return;
-  await update(ref(db, roomPath("resetVote")), { [playerId]: !!yes });
+  await update(ref(db, path("resetVote")), { [playerId]: !!yes });
 }
 
 async function clearResetVote() {
   if (!roomId) return;
-  await remove(ref(db, roomPath("resetVote")));
+  await remove(ref(db, path("resetVote")));
 }
 
 async function leaveRoom() {
   if (!roomId || !playerId) return;
-  await remove(ref(db, roomPath("seats/" + playerId)));
+  await remove(ref(db, path("seats/" + playerId)));
   location.reload();
 }
 
 async function kickRoom(r) {
-  await remove(ref(db, "cleanRooms/" + r + "/seats"));
-  await remove(ref(db, "cleanRooms/" + r + "/resetVote"));
+  await remove(ref(db, "cleanRoomsV13/" + r + "/seats"));
+  await remove(ref(db, "cleanRoomsV13/" + r + "/resetVote"));
 }
 
 window.FirebaseCleanSync = {

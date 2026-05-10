@@ -10,7 +10,7 @@
   <div id="seatScreen" class="seat-screen">
     <div class="seat-box">
       <h1>Oldschool Table</h1>
-      <p>Choose room and player seat.</p>
+      <p>Choose room and seat.</p>
       <div class="seat-grid">
         <button id="joinR1P1">ROOM 1 / PLAYER 1</button>
         <button id="joinR1P2">ROOM 1 / PLAYER 2</button>
@@ -28,34 +28,11 @@
   <div id="game" class="game hidden">
     <div id="viewport">
       <div id="world">
-        <div id="p2Mat" class="playmat player2"></div>
-        <div id="p1Mat" class="playmat player1"></div>
+        <div id="p2Mat" class="playmat p2"></div>
+        <div id="p1Mat" class="playmat p1"></div>
         <div id="centerLine"></div>
 
-        <div id="p2Library" class="library pile" data-player="p2">
-          <div class="pile-card sleeve"></div>
-          <div class="pile-label">LIBRARY <span id="p2LibCount">0</span></div>
-        </div>
-        <div id="p2Grave" class="grave pile" data-player="p2">
-          <div class="pile-card mini-stack"></div>
-          <div class="pile-label">GRAVE <span id="p2GraveCount">0</span></div>
-        </div>
-        <div id="p2Exile" class="exile pile" data-player="p2">
-          <div class="exile-box">EXILE <span id="p2ExileCount">0</span></div>
-        </div>
-
-        <div id="p1Library" class="library pile" data-player="p1">
-          <div class="pile-card sleeve"></div>
-          <div class="pile-label">LIBRARY <span id="p1LibCount">0</span></div>
-        </div>
-        <div id="p1Grave" class="grave pile" data-player="p1">
-          <div class="pile-card mini-stack"></div>
-          <div class="pile-label">GRAVE <span id="p1GraveCount">0</span></div>
-        </div>
-        <div id="p1Exile" class="exile pile" data-player="p1">
-          <div class="exile-box">EXILE <span id="p1ExileCount">0</span></div>
-        </div>
-
+        <div id="pileLayer"></div>
         <div id="diceLayer"></div>
         <div id="cardLayer"></div>
 
@@ -67,7 +44,6 @@
     <button id="mainMenuBtn" class="main-menu-btn">MENU</button>
     <div id="mainMenu" class="main-menu hidden">
       <button id="loadDeckBtn">LOAD DECK</button>
-      <button id="playmatBtn">PLAYMATS</button>
       <button id="helpBtn">HELP</button>
       <button id="devTuningBtn">DEV TUNING</button>
       <button id="resetVoteBtn" class="danger">RESET GAME</button>
@@ -131,6 +107,7 @@ TAB = draw a card
 Double click library = draw a card
 
 Right click library:
+  Draw 1
   Shuffle
   Tutor
   Mulligan
@@ -143,12 +120,21 @@ Mouse hover over card + E = put to exile
 Mouse hover over card + H = put to hand
 Mouse hover over card + T = tap
 
-All these work with multiple selected cards.
+Double click battlefield card = tap/untap
 
-Click a card in opponent's hand to mark it.
+Right click battlefield card:
+  Flip card
 
-Reset game:
-  both players must vote yes.</pre>
+Right click own hand card:
+  Play face down
+
+Arrow left/right = move selected hand card. Wraps around.
+Arrow up/down over life dice = life +1 / -1.
+
+Trackpad scroll up/down over own hand = fan open/close.
+Trackpad scroll left/right over own hand = rotate selected card through hand.
+
+Click opponent hand card to mark it.</pre>
       <div class="row"><button id="closeHelp">CLOSE</button></div>
     </div>
   </div>
@@ -163,40 +149,17 @@ Reset game:
     <button data-action="opponentGrave">OPPONENT GRAVE</button>
   </div>
 
+  <div id="cardMenu" class="context-menu hidden">
+    <button data-card-action="flip">FLIP CARD</button>
+    <button data-card-action="hand">TO HAND</button>
+    <button data-card-action="grave">TO GRAVE</button>
+    <button data-card-action="exile">TO EXILE</button>
+    <button data-card-action="front">BRING TO FRONT</button>
+    <button data-card-action="back">SEND TO BACK</button>
+  </div>
 
-  <div id="devPanel" class="dev-panel hidden">
-    <div id="devDragHandle" class="dev-title">DEV POSITION / STYLE</div>
-    <div class="dev-subtitle">PLAYER 1</div>
-    <label>P1 Library X <input id="devP1LibraryX" type="range" min="-360" max="360" value="0"><span id="devP1LibraryXVal">0</span></label>
-    <label>P1 Library Y <input id="devP1LibraryY" type="range" min="-360" max="360" value="0"><span id="devP1LibraryYVal">0</span></label>
-    <label>P1 Grave X <input id="devP1GraveX" type="range" min="-360" max="360" value="0"><span id="devP1GraveXVal">0</span></label>
-    <label>P1 Grave Y <input id="devP1GraveY" type="range" min="-360" max="360" value="0"><span id="devP1GraveYVal">0</span></label>
-    <label>P1 Exile X <input id="devP1ExileX" type="range" min="-360" max="360" value="0"><span id="devP1ExileXVal">0</span></label>
-    <label>P1 Exile Y <input id="devP1ExileY" type="range" min="-360" max="360" value="0"><span id="devP1ExileYVal">0</span></label>
-    <label>P1 Dice X <input id="devP1DiceX" type="range" min="-360" max="360" value="0"><span id="devP1DiceXVal">0</span></label>
-    <label>P1 Dice Y <input id="devP1DiceY" type="range" min="-360" max="360" value="0"><span id="devP1DiceYVal">0</span></label>
-    <div class="dev-subtitle">PLAYER 2</div>
-    <label>P2 Library X <input id="devP2LibraryX" type="range" min="-360" max="360" value="0"><span id="devP2LibraryXVal">0</span></label>
-    <label>P2 Library Y <input id="devP2LibraryY" type="range" min="-360" max="360" value="0"><span id="devP2LibraryYVal">0</span></label>
-    <label>P2 Grave X <input id="devP2GraveX" type="range" min="-360" max="360" value="0"><span id="devP2GraveXVal">0</span></label>
-    <label>P2 Grave Y <input id="devP2GraveY" type="range" min="-360" max="360" value="0"><span id="devP2GraveYVal">0</span></label>
-    <label>P2 Exile X <input id="devP2ExileX" type="range" min="-360" max="360" value="0"><span id="devP2ExileXVal">0</span></label>
-    <label>P2 Exile Y <input id="devP2ExileY" type="range" min="-360" max="360" value="0"><span id="devP2ExileYVal">0</span></label>
-    <label>P2 Dice X <input id="devP2DiceX" type="range" min="-360" max="360" value="0"><span id="devP2DiceXVal">0</span></label>
-    <label>P2 Dice Y <input id="devP2DiceY" type="range" min="-360" max="360" value="0"><span id="devP2DiceYVal">0</span></label>
-    <div class="dev-subtitle">SHARED STYLE</div>
-    <label>Grave height <input id="devGraveHeight" type="range" min="120" max="520" value="260"><span id="devGraveHeightVal">260</span></label>
-    <label>Exile height <input id="devExileHeight" type="range" min="36" max="180" value="64"><span id="devExileHeightVal">64</span></label>
-    <label>Dice size <input id="devDieSize" type="range" min="18" max="64" value="30"><span id="devDieSizeVal">30</span></label>
-    <label>Dice gap <input id="devDieGap" type="range" min="0" max="36" value="8"><span id="devDieGapVal">8</span></label>
-    <label>Dice radius <input id="devDieRadius" type="range" min="0" max="18" value="8"><span id="devDieRadiusVal">8</span></label>
-    <label>Selection width <input id="devSelWidth" type="range" min="1" max="8" value="2"><span id="devSelWidthVal">2</span></label>
-    <label>Selection color <input id="devSelColor" type="color" value="#ffffff"><span id="devSelColorVal">#ffffff</span></label>
-    <label>Shuffle speed <input id="devShuffleSpeed" type="range" min="40" max="400" value="120"><span id="devShuffleSpeedVal">120</span></label>
-    <label>Shuffle length <input id="devShuffleLength" type="range" min="400" max="3500" value="2000"><span id="devShuffleLengthVal">2000</span></label>
-    <label>Shuffle spread <input id="devShuffleSpread" type="range" min="2" max="60" value="26"><span id="devShuffleSpreadVal">26</span></label>
-    <div class="dev-buttons"><button id="devReset" type="button">RESET DEV</button><button id="devCopy" type="button">COPY VALUES</button><button id="devClose" type="button">CLOSE</button></div>
-    <textarea id="devOutput" readonly></textarea>
+  <div id="handCardMenu" class="context-menu hidden">
+    <button data-hand-action="playFaceDown">PLAY FACE DOWN</button>
   </div>
 
   <div id="resetPrompt" class="reset-prompt hidden">
@@ -206,6 +169,59 @@ Reset game:
       <button id="acceptReset">YES</button>
       <button id="rejectReset">NO</button>
     </div>
+  </div>
+
+  <div id="inspector" class="inspector hidden">
+    <div class="inspector-controls">
+      <button id="inspectorMinus">-</button>
+      <button id="inspectorPlus">+</button>
+    </div>
+    <div id="inspectorName"></div>
+    <div id="inspectorType"></div>
+    <div id="inspectorOracle"></div>
+  </div>
+
+  <div id="devPanel" class="dev-panel hidden">
+    <div id="devDragHandle" class="dev-title">DEV POSITION / STYLE</div>
+
+    <div class="dev-subtitle">PLAYER 1</div>
+    <label>P1 Library X <input id="devP1LibraryX" type="range" min="-420" max="420" value="0"><span id="devP1LibraryXVal">0</span></label>
+    <label>P1 Library Y <input id="devP1LibraryY" type="range" min="-420" max="420" value="0"><span id="devP1LibraryYVal">0</span></label>
+    <label>P1 Grave X <input id="devP1GraveX" type="range" min="-420" max="420" value="0"><span id="devP1GraveXVal">0</span></label>
+    <label>P1 Grave Y <input id="devP1GraveY" type="range" min="-420" max="420" value="0"><span id="devP1GraveYVal">0</span></label>
+    <label>P1 Exile X <input id="devP1ExileX" type="range" min="-420" max="420" value="0"><span id="devP1ExileXVal">0</span></label>
+    <label>P1 Exile Y <input id="devP1ExileY" type="range" min="-420" max="420" value="0"><span id="devP1ExileYVal">0</span></label>
+    <label>P1 Dice X <input id="devP1DiceX" type="range" min="-420" max="420" value="0"><span id="devP1DiceXVal">0</span></label>
+    <label>P1 Dice Y <input id="devP1DiceY" type="range" min="-420" max="420" value="0"><span id="devP1DiceYVal">0</span></label>
+
+    <div class="dev-subtitle">PLAYER 2</div>
+    <label>P2 Library X <input id="devP2LibraryX" type="range" min="-420" max="420" value="0"><span id="devP2LibraryXVal">0</span></label>
+    <label>P2 Library Y <input id="devP2LibraryY" type="range" min="-420" max="420" value="0"><span id="devP2LibraryYVal">0</span></label>
+    <label>P2 Grave X <input id="devP2GraveX" type="range" min="-420" max="420" value="0"><span id="devP2GraveXVal">0</span></label>
+    <label>P2 Grave Y <input id="devP2GraveY" type="range" min="-420" max="420" value="0"><span id="devP2GraveYVal">0</span></label>
+    <label>P2 Exile X <input id="devP2ExileX" type="range" min="-420" max="420" value="0"><span id="devP2ExileXVal">0</span></label>
+    <label>P2 Exile Y <input id="devP2ExileY" type="range" min="-420" max="420" value="0"><span id="devP2ExileYVal">0</span></label>
+    <label>P2 Dice X <input id="devP2DiceX" type="range" min="-420" max="420" value="0"><span id="devP2DiceXVal">0</span></label>
+    <label>P2 Dice Y <input id="devP2DiceY" type="range" min="-420" max="420" value="0"><span id="devP2DiceYVal">0</span></label>
+
+    <div class="dev-subtitle">SHARED</div>
+    <label>Grave height <input id="devGraveHeight" type="range" min="120" max="520" value="260"><span id="devGraveHeightVal">260</span></label>
+    <label>Exile height <input id="devExileHeight" type="range" min="36" max="180" value="64"><span id="devExileHeightVal">64</span></label>
+    <label>Dice size <input id="devDieSize" type="range" min="18" max="64" value="30"><span id="devDieSizeVal">30</span></label>
+    <label>Dice gap <input id="devDieGap" type="range" min="0" max="36" value="8"><span id="devDieGapVal">8</span></label>
+    <label>Dice radius <input id="devDieRadius" type="range" min="0" max="18" value="8"><span id="devDieRadiusVal">8</span></label>
+    <label>Selection width <input id="devSelWidth" type="range" min="1" max="8" value="2"><span id="devSelWidthVal">2</span></label>
+    <label>Selection color <input id="devSelColor" type="color" value="#ffffff"><span id="devSelColorVal">#ffffff</span></label>
+    <label>Shuffle speed <input id="devShuffleSpeed" type="range" min="40" max="400" value="120"><span id="devShuffleSpeedVal">120</span></label>
+    <label>Shuffle length <input id="devShuffleLength" type="range" min="400" max="3500" value="2000"><span id="devShuffleLengthVal">2000</span></label>
+    <label>Shuffle spread <input id="devShuffleSpread" type="range" min="2" max="100" value="30"><span id="devShuffleSpreadVal">30</span></label>
+
+    <div class="dev-buttons">
+      <button id="devReset">RESET DEV</button>
+      <button id="devCopy">COPY VALUES</button>
+      <button id="devClose">CLOSE</button>
+    </div>
+    <textarea id="devOutput" readonly></textarea>
   </div>
 
   <script src="scryfall.js"></script>
