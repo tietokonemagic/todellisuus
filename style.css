@@ -590,3 +590,155 @@ body[data-player="p1"] .opponent-hand {
   transform: var(--hand-transform) !important;
   filter: brightness(1.05);
 }
+
+
+/* v9 dev tuning + no hand-card hover effect */
+:root {
+  --dev-library-x: 0px;
+  --dev-library-y: 0px;
+  --dev-grave-x: 0px;
+  --dev-grave-y: 0px;
+  --dev-exile-x: 0px;
+  --dev-exile-y: 0px;
+  --dev-dice-x: 0px;
+  --dev-dice-y: 0px;
+  --dev-grave-height: 260px;
+  --dev-exile-height: 64px;
+  --dev-die-size: 34px;
+  --dev-die-gap: 8px;
+  --dev-die-radius: 8px;
+  --dev-selection-width: 2px;
+  --dev-selection-color: #ffffff;
+}
+
+/* Hand hover must not pop, raise, brighten, scale, or reorder. Inspector still works through JS mouseenter. */
+.hand-card:hover,
+.hand-card:focus,
+.hand-card:active,
+.hand-card:hover img,
+.hand-card:hover .back,
+.hand-card:hover .card-face,
+.hand-card:hover .card-back {
+  transform: inherit !important;
+  filter: none !important;
+  scale: 1 !important;
+  translate: 0 0 !important;
+  outline: none !important;
+}
+
+.hand-card:hover {
+  z-index: var(--hand-card-z, inherit) !important;
+  box-shadow: 0 3px 8px rgba(0,0,0,.75) !important;
+}
+
+/* Dev-adjustable pile offsets. P1 and P2 use mirrored offsets via the already-rotated world. */
+.library.pile,
+.pile.library {
+  margin-left: var(--dev-library-x) !important;
+  margin-top: var(--dev-library-y) !important;
+}
+
+.grave.pile,
+.pile.grave {
+  margin-left: var(--dev-grave-x) !important;
+  margin-top: var(--dev-grave-y) !important;
+  height: var(--dev-grave-height) !important;
+}
+
+.exile.pile,
+.pile.exile {
+  margin-left: var(--dev-exile-x) !important;
+  margin-top: var(--dev-exile-y) !important;
+  height: var(--dev-exile-height) !important;
+}
+
+.exile-box {
+  height: var(--dev-exile-height) !important;
+}
+
+.grave .pile-card,
+.grave .mini-stack {
+  height: var(--dev-grave-height) !important;
+}
+
+/* Dice dev vars */
+.die {
+  width: var(--dev-die-size) !important;
+  height: var(--dev-die-size) !important;
+  border-radius: var(--dev-die-radius) !important;
+}
+
+/* Selection dev vars */
+.card.selected {
+  box-shadow: 0 0 0 var(--dev-selection-width) var(--dev-selection-color), 0 3px 8px rgba(0,0,0,.75) !important;
+}
+
+/* Dev panel */
+.dev-panel {
+  position: fixed;
+  right: 18px;
+  top: 18px;
+  width: 330px;
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  z-index: 200000;
+  background: rgba(8,8,8,.96);
+  border: 1px solid #666;
+  border-radius: 12px;
+  padding: 12px;
+  color: #eee;
+  box-shadow: 0 18px 60px rgba(0,0,0,.75);
+  text-transform: none !important;
+  font-style: normal !important;
+}
+
+.dev-title {
+  font-weight: 700;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.dev-panel label {
+  display: grid;
+  grid-template-columns: 92px 1fr 42px;
+  gap: 8px;
+  align-items: center;
+  margin: 7px 0;
+  font-size: 12px;
+  text-transform: none !important;
+  font-style: normal !important;
+}
+
+.dev-panel input[type="range"] {
+  width: 100%;
+}
+
+.dev-panel input[type="color"] {
+  width: 100%;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.dev-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+#devOutput {
+  width: 100%;
+  height: 110px;
+  margin-top: 10px;
+  background: #050505;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 8px;
+  padding: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  text-transform: none !important;
+  font-style: normal !important;
+}

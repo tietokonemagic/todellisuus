@@ -969,3 +969,203 @@
     onResetVoteChanged
   };
 })();
+
+
+
+// v9 dev tuning panel + stable hand hover/depth controls.
+(() => {
+  const defaults = {
+    libraryX: 0,
+    libraryY: 0,
+    graveX: 0,
+    graveY: 0,
+    exileX: 0,
+    exileY: 0,
+    diceX: 0,
+    diceY: 0,
+    graveHeight: 260,
+    exileHeight: 64,
+    dieSize: 34,
+    dieGap: 8,
+    dieRadius: 8,
+    selWidth: 2,
+    selColor: "#ffffff"
+  };
+
+  let dev = {};
+  try {
+    dev = Object.assign({}, defaults, JSON.parse(localStorage.getItem("oldschoolCleanDevTuningV1") || "{}"));
+  } catch {
+    dev = Object.assign({}, defaults);
+  }
+
+  const cssMap = {
+    libraryX: ["--dev-library-x", "px"],
+    libraryY: ["--dev-library-y", "px"],
+    graveX: ["--dev-grave-x", "px"],
+    graveY: ["--dev-grave-y", "px"],
+    exileX: ["--dev-exile-x", "px"],
+    exileY: ["--dev-exile-y", "px"],
+    diceX: ["--dev-dice-x", "px"],
+    diceY: ["--dev-dice-y", "px"],
+    graveHeight: ["--dev-grave-height", "px"],
+    exileHeight: ["--dev-exile-height", "px"],
+    dieSize: ["--dev-die-size", "px"],
+    dieGap: ["--dev-die-gap", "px"],
+    dieRadius: ["--dev-die-radius", "px"],
+    selWidth: ["--dev-selection-width", "px"],
+    selColor: ["--dev-selection-color", ""]
+  };
+
+  const inputIds = {
+    libraryX: "devLibraryX",
+    libraryY: "devLibraryY",
+    graveX: "devGraveX",
+    graveY: "devGraveY",
+    exileX: "devExileX",
+    exileY: "devExileY",
+    diceX: "devDiceX",
+    diceY: "devDiceY",
+    graveHeight: "devGraveHeight",
+    exileHeight: "devExileHeight",
+    dieSize: "devDieSize",
+    dieGap: "devDieGap",
+    dieRadius: "devDieRadius",
+    selWidth: "devSelWidth",
+    selColor: "devSelColor"
+  };
+
+  function rootSet(key, value) {
+    const spec = cssMap[key];
+    if (!spec) return;
+    document.documentElement.style.setProperty(spec[0], String(value) + spec[1]);
+  }
+
+  function applyDev() {
+    Object.entries(dev).forEach(([k, v]) => rootSet(k, v));
+    localStorage.setItem("oldschoolCleanDevTuningV1", JSON.stringify(dev));
+    syncDevInputs();
+    if (typeof renderDice === "function") {
+      try { renderDice(); } catch {}
+    }
+  }
+
+  function syncDevInputs() {
+    for (const [key, id] of Object.entries(inputIds)) {
+      const el = document.getElementById(id);
+      const val = document.getElementById(id + "Val");
+      if (!el) continue;
+      el.value = dev[key];
+      if (val) val.textContent = String(dev[key]);
+    }
+  }
+
+  function valuesText() {
+    return JSON.stringify(dev, null, 2);
+  }
+
+  function bindDev() {
+    for (const [key, id] of Object.entries(inputIds)) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.addEventListener("input", () => {
+        dev[key] = el.type === "color" ? el.value : Number(el.value);
+        rootSet(key, dev[key]);
+        localStorage.setItem("oldschoolCleanDevTuningV1", JSON.stringify(dev));
+        syncDevInputs();
+        if (typeof renderDice === "function" && (key.startsWith("dice") || key.startsWith("die"))) {
+          try { renderDice(); } catch {}
+        }
+      });
+    }
+
+    const panel = document.getElementById("devPanel");
+    const out = document.getElementById("devOutput");
+
+    document.getElementById("devTuningBtn")?.addEventListener("click", () => {
+      panel?.classList.toggle("hidden");
+      if (out) out.value = valuesText();
+    });
+
+    document.getElementById("devClose")?.addEventListener("click", () => panel?.classList.add("hidden"));
+
+    document.getElementById("devReset")?.addEventListener("click", () => {
+      dev = Object.assign({}, defaults);
+      applyDev();
+      if (out) out.value = valuesText();
+    });
+
+    document.getElementById("devCopy")?.addEventListener("click", async () => {
+      const txt = valuesText();
+      if (out) out.value = txt;
+      try { await navigator.clipboard.writeText(txt); } catch {}
+    });
+  }
+
+  // Override dice render so positions also use dev offset and gap.
+  if (typeof renderDice === "function") {
+    const oldRenderDice = renderDice;
+    renderDice = function() {
+      oldRenderDice();
+      const diceByOwner = { p1: [], p2: [] };
+      document.querySelectorAll(".die").forEach(el => {
+        const id = el.dataset.dieId;
+        let die = null;
+        try { die = state.dice.find(d => d.id === id); } catch {}
+        if (die && diceByOwner[die.owner]) diceByOwner[die.owner].push({ el, die });
+      });
+
+      for (const owner of ["p1", "p2"]) {
+        diceByOwner[owner]
+          .sort((a, b) => String(a.die.id).localeCompare(String(b.die.id)))
+          .forEach((item, index) => {
+            const baseLeft = parseFloat(item.el.style.left) || 0;
+            const baseTop = parseFloat(item.el.style.top) || 0;
+            item.el.style.left = (baseLeft + dev.diceX + index * dev.diceGap) + "px";
+            item.el.style.top = (baseTop + dev.diceY) + "px";
+          });
+      }
+    };
+  }
+
+  // Stable hand lateral trackpad: shift a focus index, do not continuously flip z-order.
+  let lastDepthStep = 0;
+  if (typeof renderHand === "function") {
+    const oldRenderHand = renderHand;
+    renderHand = function(player, container, own) {
+      oldRenderHand(player, container, own);
+      container.querySelectorAll(".hand-card").forEach((el, idx) => {
+        el.style.setProperty("--hand-card-z", el.style.zIndex || String(100 + idx));
+      });
+    };
+  }
+
+  document.addEventListener("wheel", e => {
+    const hand = e.target.closest && e.target.closest("#myHand,.my-hand,.hand-zone.self,#p1HandZone");
+    if (!hand) return;
+
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+      e.preventDefault();
+      const now = performance.now();
+      if (now - lastDepthStep < 140) return;
+      lastDepthStep = now;
+
+      // Rotate selected card through hand if one exists, otherwise just change visual z direction once.
+      try {
+        if (typeof moveSelectedHandCard === "function" && Math.abs(e.deltaX) > 8) {
+          moveSelectedHandCard(e.deltaX > 0 ? 1 : -1);
+        } else {
+          localHandDepth = (typeof localHandDepth === "number" ? localHandDepth : 1) * -1;
+          if (typeof renderHands === "function") renderHands();
+        }
+      } catch {}
+    }
+  }, { passive: false });
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => { bindDev(); applyDev(); });
+  } else {
+    bindDev();
+    applyDev();
+  }
+})();

@@ -69,6 +69,7 @@
       <button id="loadDeckBtn">LOAD DECK</button>
       <button id="playmatBtn">PLAYMATS</button>
       <button id="helpBtn">HELP</button>
+      <button id="devTuningBtn">DEV TUNING</button>
       <button id="resetVoteBtn" class="danger">RESET GAME</button>
       <button id="leaveBtn">LEAVE ROOM</button>
       <div id="roomInfo"></div>
@@ -160,6 +161,40 @@ Reset game:
     <button data-action="revealTop">REVEAL TOP</button>
     <button data-action="revealHand">REVEAL HAND</button>
     <button data-action="opponentGrave">OPPONENT GRAVE</button>
+  </div>
+
+
+  <div id="devPanel" class="dev-panel hidden">
+    <div class="dev-title">DEV POSITION / STYLE</div>
+
+    <label>Library X <input id="devLibraryX" type="range" min="-240" max="240" value="0"><span id="devLibraryXVal">0</span></label>
+    <label>Library Y <input id="devLibraryY" type="range" min="-240" max="240" value="0"><span id="devLibraryYVal">0</span></label>
+
+    <label>Grave X <input id="devGraveX" type="range" min="-240" max="240" value="0"><span id="devGraveXVal">0</span></label>
+    <label>Grave Y <input id="devGraveY" type="range" min="-240" max="240" value="0"><span id="devGraveYVal">0</span></label>
+
+    <label>Exile X <input id="devExileX" type="range" min="-240" max="240" value="0"><span id="devExileXVal">0</span></label>
+    <label>Exile Y <input id="devExileY" type="range" min="-240" max="240" value="0"><span id="devExileYVal">0</span></label>
+
+    <label>Dice X <input id="devDiceX" type="range" min="-240" max="240" value="0"><span id="devDiceXVal">0</span></label>
+    <label>Dice Y <input id="devDiceY" type="range" min="-240" max="240" value="0"><span id="devDiceYVal">0</span></label>
+
+    <label>Grave height <input id="devGraveHeight" type="range" min="120" max="520" value="260"><span id="devGraveHeightVal">260</span></label>
+    <label>Exile height <input id="devExileHeight" type="range" min="36" max="180" value="64"><span id="devExileHeightVal">64</span></label>
+
+    <label>Dice size <input id="devDieSize" type="range" min="22" max="64" value="34"><span id="devDieSizeVal">34</span></label>
+    <label>Dice gap <input id="devDieGap" type="range" min="0" max="32" value="8"><span id="devDieGapVal">8</span></label>
+    <label>Dice radius <input id="devDieRadius" type="range" min="0" max="18" value="8"><span id="devDieRadiusVal">8</span></label>
+
+    <label>Selection width <input id="devSelWidth" type="range" min="1" max="8" value="2"><span id="devSelWidthVal">2</span></label>
+    <label>Selection color <input id="devSelColor" type="color" value="#ffffff"><span id="devSelColorVal">#ffffff</span></label>
+
+    <div class="dev-buttons">
+      <button id="devReset" type="button">RESET DEV</button>
+      <button id="devCopy" type="button">COPY VALUES</button>
+      <button id="devClose" type="button">CLOSE</button>
+    </div>
+    <textarea id="devOutput" readonly></textarea>
   </div>
 
   <div id="resetPrompt" class="reset-prompt hidden">
