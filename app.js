@@ -26,7 +26,10 @@
   let contextPlayer = null;
   let drag = null;
   let localHandFan = 0;
-  let localHandDepth = 1;
+  let localHandDepth = 0;
+  const graveScroll = { p1: 0, p2: 0 };
+  let inspectorFontSize = 14;
+  let inspectorCardId = null;
 
   const els = {};
   [
@@ -260,12 +263,38 @@
     for (let i = 0; i < n; i++) drawOne(player);
   }
 
-  function shuffleLibrary(player = localPlayer) {
+  function shuffleLibrary(player = localPlayer, options = {}) {
     const lib = ownerCards(player, "library");
     const rest = state.cards.filter(c => !(c.owner === player && c.zone === player + "-library"));
     shuffle(lib);
     state.cards = rest.concat(lib);
+    state.revealTop[player] = false;
+    if (!options.silentAnimation) playShuffleAnimation(player);
     push();
+  }
+
+  function playShuffleAnimation(player = localPlayer) {
+    const pile = els[player + "Library"];
+    const visual = pile ? pile.querySelector(".pile-card") : null;
+    if (!visual) return;
+    visual.classList.add("shuffle-host");
+    visual.querySelectorAll(".shuffle-layer").forEach(n => n.remove());
+    for (let i = 0; i < 3; i++) {
+      const img = document.createElement("img");
+      img.className = "shuffle-layer";
+      img.src = "lapi2.png";
+      img.draggable = false;
+      const r = () => (Math.round((Math.random() * 24 - 12) * 10) / 10) + "px";
+      const deg = () => (Math.round((Math.random() * 28 - 14) * 10) / 10) + "deg";
+      for (let n = 1; n <= 6; n++) {
+        img.style.setProperty(`--x${n}`, r());
+        img.style.setProperty(`--y${n}`, r());
+        img.style.setProperty(`--r${n}`, deg());
+      }
+      img.style.animationDelay = `${i * 70}ms`;
+      visual.appendChild(img);
+      setTimeout(() => img.remove(), 2300);
+    }
   }
 
   function bringToFront(card) {
@@ -285,10 +314,35 @@
   function render() {
     if (!localPlayer) return;
     renderCounts();
+    renderLibraryVisuals();
     renderCards();
     renderHands();
     renderDice();
     renderPlaymats();
+    refreshInspector();
+  }
+
+  function renderLibraryVisuals() {
+    for (const p of ["p1","p2"]) {
+      const pile = els[p + "Library"];
+      const visual = pile ? pile.querySelector(".pile-card") : null;
+      if (!visual) continue;
+      visual.innerHTML = "";
+      visual.classList.add("sleeve");
+      visual.style.backgroundImage = 'url("lapi2.png")';
+      visual.style.backgroundSize = "cover";
+      visual.style.backgroundPosition = "center";
+      const top = ownerCards(p, "library").at(-1);
+      if (top && state.revealTop && state.revealTop[p]) {
+        const img = document.createElement("img");
+        img.className = "library-top-img";
+        img.src = top.image;
+        img.draggable = false;
+        img.alt = top.name || "top card";
+        visual.style.backgroundImage = "none";
+        visual.appendChild(img);
+      }
+    }
   }
 
   function renderCounts() {
@@ -330,17 +384,22 @@
   function renderGraveStack(player) {
     const cards = ownerCards(player, "grave");
     const newestFirst = cards.slice().reverse();
-    const base = player === "p1" ? { x: 1680, y: 760, rot: 0 } : { x: 240, y: 320, rot: 180 };
+    const layout = player === "p1"
+      ? { left: 1692, top: 712, height: 330 }
+      : { left: 110, top: 198, height: 330 };
+    const scroll = graveScroll[player] || 0;
+
     newestFirst.forEach((card, index) => {
       const el = createCardEl(card, "grave-stack-card");
-      const offset = Math.min(index, 14) * 18;
-      el.style.left = (base.x - CARD_W / 2) + "px";
-      el.style.top = (base.y - CARD_H / 2 - offset) + "px";
+      const step = 28;
+      const top = layout.top + layout.height - CARD_H - index * step + scroll;
+      el.style.left = layout.left + "px";
+      el.style.top = top + "px";
       const ownerReadable = card.owner === localPlayer ? 0 : 180;
       const worldComp = localPlayer === "p2" ? 180 : 0;
       const rot = (ownerReadable - worldComp + 360) % 360;
       el.style.transform = `rotate(${rot}deg)`;
-      el.style.zIndex = String(500 - index);
+      el.style.zIndex = String(700 - index);
       els.cardLayer.appendChild(el);
     });
   }
@@ -355,21 +414,27 @@
     const hand = ownerCards(player, "hand");
     const count = hand.length;
     const t = Math.max(0, Math.min(1, (localHandFan + 100) / 200));
-    const spread = (16 + t * 70) * Math.min(1, 11 / Math.max(1, count));
+    const spread = (7 + t * 74) * Math.min(1, 11 / Math.max(1, count));
     const start = -((count - 1) * spread) / 2;
     const center = (count - 1) / 2;
-    const zReverse = localHandDepth < 0;
+    const curve = 0.3 + t * 6.2;
+    const angleScale = 0.5 + t * 7.2;
+    const focus = count <= 1 ? 0 : ((localHandDepth + 100) / 200) * (count - 1);
 
     hand.forEach((card, index) => {
       const el = createCardEl(card, "hand-card", !own && !state.revealHand[player]);
       const rel = index - center;
       const x = 630 + start + index * spread - CARD_W / 2;
-      const angle = rel * (1.5 + t * 5.5);
-      const raise = 18 - Math.pow(rel, 2) * (0.8 + t * 2.1);
+      const angle = rel * angleScale;
+      const raise = 18 - Math.pow(rel, 2) * curve;
+      const distance = Math.abs(index - focus);
+      const z = 10000 - Math.round(distance * 100) + index;
+      const transform = `rotate(${angle}deg)`;
       el.style.left = x + "px";
       el.style.bottom = Math.max(-12, raise) + "px";
-      el.style.transform = `rotate(${angle}deg)`;
-      el.style.zIndex = String(100 + (zReverse ? count - index : index));
+      el.style.transform = transform;
+      el.style.setProperty("--hand-transform", transform);
+      el.style.zIndex = String(z);
       container.appendChild(el);
     });
   }
@@ -391,8 +456,14 @@
       el.appendChild(img);
     }
 
-    el.addEventListener("mouseenter", () => hoveredCardId = card.id);
-    el.addEventListener("mouseleave", () => { if (hoveredCardId === card.id) hoveredCardId = null; });
+    el.addEventListener("mouseenter", () => {
+      hoveredCardId = card.id;
+      showInspector(card, forceBack);
+    });
+    el.addEventListener("mouseleave", () => {
+      if (hoveredCardId === card.id) hoveredCardId = null;
+      hideInspector(card.id);
+    });
     el.addEventListener("pointerdown", e => onCardPointerDown(e, card));
     el.addEventListener("click", e => {
       if (card.zone === otherPlayer() + "-hand") {
@@ -513,8 +584,8 @@
     els.diceLayer.innerHTML = "";
     // Dice sit just against the center line on each player's own side.
     const pos = {
-      "p1-life-1": [1500, 552], "p1-life-2": [1548, 552], "p1-life-3": [1596, 552], "p1-life-4": [1644, 552],
-      "p2-life-1": [420, 486], "p2-life-2": [372, 486], "p2-life-3": [324, 486], "p2-life-4": [276, 486]
+      "p1-life-1": [1518, 548], "p1-life-2": [1558, 548], "p1-life-3": [1598, 548], "p1-life-4": [1638, 548],
+      "p2-life-1": [402, 494], "p2-life-2": [362, 494], "p2-life-3": [322, 494], "p2-life-4": [282, 494]
     };
 
     const pipMap = {
@@ -614,15 +685,35 @@
 
   function mulligan() {
     if (!confirm("Are you really sure about mulligan?")) return;
+    const player = localPlayer;
     state.cards.forEach(c => {
-      if (c.owner === localPlayer) {
-        c.zone = localPlayer + "-library";
+      if (c.owner === player) {
+        c.zone = player + "-library";
         c.tapped = false;
         c.marked = false;
       }
     });
-    shuffleLibrary(localPlayer);
-    drawMany(localPlayer, 7);
+    const lib = ownerCards(player, "library");
+    const rest = state.cards.filter(c => !(c.owner === player && c.zone === player + "-library"));
+    shuffle(lib);
+    state.cards = rest.concat(lib);
+    state.revealTop[player] = false;
+    playShuffleAnimation(player);
+    push();
+    setTimeout(() => {
+      const cards = ownerCards(player, "library");
+      for (let i = 0; i < 7 && cards.length; i++) {
+        const card = cards.pop();
+        if (!card) break;
+        card.zone = player + "-hand";
+        card.tapped = false;
+        card.marked = false;
+        bringToFront(card);
+      }
+      const others = state.cards.filter(c => !(c.owner === player && c.zone === player + "-library"));
+      state.cards = others.concat(cards);
+      push();
+    }, 2050);
   }
 
   function onResetVoteChanged(vote) {
@@ -670,14 +761,82 @@
     const hand = ownerCards(localPlayer, "hand");
     const oldIndex = hand.findIndex(c => c.id === id);
     if (oldIndex < 0) return false;
-    const nextIndex = Math.max(0, Math.min(hand.length - 1, oldIndex + dir));
-    if (nextIndex === oldIndex) return true;
+    if (hand.length < 2) return true;
+    const nextIndex = (oldIndex + dir + hand.length) % hand.length;
     hand.splice(oldIndex, 1);
     hand.splice(nextIndex, 0, card);
     const others = state.cards.filter(c => c.zone !== zone);
     state.cards = others.concat(hand);
     push();
     return true;
+  }
+
+  function isVisibleToLocal(card, forceBack = false) {
+    if (!card) return false;
+    if (forceBack) return false;
+    if (card.zone === otherPlayer() + "-hand" && !state.revealHand[otherPlayer()]) return false;
+    return true;
+  }
+
+  function ensureInspector() {
+    let panel = document.getElementById("floatingInspector");
+    if (panel) return panel;
+    panel = document.createElement("div");
+    panel.id = "floatingInspector";
+    panel.className = "floating-inspector hidden";
+    panel.innerHTML = `<div class="inspector-head"><span>INSPECTOR</span><button type="button" id="inspectorMinus">−</button><button type="button" id="inspectorPlus">+</button></div><div id="inspectorBody" class="inspector-body"></div>`;
+    document.body.appendChild(panel);
+    panel.querySelector("#inspectorMinus").addEventListener("click", e => {
+      e.preventDefault();
+      inspectorFontSize = Math.max(9, inspectorFontSize - 1);
+      refreshInspector();
+    });
+    panel.querySelector("#inspectorPlus").addEventListener("click", e => {
+      e.preventDefault();
+      inspectorFontSize = Math.min(28, inspectorFontSize + 1);
+      refreshInspector();
+    });
+    return panel;
+  }
+
+  function showInspector(card, forceBack = false) {
+    const panel = ensureInspector();
+    if (!isVisibleToLocal(card, forceBack)) {
+      inspectorCardId = null;
+      panel.classList.add("hidden");
+      return;
+    }
+    inspectorCardId = card.id;
+    refreshInspector();
+  }
+
+  function hideInspector(cardId) {
+    if (inspectorCardId === cardId) {
+      inspectorCardId = null;
+      ensureInspector().classList.add("hidden");
+    }
+  }
+
+  function refreshInspector() {
+    const panel = ensureInspector();
+    const body = panel.querySelector("#inspectorBody");
+    const card = inspectorCardId ? state.cards.find(c => c.id === inspectorCardId) : null;
+    if (!card || !isVisibleToLocal(card, false)) {
+      panel.classList.add("hidden");
+      return;
+    }
+    panel.classList.remove("hidden");
+    body.style.fontSize = inspectorFontSize + "px";
+    body.innerHTML = `
+      <div class="insp-name">${escapeHtml(card.name || "")}</div>
+      <div class="insp-type">${escapeHtml(card.typeLine || "")}</div>
+      <div class="insp-oracle">${escapeHtml(card.oracle || "")}</div>
+      ${card.power || card.toughness ? `<div class="insp-pt">${escapeHtml(card.power || "")}/${escapeHtml(card.toughness || "")}</div>` : ""}
+    `;
+  }
+
+  function escapeHtml(s) {
+    return String(s || "").replace(/[&<>\"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
   }
 
   function keyMoveHovered(action) {
@@ -780,13 +939,28 @@
     if (!localPlayer) return;
     e.preventDefault();
     if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-      localHandDepth *= -1;
+      localHandDepth += e.deltaX * 0.65;
+      localHandDepth = Math.max(-100, Math.min(100, localHandDepth));
     } else {
-      localHandFan += e.deltaY < 0 ? 12 : -12;
+      localHandFan -= e.deltaY * 0.45;
       localHandFan = Math.max(-100, Math.min(100, localHandFan));
     }
     renderHands();
   }, { passive: false });
+
+  for (const p of ["p1","p2"]) {
+    const grave = els[p + "Grave"];
+    if (grave) {
+      grave.addEventListener("wheel", e => {
+        e.preventDefault();
+        graveScroll[p] += e.deltaY > 0 ? -24 : 24;
+        const max = 0;
+        const min = -Math.max(0, ownerCards(p, "grave").length - 5) * 28;
+        graveScroll[p] = Math.max(min, Math.min(max, graveScroll[p]));
+        renderCards();
+      }, { passive: false });
+    }
+  }
 
   window.CleanTable = {
     getInitialSharedState,
