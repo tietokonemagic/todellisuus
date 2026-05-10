@@ -7,6 +7,16 @@
   const CARD_H = 165;
   const GRID = 4;
 
+  function ensureSharedStateShape() {
+    if (!state || typeof state !== "object") state = getInitialSharedState();
+    if (!Array.isArray(state.cards)) state.cards = [];
+    if (!Array.isArray(state.dice)) state.dice = getInitialSharedState().dice;
+    if (!state.revealTop || typeof state.revealTop !== "object") state.revealTop = { p1: false, p2: false };
+    if (!state.revealHand || typeof state.revealHand !== "object") state.revealHand = { p1: false, p2: false };
+    if (!state.playmats || typeof state.playmats !== "object") state.playmats = { p1: "default-green", p2: "default-blue" };
+  }
+
+
   let localRoom = null;
   let localPlayer = null;
   let selectedIds = new Set();
@@ -61,13 +71,15 @@
   }
 
   function push() {
+    ensureSharedStateShape();
     state.updated = Date.now();
     if (window.FirebaseCleanSync) window.FirebaseCleanSync.pushState(clone(state));
     render();
   }
 
   function applyRemoteState(remote) {
-    state = remote;
+    state = remote || getInitialSharedState();
+    ensureSharedStateShape();
     render();
   }
 
@@ -127,15 +139,18 @@
   });
 
   function zoneCards(zone) {
-    return state.cards.filter(c => c.zone === zone);
+    ensureSharedStateShape();
+    return state.cards.filter(c => c && c.zone === zone);
   }
 
   function ownerCards(owner, zoneSuffix) {
-    return state.cards.filter(c => c.owner === owner && c.zone === owner + "-" + zoneSuffix);
+    ensureSharedStateShape();
+    return state.cards.filter(c => c && c.owner === owner && c.zone === owner + "-" + zoneSuffix);
   }
 
   function parseDeckList(text) {
-    return text.split(/\r?\n/).map(l => l.trim()).filter(Boolean).flatMap(line => {
+    return String(text || "").split(/?
+/).map(l => l.trim()).filter(Boolean).flatMap(line => {
       if (line.startsWith("//") || line.startsWith("#")) return [];
       const cleaned = line.replace(/^SB:\s*/i,"").replace(/\s+\([^)]+\)$/g,"").trim();
       const m = cleaned.match(/^(\d+)\s+(.+)$/);
@@ -145,6 +160,7 @@
   }
 
   async function loadDeck() {
+    ensureSharedStateShape();
     const entries = parseDeckList(els.deckText.value);
     if (!localPlayer) {
       els.deckStatus.textContent = "Choose room/player first.";
