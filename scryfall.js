@@ -4,35 +4,7 @@ function scryfallCacheKey(name, coreSet) {
   return "scryfallCard:" + coreSet + ":" + name.toLowerCase();
 }
 
-async function fetchJsonWithRetry(url, attempts = 5) {
-  let lastError = null;
-
-  for (let i = 0; i < attempts; i++) {
-    try {
-      const res = await fetch(url, {
-        method: "GET",
-        mode: "cors",
-        cache: "default"
-      });
-
-      if (res.status === 429 || res.status >= 500) {
-        lastError = new Error("Scryfall temporarily unavailable: HTTP " + res.status);
-        await delay(350 + i * 450);
-        continue;
-      }
-
-      if (!res.ok) return null;
-      return await res.json();
-    } catch (err) {
-      lastError = err;
-      await delay(350 + i * 450);
-    }
-  }
-
-  throw lastError || new Error("Scryfall fetch failed");
-}
-
-async function fetchPreferredCard(name, coreSet) {
+async function fetchPreferredCard(name, coreSet = "leb") {
   const cacheKey = scryfallCacheKey(name, coreSet);
   const cached = localStorage.getItem(cacheKey);
   if (cached) return JSON.parse(cached);
@@ -44,43 +16,25 @@ async function fetchPreferredCard(name, coreSet) {
     `!"${exact}" lang:en`
   ];
 
-  let lastFetchError = null;
-
   for (const q of queries) {
     const url = "https://api.scryfall.com/cards/search?unique=prints&order=released&q=" + encodeURIComponent(q);
-    try {
-      const data = await fetchJsonWithRetry(url, 5);
-      if (!data || !data.data || !data.data.length) continue;
-      const normalized = normalizeScryfallCard(data.data[0]);
-      localStorage.setItem(cacheKey, JSON.stringify(normalized));
-      await delay(120);
-      return normalized;
-    } catch (err) {
-      lastFetchError = err;
-      await delay(500);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) break;
+        const data = await res.json();
+        if (!data.data || !data.data.length) break;
+        const normalized = normalizeScryfallCard(data.data[0]);
+        localStorage.setItem(cacheKey, JSON.stringify(normalized));
+        await delay(80);
+        return normalized;
+      } catch (err) {
+        await delay(400 + attempt * 600);
+      }
     }
   }
 
-  // Last fallback: Scryfall named endpoint. This ignores old-print preference,
-  // but prevents deck loading from failing completely if /cards/search is flaky.
-  try {
-    const namedUrl = "https://api.scryfall.com/cards/named?exact=" + encodeURIComponent(name);
-    const named = await fetchJsonWithRetry(namedUrl, 5);
-    if (named && named.name) {
-      const normalized = normalizeScryfallCard(named);
-      localStorage.setItem(cacheKey, JSON.stringify(normalized));
-      await delay(120);
-      return normalized;
-    }
-  } catch (err) {
-    lastFetchError = err;
-  }
-
-  if (lastFetchError && /Failed to fetch/i.test(String(lastFetchError.message || lastFetchError))) {
-    throw new Error("Scryfall connection failed. Try again in a moment. Card: " + name);
-  }
-
-  throw new Error("Card not found: " + name);
+  throw new Error("Card not found or fetch failed: " + name);
 }
 
 function normalizeScryfallCard(card) {
