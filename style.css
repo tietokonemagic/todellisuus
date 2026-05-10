@@ -871,3 +871,22 @@ body[data-player="p1"] .opponent-hand {
   box-shadow: 0 8px 24px rgba(0,0,0,.7);
   transition: transform 260ms ease-in, opacity 260ms ease-in;
 }
+
+/* v11 per-player dev tuning */
+:root {
+  --dev-p1-library-x: 0px; --dev-p1-library-y: 0px;
+  --dev-p1-grave-x: 0px; --dev-p1-grave-y: 0px;
+  --dev-p1-exile-x: 0px; --dev-p1-exile-y: 0px;
+  --dev-p2-library-x: 0px; --dev-p2-library-y: 0px;
+  --dev-p2-grave-x: 0px; --dev-p2-grave-y: 0px;
+  --dev-p2-exile-x: 0px; --dev-p2-exile-y: 0px;
+}
+.library[data-player="p1"], #p1Library, #p1LibraryZone { margin-left: var(--dev-p1-library-x) !important; margin-top: var(--dev-p1-library-y) !important; }
+.grave[data-player="p1"], #p1Grave, #p1GraveyardZone { margin-left: var(--dev-p1-grave-x) !important; margin-top: var(--dev-p1-grave-y) !important; }
+.exile[data-player="p1"], #p1Exile, #p1ExileZone { margin-left: var(--dev-p1-exile-x) !important; margin-top: var(--dev-p1-exile-y) !important; }
+.library[data-player="p2"], #p2Library, #p2LibraryZone { margin-left: var(--dev-p2-library-x) !important; margin-top: var(--dev-p2-library-y) !important; }
+.grave[data-player="p2"], #p2Grave, #p2GraveyardZone { margin-left: var(--dev-p2-grave-x) !important; margin-top: var(--dev-p2-grave-y) !important; }
+.exile[data-player="p2"], #p2Exile, #p2ExileZone { margin-left: var(--dev-p2-exile-x) !important; margin-top: var(--dev-p2-exile-y) !important; }
+.dev-panel { left: var(--dev-panel-left, auto) !important; top: var(--dev-panel-top, 18px) !important; right: var(--dev-panel-right, 18px) !important; }
+#devDragHandle { cursor: move; user-select: none; padding-bottom: 8px; }
+.dev-subtitle { margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.18); font-weight: 700; font-size: 12px; }

@@ -165,40 +165,37 @@ Reset game:
 
 
   <div id="devPanel" class="dev-panel hidden">
-    <div class="dev-title">DEV POSITION / STYLE</div>
-
-    <label>Library X <input id="devLibraryX" type="range" min="-240" max="240" value="0"><span id="devLibraryXVal">0</span></label>
-    <label>Library Y <input id="devLibraryY" type="range" min="-240" max="240" value="0"><span id="devLibraryYVal">0</span></label>
-
-    <label>Grave X <input id="devGraveX" type="range" min="-240" max="240" value="0"><span id="devGraveXVal">0</span></label>
-    <label>Grave Y <input id="devGraveY" type="range" min="-240" max="240" value="0"><span id="devGraveYVal">0</span></label>
-
-    <label>Exile X <input id="devExileX" type="range" min="-240" max="240" value="0"><span id="devExileXVal">0</span></label>
-    <label>Exile Y <input id="devExileY" type="range" min="-240" max="240" value="0"><span id="devExileYVal">0</span></label>
-
-    <label>Dice X <input id="devDiceX" type="range" min="-240" max="240" value="0"><span id="devDiceXVal">0</span></label>
-    <label>Dice Y <input id="devDiceY" type="range" min="-240" max="240" value="0"><span id="devDiceYVal">0</span></label>
-
+    <div id="devDragHandle" class="dev-title">DEV POSITION / STYLE</div>
+    <div class="dev-subtitle">PLAYER 1</div>
+    <label>P1 Library X <input id="devP1LibraryX" type="range" min="-360" max="360" value="0"><span id="devP1LibraryXVal">0</span></label>
+    <label>P1 Library Y <input id="devP1LibraryY" type="range" min="-360" max="360" value="0"><span id="devP1LibraryYVal">0</span></label>
+    <label>P1 Grave X <input id="devP1GraveX" type="range" min="-360" max="360" value="0"><span id="devP1GraveXVal">0</span></label>
+    <label>P1 Grave Y <input id="devP1GraveY" type="range" min="-360" max="360" value="0"><span id="devP1GraveYVal">0</span></label>
+    <label>P1 Exile X <input id="devP1ExileX" type="range" min="-360" max="360" value="0"><span id="devP1ExileXVal">0</span></label>
+    <label>P1 Exile Y <input id="devP1ExileY" type="range" min="-360" max="360" value="0"><span id="devP1ExileYVal">0</span></label>
+    <label>P1 Dice X <input id="devP1DiceX" type="range" min="-360" max="360" value="0"><span id="devP1DiceXVal">0</span></label>
+    <label>P1 Dice Y <input id="devP1DiceY" type="range" min="-360" max="360" value="0"><span id="devP1DiceYVal">0</span></label>
+    <div class="dev-subtitle">PLAYER 2</div>
+    <label>P2 Library X <input id="devP2LibraryX" type="range" min="-360" max="360" value="0"><span id="devP2LibraryXVal">0</span></label>
+    <label>P2 Library Y <input id="devP2LibraryY" type="range" min="-360" max="360" value="0"><span id="devP2LibraryYVal">0</span></label>
+    <label>P2 Grave X <input id="devP2GraveX" type="range" min="-360" max="360" value="0"><span id="devP2GraveXVal">0</span></label>
+    <label>P2 Grave Y <input id="devP2GraveY" type="range" min="-360" max="360" value="0"><span id="devP2GraveYVal">0</span></label>
+    <label>P2 Exile X <input id="devP2ExileX" type="range" min="-360" max="360" value="0"><span id="devP2ExileXVal">0</span></label>
+    <label>P2 Exile Y <input id="devP2ExileY" type="range" min="-360" max="360" value="0"><span id="devP2ExileYVal">0</span></label>
+    <label>P2 Dice X <input id="devP2DiceX" type="range" min="-360" max="360" value="0"><span id="devP2DiceXVal">0</span></label>
+    <label>P2 Dice Y <input id="devP2DiceY" type="range" min="-360" max="360" value="0"><span id="devP2DiceYVal">0</span></label>
+    <div class="dev-subtitle">SHARED STYLE</div>
     <label>Grave height <input id="devGraveHeight" type="range" min="120" max="520" value="260"><span id="devGraveHeightVal">260</span></label>
     <label>Exile height <input id="devExileHeight" type="range" min="36" max="180" value="64"><span id="devExileHeightVal">64</span></label>
-
-    <label>Dice size <input id="devDieSize" type="range" min="22" max="64" value="34"><span id="devDieSizeVal">34</span></label>
-    <label>Dice gap <input id="devDieGap" type="range" min="0" max="32" value="8"><span id="devDieGapVal">8</span></label>
+    <label>Dice size <input id="devDieSize" type="range" min="18" max="64" value="30"><span id="devDieSizeVal">30</span></label>
+    <label>Dice gap <input id="devDieGap" type="range" min="0" max="36" value="8"><span id="devDieGapVal">8</span></label>
     <label>Dice radius <input id="devDieRadius" type="range" min="0" max="18" value="8"><span id="devDieRadiusVal">8</span></label>
-
     <label>Selection width <input id="devSelWidth" type="range" min="1" max="8" value="2"><span id="devSelWidthVal">2</span></label>
     <label>Selection color <input id="devSelColor" type="color" value="#ffffff"><span id="devSelColorVal">#ffffff</span></label>
-
-
     <label>Shuffle speed <input id="devShuffleSpeed" type="range" min="40" max="400" value="120"><span id="devShuffleSpeedVal">120</span></label>
     <label>Shuffle length <input id="devShuffleLength" type="range" min="400" max="3500" value="2000"><span id="devShuffleLengthVal">2000</span></label>
     <label>Shuffle spread <input id="devShuffleSpread" type="range" min="2" max="60" value="26"><span id="devShuffleSpreadVal">26</span></label>
-
-    <div class="dev-buttons">
-      <button id="devReset" type="button">RESET DEV</button>
-      <button id="devCopy" type="button">COPY VALUES</button>
-      <button id="devClose" type="button">CLOSE</button>
-    </div>
+    <div class="dev-buttons"><button id="devReset" type="button">RESET DEV</button><button id="devCopy" type="button">COPY VALUES</button><button id="devClose" type="button">CLOSE</button></div>
     <textarea id="devOutput" readonly></textarea>
   </div>
 

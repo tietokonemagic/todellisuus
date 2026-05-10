@@ -1477,3 +1477,78 @@
     applyDev();
   }
 })();
+
+
+// v11: per-player dev tuning + draggable panel + real life dice behavior.
+(() => {
+  const defaults = {
+    p1LibraryX:0,p1LibraryY:0,p1GraveX:0,p1GraveY:0,p1ExileX:0,p1ExileY:0,p1DiceX:0,p1DiceY:0,
+    p2LibraryX:0,p2LibraryY:0,p2GraveX:0,p2GraveY:0,p2ExileX:0,p2ExileY:0,p2DiceX:0,p2DiceY:0,
+    graveHeight:260,exileHeight:64,dieSize:30,dieGap:8,dieRadius:8,selWidth:2,selColor:"#ffffff",
+    shuffleSpeed:120,shuffleLength:2000,shuffleSpread:26,panelLeft:null,panelTop:18
+  };
+  let dev;
+  try { dev = Object.assign({}, defaults, JSON.parse(localStorage.getItem("oldschoolCleanDevTuningV2") || "{}")); }
+  catch { dev = Object.assign({}, defaults); }
+
+  const ids = {
+    p1LibraryX:"devP1LibraryX",p1LibraryY:"devP1LibraryY",p1GraveX:"devP1GraveX",p1GraveY:"devP1GraveY",p1ExileX:"devP1ExileX",p1ExileY:"devP1ExileY",p1DiceX:"devP1DiceX",p1DiceY:"devP1DiceY",
+    p2LibraryX:"devP2LibraryX",p2LibraryY:"devP2LibraryY",p2GraveX:"devP2GraveX",p2GraveY:"devP2GraveY",p2ExileX:"devP2ExileX",p2ExileY:"devP2ExileY",p2DiceX:"devP2DiceX",p2DiceY:"devP2DiceY",
+    graveHeight:"devGraveHeight",exileHeight:"devExileHeight",dieSize:"devDieSize",dieGap:"devDieGap",dieRadius:"devDieRadius",selWidth:"devSelWidth",selColor:"devSelColor",shuffleSpeed:"devShuffleSpeed",shuffleLength:"devShuffleLength",shuffleSpread:"devShuffleSpread"
+  };
+  const css = {
+    p1LibraryX:["--dev-p1-library-x","px"],p1LibraryY:["--dev-p1-library-y","px"],p1GraveX:["--dev-p1-grave-x","px"],p1GraveY:["--dev-p1-grave-y","px"],p1ExileX:["--dev-p1-exile-x","px"],p1ExileY:["--dev-p1-exile-y","px"],
+    p2LibraryX:["--dev-p2-library-x","px"],p2LibraryY:["--dev-p2-library-y","px"],p2GraveX:["--dev-p2-grave-x","px"],p2GraveY:["--dev-p2-grave-y","px"],p2ExileX:["--dev-p2-exile-x","px"],p2ExileY:["--dev-p2-exile-y","px"],
+    graveHeight:["--dev-grave-height","px"],exileHeight:["--dev-exile-height","px"],dieSize:["--dev-die-size","px"],dieGap:["--dev-die-gap","px"],dieRadius:["--dev-die-radius","px"],selWidth:["--dev-selection-width","px"],selColor:["--dev-selection-color",""],shuffleSpeed:["--dev-shuffle-speed","ms"],shuffleLength:["--dev-shuffle-length","ms"],shuffleSpread:["--dev-shuffle-spread","px"]
+  };
+  function save(){ localStorage.setItem("oldschoolCleanDevTuningV2", JSON.stringify(dev)); }
+  function setVar(k){ const s=css[k]; if(s) document.documentElement.style.setProperty(s[0], String(dev[k])+s[1]); }
+  function sync(){ for(const [k,id] of Object.entries(ids)){ const el=document.getElementById(id), val=document.getElementById(id+"Val"); if(el) el.value=dev[k]; if(val) val.textContent=String(dev[k]); } }
+  function panelPos(){ document.documentElement.style.setProperty("--dev-panel-top",(dev.panelTop??18)+"px"); if(dev.panelLeft==null){document.documentElement.style.setProperty("--dev-panel-left","auto");document.documentElement.style.setProperty("--dev-panel-right","18px");}else{document.documentElement.style.setProperty("--dev-panel-left",dev.panelLeft+"px");document.documentElement.style.setProperty("--dev-panel-right","auto");}}
+  function apply(){ Object.keys(css).forEach(setVar); panelPos(); sync(); save(); try{renderDice()}catch{} }
+  function values(){ return JSON.stringify(dev,null,2); }
+
+  function bind(){
+    const panel=document.getElementById("devPanel"), out=document.getElementById("devOutput"), btn=document.getElementById("devTuningBtn");
+    if(btn) btn.onclick=e=>{e.preventDefault(); panel?.classList.toggle("hidden"); if(out) out.value=values();};
+    document.getElementById("devClose")?.addEventListener("click",()=>panel?.classList.add("hidden"));
+    document.getElementById("devCopy")?.addEventListener("click",async()=>{if(out) out.value=values(); try{await navigator.clipboard.writeText(values())}catch{}});
+    document.getElementById("devReset")?.addEventListener("click",()=>{dev=Object.assign({},defaults); apply(); if(out) out.value=values();});
+    for(const [k,id] of Object.entries(ids)){ const el=document.getElementById(id); if(!el) continue; el.oninput=()=>{dev[k]=el.type==="color"?el.value:Number(el.value); setVar(k); sync(); save(); if(k.includes("Dice")||k.startsWith("die"))try{renderDice()}catch{}}; }
+    const handle=document.getElementById("devDragHandle"); let drag=null;
+    handle?.addEventListener("pointerdown",e=>{const r=panel.getBoundingClientRect(); drag={dx:e.clientX-r.left,dy:e.clientY-r.top}; e.preventDefault();});
+    document.addEventListener("pointermove",e=>{if(!drag)return; dev.panelLeft=Math.max(0,Math.min(innerWidth-80,e.clientX-drag.dx)); dev.panelTop=Math.max(0,Math.min(innerHeight-40,e.clientY-drag.dy)); panelPos();});
+    document.addEventListener("pointerup",()=>{if(drag){drag=null;save();}});
+  }
+
+  function diceValues(life){ life=Math.max(1,Number(life)||1); const a=[]; while(life>5){a.push(5); life-=5;} a.push(life); return a; }
+  function setLifeLocal(player, next){ next=Math.max(1,Number(next)||1); if(!state.life) state.life={p1:20,p2:20}; state.life[player]=next; const keep=(state.dice||[]).filter(d=>!(d.kind==="life"&&d.owner===player)); const made=diceValues(next).map((value,i)=>({id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random()),kind:"life",owner:player,value,x:0,y:0,color:"#eee",z:1000+i})); state.dice=keep.concat(made); try{push()}catch{try{saveState()}catch{} try{render()}catch{}} }
+  try{ setLife=function(player,next){setLifeLocal(player,next)}; }catch{}
+
+  function hoveredOwner(){ try{const id=(typeof hoveredDieId!=="undefined"&&hoveredDieId)||state.hoveredDieId; const d=state.dice.find(x=>x.id===id); if(d&&d.kind==="life")return d.owner;}catch{} return window.FirebaseCleanSync?.playerId||"p1"; }
+  document.addEventListener("keydown",e=>{ if(e.key!=="ArrowUp"&&e.key!=="ArrowDown")return; const p=hoveredOwner(); const cur=Number(state.life?.[p]||20); setLifeLocal(p,cur+(e.key==="ArrowUp"?1:-1)); e.preventDefault(); e.stopImmediatePropagation();},true);
+
+  renderDice=function(){
+    const layer=document.getElementById("diceLayer"); if(!layer)return; layer.innerHTML="";
+    if(!state.life)state.life={p1:20,p2:20}; if(!Array.isArray(state.dice))state.dice=[];
+    const pips={1:[5],2:[1,9],3:[1,5,9],4:[1,3,7,9],5:[1,3,5,7,9],6:[1,3,4,6,7,9]};
+    for(const player of ["p1","p2"]){
+      const vals=diceValues(state.life[player]||20);
+      let lifeDice=state.dice.filter(d=>d.kind==="life"&&d.owner===player);
+      if(lifeDice.length!==vals.length || lifeDice.reduce((a,d)=>a+Number(d.value||0),0)!==(state.life[player]||20)){
+        state.dice=state.dice.filter(d=>!(d.kind==="life"&&d.owner===player)).concat(vals.map((value,i)=>({id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random()),kind:"life",owner:player,value,x:0,y:0,color:"#eee",z:1000+i})));
+        lifeDice=state.dice.filter(d=>d.kind==="life"&&d.owner===player);
+      }
+      const base={p1:{x:1500+dev.p1DiceX,y:552+dev.p1DiceY},p2:{x:420+dev.p2DiceX,y:486+dev.p2DiceY}}[player];
+      lifeDice.forEach((d,i)=>{
+        const el=document.createElement("div"); el.className="die life-die"; el.dataset.dieId=d.id; el.style.left=(base.x+i*(Number(dev.dieSize)+Number(dev.dieGap)))+"px"; el.style.top=base.y+"px"; el.style.zIndex=String(1000+i);
+        const value=Math.max(1,Math.min(6,Number(d.value)||1)); for(const p of pips[value]||pips[1]){const pip=document.createElement("div"); pip.className="pip p"+p; el.appendChild(pip);}
+        el.addEventListener("mouseenter",()=>{try{hoveredDieId=d.id}catch{} state.hoveredDieId=d.id;}); el.addEventListener("mouseleave",()=>{try{if(hoveredDieId===d.id)hoveredDieId=null}catch{} if(state.hoveredDieId===d.id)state.hoveredDieId=null;});
+        layer.appendChild(el);
+      });
+    }
+  };
+
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>{bind();apply();}); else {bind();apply();}
+  window.__oldschoolDevValues=()=>JSON.parse(JSON.stringify(dev));
+})();
