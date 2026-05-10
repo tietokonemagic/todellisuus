@@ -32,7 +32,10 @@
   let contextCardId = null;
   let contextHandCardId = null;
   let drag = null;
-  let handFan = 0;
+  let handFan = { p1: 0, p2: 0 };
+  let handDepth = { p1: 1, p2: 1 };
+  let inspectorEnabled = true;
+  let currentInspectorCardId = null;
   let inspectorFont = 15;
 
   const devDefaults = {
@@ -451,20 +454,27 @@
     container.innerHTML = "";
     const hand = ownerCards(player, "hand");
     const count = hand.length;
-    const t = Math.max(0, Math.min(1, (handFan + 100) / 200));
+    const fanValue = handFan[player] || 0;
+    const t = Math.max(0, Math.min(1, (fanValue + 100) / 200));
     const spread = (16 + t * 70) * Math.min(1, 11 / Math.max(1, count));
     const start = -((count - 1) * spread) / 2;
     const center = (count - 1) / 2;
+    const depth = handDepth[player] || 1;
+
     hand.forEach((card, index) => {
       const hidden = !own && !state.revealHand[player];
       const el = createCardEl(card, "hand-card", hidden || card.faceDown);
       const rel = index - center;
+      const transform = `rotate(${rel * (1.5 + t * 5.5)}deg)`;
+      const z = 100 + (depth > 0 ? index : count - index);
+
       el.style.left = (630 + start + index * spread - CARD_W / 2) + "px";
       el.style.bottom = Math.max(-12, 18 - Math.pow(rel, 2) * (0.8 + t * 2.1)) + "px";
-      el.style.transform = `rotate(${rel * (1.5 + t * 5.5)}deg)`;
-      el.style.zIndex = String(100 + index);
-      el.style.setProperty("--hand-z", String(100 + index));
-      el.style.setProperty("--hand-transform", el.style.transform);
+      el.style.transform = transform;
+      el.style.zIndex = String(z);
+      el.style.setProperty("--hand-z", String(z));
+      el.style.setProperty("--hand-transform", transform);
+
       container.appendChild(el);
     });
   }
@@ -709,16 +719,32 @@
   }
 
   function showInspector(card) {
-    if (!cardVisibleToMe(card)) return hideInspector();
+    currentInspectorCardId = card ? card.id : null;
+    if (!inspectorEnabled) return;
+    if (!card || !cardVisibleToMe(card)) {
+      clearInspectorContent();
+      return;
+    }
     els.inspector.classList.remove("hidden");
+    els.inspector.classList.add("visible-empty");
     els.inspector.style.fontSize = inspectorFont + "px";
     els.inspectorName.textContent = card.name || "";
     els.inspectorType.textContent = card.typeLine || "";
     els.inspectorOracle.textContent = card.oracle || "";
   }
 
+  function clearInspectorContent() {
+    if (!inspectorEnabled) return;
+    els.inspector.classList.remove("hidden");
+    els.inspector.classList.add("visible-empty");
+    els.inspectorName.textContent = "INSPECTOR";
+    els.inspectorType.textContent = "";
+    els.inspectorOracle.textContent = "Hover a visible card.";
+  }
+
   function hideInspector() {
-    els.inspector.classList.add("hidden");
+    currentInspectorCardId = null;
+    clearInspectorContent();
   }
 
   function rectCenter(el) {
@@ -1032,18 +1058,92 @@
   let lastSideWheel = 0;
   els.myHand.addEventListener("wheel", e => {
     e.preventDefault();
+    if (!localPlayer) return;
+
     if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
       const now = performance.now();
       if (Math.abs(e.deltaX) > 8 && now - lastSideWheel > 120) {
         lastSideWheel = now;
-        moveSelectedHandCard(e.deltaX > 0 ? 1 : -1);
+        handDepth[localPlayer] = (handDepth[localPlayer] || 1) * -1;
+        renderHands();
       }
     } else {
-      handFan += e.deltaY < 0 ? 12 : -12;
-      handFan = Math.max(-100, Math.min(100, handFan));
+      handFan[localPlayer] = (handFan[localPlayer] || 0) + (e.deltaY < 0 ? 12 : -12);
+      handFan[localPlayer] = Math.max(-100, Math.min(100, handFan[localPlayer]));
       renderHands();
     }
   }, { passive: false });
+
+  function bindInspectorPanel() {
+    const saved = (() => {
+      try { return JSON.parse(localStorage.getItem("oldschoolInspectorPanelV15") || "{}"); }
+      catch { return {}; }
+    })();
+
+    if (saved.left != null) els.inspector.style.left = saved.left + "px";
+    if (saved.top != null) els.inspector.style.top = saved.top + "px";
+    if (saved.width != null) els.inspector.style.width = saved.width + "px";
+    if (saved.height != null) els.inspector.style.height = saved.height + "px";
+
+    let dragInspector = null;
+    els.inspectorName.addEventListener("pointerdown", e => {
+      if (!inspectorEnabled) return;
+      const r = els.inspector.getBoundingClientRect();
+      dragInspector = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+      els.inspector.classList.add("dragging-inspector");
+      e.preventDefault();
+    });
+
+    document.addEventListener("pointermove", e => {
+      if (!dragInspector) return;
+      const left = Math.max(0, Math.min(window.innerWidth - 80, e.clientX - dragInspector.dx));
+      const top = Math.max(0, Math.min(window.innerHeight - 40, e.clientY - dragInspector.dy));
+      els.inspector.style.left = left + "px";
+      els.inspector.style.top = top + "px";
+      els.inspector.style.right = "auto";
+      els.inspector.style.bottom = "auto";
+    });
+
+    document.addEventListener("pointerup", () => {
+      if (!dragInspector) return;
+      dragInspector = null;
+      els.inspector.classList.remove("dragging-inspector");
+      saveInspectorPanel();
+    });
+
+    new ResizeObserver(() => {
+      if (inspectorEnabled) saveInspectorPanel();
+    }).observe(els.inspector);
+
+    clearInspectorContent();
+  }
+
+  function saveInspectorPanel() {
+    const r = els.inspector.getBoundingClientRect();
+    localStorage.setItem("oldschoolInspectorPanelV15", JSON.stringify({
+      left: Math.round(r.left),
+      top: Math.round(r.top),
+      width: Math.round(r.width),
+      height: Math.round(r.height)
+    }));
+  }
+
+  if (document.getElementById("inspectorToggleBtn")) {
+    document.getElementById("inspectorToggleBtn").onclick = () => {
+      inspectorEnabled = !inspectorEnabled;
+      if (inspectorEnabled) {
+        const card = state.cards.find(c => c.id === currentInspectorCardId);
+        if (card) showInspector(card);
+        else clearInspectorContent();
+      } else {
+        els.inspector.classList.add("hidden");
+      }
+    };
+  }
+
+  bindInspectorPanel();
+
+  bindDev();
 
   bindDev();
 

@@ -113,3 +113,42 @@ textarea { width: 100%; height: 300px; resize: vertical; background: #080808; co
 .hand-card:hover{z-index:var(--hand-z,inherit)!important;box-shadow:0 3px 8px rgba(0,0,0,.75)!important}
 .menu-subtitle{padding:8px 10px 4px;color:#aaa;font-size:11px;border-top:1px solid rgba(255,255,255,.18)}
 .shuffle-card,.fly-card{width:var(--anim-card-w,142px)!important;height:var(--anim-card-h,198px)!important}
+
+
+/* v15: hand hover cannot affect visual order or position */
+.hand-card:hover,
+.hand-card:hover img,
+.hand-card:hover .back,
+.hand-card:focus,
+.hand-card:active {
+  filter: none !important;
+  transform: var(--hand-transform, none) !important;
+  z-index: var(--hand-z, 100) !important;
+  scale: 1 !important;
+  translate: 0 0 !important;
+  outline: none !important;
+}
+
+/* v15 inspector: persistent, movable, resizable panel */
+.inspector {
+  resize: both !important;
+  overflow: auto !important;
+  min-width: 180px !important;
+  min-height: 130px !important;
+  max-width: 80vw !important;
+  max-height: 80vh !important;
+  cursor: default;
+}
+
+.inspector.visible-empty {
+  display: block !important;
+}
+
+.inspector.dragging-inspector {
+  user-select: none;
+}
+
+#inspectorName {
+  cursor: move;
+  min-height: 18px;
+}
