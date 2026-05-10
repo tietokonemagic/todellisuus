@@ -11534,3 +11534,316 @@ press orb with the mouse from the spot you want to target the flipping force fro
   applyFitScale8();
   requestAnimationFrame(applyWorld8);
 })();
+
+
+// layer9: single shared screen table + local hand remap + responsive fit.
+// This deliberately cancels the p2 coordinate mirroring from layer7/8.
+// A card's normalized nx/ny means the same visible table point for both players.
+(function(){
+  const BASE_W9 = 1536;
+  const BASE_H9 = 864;
+
+  function local9(){
+    return (window.__LOCAL_PLAYER__ || localStorage.getItem('oldschoolLocalPlayer') || 'p1') === 'p2' ? 'p2' : 'p1';
+  }
+  function other9(){ return local9() === 'p1' ? 'p2' : 'p1'; }
+  function W9(){ return Math.max(1, window.innerWidth); }
+  function H9(){ return Math.max(1, window.innerHeight); }
+  function clamp9(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+  function fit9(){
+    return Math.max(0.42, Math.min(1, W9() / BASE_W9, H9() / BASE_H9));
+  }
+
+  function applyFit9(){
+    const s = fit9();
+    document.documentElement.style.setProperty('--fit-scale9', String(s));
+    document.documentElement.style.setProperty('--base-card-w', (118 * s) + 'px');
+    document.documentElement.style.setProperty('--deck-card-w', (168 * s) + 'px');
+    document.documentElement.style.setProperty('--hand-drop-width', Math.min(760 * s, W9() * 0.62) + 'px');
+  }
+
+  function forceLocal9(){
+    if(state) state.activePlayer = local9();
+    if(els && els.activePlayerSelect) els.activePlayerSelect.value = local9();
+    document.body.classList.toggle('local-p1', local9() === 'p1');
+    document.body.classList.toggle('local-p2', local9() === 'p2');
+  }
+
+  function ensureNorm9(card){
+    if(!card || card.zone !== 'battlefield') return;
+    if(typeof card.nx !== 'number' || typeof card.ny !== 'number'){
+      card.nx = clamp9(Number(card.x || 0) / W9(), -0.5, 1.5);
+      card.ny = clamp9(Number(card.y || 0) / H9(), -0.5, 1.5);
+    }
+    card.x = Number(card.nx || 0) * W9();
+    card.y = Number(card.ny || 0) * H9();
+  }
+
+  function cardSize9(el){
+    if(el){
+      const r = el.getBoundingClientRect();
+      if(r.width > 10 && r.height > 10) return {w:r.width, h:r.height};
+    }
+    const w = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--card-w')) || CARD_W;
+    return {w, h:w * 1.397};
+  }
+
+  function cardBaseRot9(card){
+    return ((card && card.owner) || 'p1') === local9() ? 0 : 180;
+  }
+
+  function placeBattleCard9(el, card){
+    if(!el || !card || card.zone !== 'battlefield') return;
+    ensureNorm9(card);
+    const s = cardSize9(el);
+    const left = Number(card.nx || 0) * W9();
+    const top = Number(card.ny || 0) * H9();
+    el.style.left = left + 'px';
+    el.style.top = top + 'px';
+    el.style.transformOrigin = '0 0';
+    const base = cardBaseRot9(card);
+    if(card.tapped){
+      el.style.transform = `translate(${s.h}px, ${s.h - s.w}px) rotate(${base + 90}deg)`;
+    } else {
+      el.style.transform = `rotate(${base}deg)`;
+    }
+    el.dataset.layer9World = 'single-table';
+  }
+
+  function applyWorld9(){
+    forceLocal9();
+    applyFit9();
+    if(state && Array.isArray(state.cards)){
+      state.cards.forEach(c => { if(c.zone === 'battlefield') ensureNorm9(c); });
+    }
+    document.querySelectorAll('.battle-card').forEach(el => {
+      const card = state.cards.find(c => c.id === el.dataset.cardId);
+      if(card) placeBattleCard9(el, card);
+    });
+    lockLifeDice9(false);
+  }
+  window.applySharedWorldLayer9 = applyWorld9;
+
+  function visualFanForPlayer9(player){
+    return player === local9() ? els.p1HandFan : els.p2HandFan;
+  }
+
+  // Own hand always renders in the bottom hand fan; opponent hand always renders in the top fan.
+  const prevRenderHands9 = renderHands;
+  renderHands = function(){
+    if(!els.p1HandFan || !els.p2HandFan) return prevRenderHands9();
+    els.p1HandFan.innerHTML = '';
+    els.p2HandFan.innerHTML = '';
+    renderHand(local9(), els.p1HandFan);
+    renderHand(other9(), els.p2HandFan);
+  };
+
+  // Bottom drop zone is always your hand; top drop zone is opponent hand.
+  getHandDrop = function(y){
+    if(y >= H9() - HAND_HEIGHT) return local9();
+    if(y <= HAND_HEIGHT) return other9();
+    return null;
+  };
+
+  // Insert/reorder using the visual fan that belongs to that player in this local view.
+  insertCardIntoHand = function(card, player, clientX){
+    const zone = `${player}-hand`;
+    const hand = zoneCards(zone).filter(c => c.id !== card.id);
+    const fan = visualFanForPlayer9(player);
+    const rect = fan ? fan.getBoundingClientRect() : {left:0,width:W9()};
+    const ratio = clamp9((clientX - rect.left) / Math.max(1, rect.width), 0, 1);
+    const index = Math.round(ratio * hand.length);
+    card.zone = zone;
+    card.tapped = false;
+    card.faceDown = false;
+    delete card.nx; delete card.ny;
+    const others = state.cards.filter(c => c.zone !== zone && c.id !== card.id);
+    hand.splice(index, 0, card);
+    state.cards = others.concat(hand);
+  };
+
+  function pointerPile9(e, drag){
+    const left = e.clientX - (drag?.offsetX || 0);
+    const top = e.clientY - (drag?.offsetY || 0);
+    const s = {w:CARD_W * fit9(), h:CARD_H * fit9()};
+    const r = {left, top, right:left + s.w, bottom:top + s.h};
+    let best = null;
+    document.querySelectorAll('.pile-zone').forEach(el => {
+      const b = el.getBoundingClientRect();
+      if(!(r.right < b.left || r.left > b.right || r.bottom < b.top || r.top > b.bottom)) best = el;
+    });
+    return best;
+  }
+
+  onCardDragMove = function(e){
+    window.__lastPointerX = e.clientX;
+    const drag = state.dragging;
+    if(!drag || drag.type !== 'card') return;
+    const card = state.cards.find(c => c.id === drag.cardId);
+    if(!card) return;
+    drag.moved = true;
+
+    if(drag.fromHand){
+      if(typeof v24MoveGhost === 'function') v24MoveGhost(drag, e.clientX, e.clientY);
+    } else if(drag.group){
+      const dx = (e.clientX - drag.startX) / W9();
+      const dy = (e.clientY - drag.startY) / H9();
+      drag.group.forEach(g => {
+        const c = state.cards.find(x => x.id === g.id);
+        if(!c) return;
+        if(typeof g.nx !== 'number'){
+          g.nx = typeof c.nx === 'number' ? c.nx : Number(g.x || c.x || 0) / W9();
+          g.ny = typeof c.ny === 'number' ? c.ny : Number(g.y || c.y || 0) / H9();
+        }
+        c.zone = 'battlefield';
+        c.nx = g.nx + dx;
+        c.ny = g.ny + dy;
+        c.x = c.nx * W9();
+        c.y = c.ny * H9();
+        const el = els.table.querySelector(`[data-card-id="${c.id}"]`);
+        if(el) placeBattleCard9(el, c);
+      });
+    } else {
+      card.zone = 'battlefield';
+      const el = els.table.querySelector(`[data-card-id="${card.id}"]`);
+      const s = cardSize9(el);
+      const left = e.clientX - drag.offsetX;
+      const top = e.clientY - drag.offsetY;
+      card.nx = left / W9();
+      card.ny = top / H9();
+      card.x = left;
+      card.y = top;
+      if(el){
+        el.style.zIndex = String(card.z || 1);
+        placeBattleCard9(el, card);
+      }
+    }
+
+    const targetHand = getHandDrop(e.clientY);
+    els.p1HandZone.classList.toggle('drop-hover', targetHand === local9());
+    els.p2HandZone.classList.toggle('drop-hover', targetHand === other9());
+    const pile = pointerPile9(e, drag);
+    if(pile && kindOfZone(pile.dataset.zone) === 'library') showDropHint('put on bottom', e.clientX + 10, e.clientY + 10);
+    else hideDropHint();
+  };
+
+  onCardDragEnd = function(e){
+    document.removeEventListener('pointermove', onCardDragMove);
+    els.p1HandZone.classList.remove('drop-hover');
+    els.p2HandZone.classList.remove('drop-hover');
+    const drag = state.dragging;
+    const card = state.cards.find(c => c.id === drag?.cardId);
+    state.dragging = null;
+    hideDropHint();
+    if(!card){ if(drag?.ghost) drag.ghost.remove(); return; }
+    const movedDistance = Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY);
+    if(drag.ghost) drag.ghost.remove();
+
+    if(drag.fromHand && movedDistance < 6){
+      card.zone = drag.fromZone;
+      saveState();
+      render();
+      return;
+    }
+
+    const pile = pointerPile9(e, drag);
+    if(pile){
+      const zone = pile.dataset.zone;
+      const kind = kindOfZone(zone);
+      if(kind === 'library'){
+        card.zone = zone;
+        card.faceDown = false;
+        card.tapped = false;
+        delete card.nx; delete card.ny;
+        state.cards = [card].concat(state.cards.filter(c => c.id !== card.id));
+      } else if(kind === 'graveyard' || kind === 'exile'){
+        delete card.nx; delete card.ny;
+        moveCardToPublicPile(card, zone);
+        card.tapped = false;
+      }
+      saveState();
+      render();
+      return;
+    }
+
+    const hand = getHandDrop(e.clientY);
+    if(hand){
+      insertCardIntoHand(card, hand, e.clientX);
+    } else {
+      const el = els.table.querySelector(`[data-card-id="${card.id}"]`);
+      const left = e.clientX - drag.offsetX;
+      const top = e.clientY - drag.offsetY;
+      card.zone = 'battlefield';
+      card.nx = left / W9();
+      card.ny = top / H9();
+      card.x = left;
+      card.y = top;
+    }
+    saveState();
+    render();
+  };
+
+  // Group drag snapshots must store normalized values.
+  const prevStartCardDrag9 = startCardDrag;
+  startCardDrag = function(e, card){
+    prevStartCardDrag9(e, card);
+    if(state.dragging && state.dragging.type === 'card'){
+      if(state.dragging.group){
+        state.dragging.group.forEach(g => {
+          const c = state.cards.find(x => x.id === g.id);
+          if(c){ ensureNorm9(c); g.nx = c.nx; g.ny = c.ny; }
+        });
+      }
+      if(card){ ensureNorm9(card); state.dragging.originalNx = card.nx; state.dragging.originalNy = card.ny; }
+    }
+  };
+
+  // Life dice are locked visual widgets next to each player's own library, never free synced objects.
+  function lockLifeDice9(doRender){
+    if(!state || !Array.isArray(state.dice)) return;
+    const byOwner = {p1:0, p2:0};
+    state.dice.forEach(d => {
+      if(d.kind !== 'life') return;
+      const owner = d.owner === 'p2' ? 'p2' : 'p1';
+      const lib = document.getElementById(owner + 'LibraryZone');
+      if(!lib) return;
+      const r = lib.getBoundingClientRect();
+      const i = byOwner[owner]++;
+      const dieStep = 44 * fit9();
+      d.x = r.left + 4 + i * dieStep;
+      d.y = r.top > H9() / 2 ? r.top - (50 * fit9()) : r.bottom + (8 * fit9());
+      d.z = 30000 + i;
+    });
+    if(doRender && typeof renderDice === 'function') renderDice();
+  }
+  window.lockLifeDiceLayer9 = lockLifeDice9;
+
+  const prevRenderDice9 = renderDice;
+  renderDice = function(){
+    lockLifeDice9(false);
+    prevRenderDice9();
+  };
+
+  // Normalize before every save so different browser sizes do not corrupt the shared table.
+  const prevSave9 = saveState;
+  saveState = function(){
+    if(state && Array.isArray(state.cards)){
+      state.cards.forEach(c => { if(c.zone === 'battlefield') ensureNorm9(c); });
+    }
+    return prevSave9();
+  };
+
+  const prevRender9 = render;
+  render = function(){
+    forceLocal9();
+    applyFit9();
+    prevRender9();
+    requestAnimationFrame(applyWorld9);
+  };
+
+  window.addEventListener('resize', () => requestAnimationFrame(() => { applyFit9(); render(); }));
+  window.addEventListener('DOMContentLoaded', () => requestAnimationFrame(() => { applyFit9(); applyWorld9(); render(); }));
+  applyFit9();
+  requestAnimationFrame(() => { applyWorld9(); render(); });
+})();

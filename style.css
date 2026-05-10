@@ -6656,3 +6656,62 @@ body.local-p2 #p2DrawPopover {
     transform: scale(var(--fit-scale8)) !important;
   }
 }
+
+/* layer9 responsive single-table scaling */
+:root { --fit-scale9: 1; }
+
+.die {
+  width: calc(42px * var(--fit-scale9)) !important;
+  height: calc(42px * var(--fit-scale9)) !important;
+  padding: calc(5px * var(--fit-scale9)) !important;
+  border-radius: calc(7px * var(--fit-scale9)) !important;
+}
+.pip {
+  width: calc(7px * var(--fit-scale9)) !important;
+  height: calc(7px * var(--fit-scale9)) !important;
+}
+
+#menuWrap {
+  transform: scale(var(--fit-scale9));
+  transform-origin: left bottom;
+}
+
+.oracle-panel {
+  transform: scale(var(--fit-scale9)) !important;
+  transform-origin: right top !important;
+}
+
+#roomSelectOverlay,
+#seatSelectOverlay,
+.room-select-overlay,
+.seat-select-overlay {
+  transform: scale(var(--fit-scale9));
+  transform-origin: center center;
+}
+
+.hand-zone.self,
+.hand-zone.opponent {
+  height: calc(150px * var(--fit-scale9)) !important;
+}
+
+.drag-ghost {
+  width: calc(var(--card-w) * var(--hand-zoom)) !important;
+  height: calc(var(--card-w) * var(--card-ratio) * var(--hand-zoom)) !important;
+}
+
+@media (max-aspect-ratio: 1/1) {
+  body::before {
+    content: "TURN DEVICE SIDEWAYS";
+    position: fixed;
+    left: 50%;
+    top: 10px;
+    transform: translateX(-50%);
+    z-index: 2147483000;
+    background: rgba(0,0,0,.75);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    pointer-events: none;
+  }
+}
