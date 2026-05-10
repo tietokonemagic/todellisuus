@@ -1169,3 +1169,311 @@
     applyDev();
   }
 })();
+
+
+
+// v10 robust DEV button, shuffle overlay, fly animations, and tap fix.
+(() => {
+  const defaults = {
+    libraryX: 0, libraryY: 0,
+    graveX: 0, graveY: 0,
+    exileX: 0, exileY: 0,
+    diceX: 0, diceY: 0,
+    graveHeight: 260, exileHeight: 64,
+    dieSize: 34, dieGap: 8, dieRadius: 8,
+    selWidth: 2, selColor: "#ffffff",
+    shuffleSpeed: 120, shuffleLength: 2000, shuffleSpread: 26
+  };
+
+  let dev;
+  try {
+    dev = Object.assign({}, defaults, JSON.parse(localStorage.getItem("oldschoolCleanDevTuningV2") || localStorage.getItem("oldschoolCleanDevTuningV1") || "{}"));
+  } catch {
+    dev = Object.assign({}, defaults);
+  }
+
+  const inputIds = {
+    libraryX: "devLibraryX", libraryY: "devLibraryY",
+    graveX: "devGraveX", graveY: "devGraveY",
+    exileX: "devExileX", exileY: "devExileY",
+    diceX: "devDiceX", diceY: "devDiceY",
+    graveHeight: "devGraveHeight", exileHeight: "devExileHeight",
+    dieSize: "devDieSize", dieGap: "devDieGap", dieRadius: "devDieRadius",
+    selWidth: "devSelWidth", selColor: "devSelColor",
+    shuffleSpeed: "devShuffleSpeed", shuffleLength: "devShuffleLength", shuffleSpread: "devShuffleSpread"
+  };
+
+  const cssVars = {
+    libraryX: ["--dev-library-x","px"], libraryY: ["--dev-library-y","px"],
+    graveX: ["--dev-grave-x","px"], graveY: ["--dev-grave-y","px"],
+    exileX: ["--dev-exile-x","px"], exileY: ["--dev-exile-y","px"],
+    diceX: ["--dev-dice-x","px"], diceY: ["--dev-dice-y","px"],
+    graveHeight: ["--dev-grave-height","px"], exileHeight: ["--dev-exile-height","px"],
+    dieSize: ["--dev-die-size","px"], dieGap: ["--dev-die-gap","px"], dieRadius: ["--dev-die-radius","px"],
+    selWidth: ["--dev-selection-width","px"], selColor: ["--dev-selection-color",""],
+    shuffleSpeed: ["--dev-shuffle-speed","ms"], shuffleLength: ["--dev-shuffle-length","ms"], shuffleSpread: ["--dev-shuffle-spread","px"]
+  };
+
+  function setCss(k, v) {
+    const spec = cssVars[k];
+    if (spec) document.documentElement.style.setProperty(spec[0], String(v) + spec[1]);
+  }
+
+  function saveDev() {
+    localStorage.setItem("oldschoolCleanDevTuningV2", JSON.stringify(dev));
+  }
+
+  function syncInputs() {
+    for (const [k, id] of Object.entries(inputIds)) {
+      const el = document.getElementById(id);
+      const val = document.getElementById(id + "Val");
+      if (!el) continue;
+      el.value = dev[k];
+      if (val) val.textContent = String(dev[k]);
+    }
+  }
+
+  function applyDev() {
+    Object.entries(dev).forEach(([k,v]) => setCss(k,v));
+    syncInputs();
+    saveDev();
+    try { if (typeof renderDice === "function") renderDice(); } catch {}
+  }
+
+  function valuesText() {
+    return JSON.stringify(dev, null, 2);
+  }
+
+  function bindDevPanel() {
+    const panel = document.getElementById("devPanel");
+    const out = document.getElementById("devOutput");
+
+    document.getElementById("devTuningBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      panel?.classList.toggle("hidden");
+      if (out) out.value = valuesText();
+    }, true);
+
+    document.getElementById("devClose")?.addEventListener("click", () => panel?.classList.add("hidden"));
+    document.getElementById("devReset")?.addEventListener("click", () => {
+      dev = Object.assign({}, defaults);
+      applyDev();
+      if (out) out.value = valuesText();
+    });
+    document.getElementById("devCopy")?.addEventListener("click", async () => {
+      const txt = valuesText();
+      if (out) out.value = txt;
+      try { await navigator.clipboard.writeText(txt); } catch {}
+    });
+
+    for (const [k, id] of Object.entries(inputIds)) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.addEventListener("input", () => {
+        dev[k] = el.type === "color" ? el.value : Number(el.value);
+        setCss(k, dev[k]);
+        syncInputs();
+        saveDev();
+        if (k.startsWith("dice") || k.startsWith("die")) {
+          try { if (typeof renderDice === "function") renderDice(); } catch {}
+        }
+      });
+    }
+  }
+
+  // Re-render dice with gap/offset after original dice renderer.
+  if (typeof renderDice === "function" && !window.__v10DiceWrapped) {
+    window.__v10DiceWrapped = true;
+    const oldRenderDice = renderDice;
+    renderDice = function() {
+      oldRenderDice();
+      const grouped = { p1: [], p2: [] };
+      document.querySelectorAll(".die").forEach(el => {
+        const id = el.dataset.dieId;
+        let d = null;
+        try { d = state.dice.find(x => x.id === id); } catch {}
+        if (d && grouped[d.owner]) grouped[d.owner].push({ el, d });
+      });
+      for (const p of ["p1","p2"]) {
+        grouped[p].sort((a,b) => String(a.d.id).localeCompare(String(b.d.id))).forEach((it, i) => {
+          const left = parseFloat(it.el.style.left) || 0;
+          const top = parseFloat(it.el.style.top) || 0;
+          it.el.style.left = (left + dev.diceX + i * dev.dieGap) + "px";
+          it.el.style.top = (top + dev.diceY) + "px";
+        });
+      }
+    };
+  }
+
+  function worldElementForLibrary(player) {
+    return document.getElementById(player + "Library") || document.getElementById(player + "LibraryZone") || document.querySelector(`.library[data-player="${player}"]`);
+  }
+
+  function handContainerFor(player) {
+    if (player === (window.FirebaseCleanSync?.playerId || window.CleanTableLocalPlayer || "p1")) {
+      return document.getElementById("myHand") || document.getElementById(player + "HandFan") || document.querySelector(".my-hand");
+    }
+    return document.getElementById("opponentHand") || document.getElementById(player + "HandFan") || document.querySelector(".opponent-hand");
+  }
+
+  function rectCenter(el) {
+    const r = el?.getBoundingClientRect();
+    if (!r) return { x: innerWidth/2, y: innerHeight/2 };
+    return { x: r.left + r.width/2, y: r.top + r.height/2, w: r.width, h: r.height };
+  }
+
+  function playShuffleAnimation(player) {
+    const lib = worldElementForLibrary(player);
+    const c = rectCenter(lib);
+    const spread = Number(dev.shuffleSpread || 26);
+    const duration = Number(dev.shuffleLength || 2000);
+    const speed = Number(dev.shuffleSpeed || 120);
+
+    const cards = [];
+    for (let i = 0; i < 4; i++) {
+      const el = document.createElement("div");
+      el.className = "shuffle-overlay-card";
+      el.style.left = (c.x - 59) + "px";
+      el.style.top = (c.y - 82.5) + "px";
+      el.style.animationDuration = Math.max(40, speed + i * 17) + "ms";
+      el.style.setProperty("--sx", ((Math.random() * 2 - 1) * spread) + "px");
+      el.style.setProperty("--sy", ((Math.random() * 2 - 1) * spread) + "px");
+      el.style.setProperty("--sr", ((Math.random() * 2 - 1) * 18) + "deg");
+      document.body.appendChild(el);
+      cards.push(el);
+    }
+    setTimeout(() => cards.forEach(el => el.remove()), duration);
+  }
+
+  function flyCard(from, to, n = 1, reverse = false) {
+    for (let i = 0; i < n; i++) {
+      const el = document.createElement("div");
+      el.className = "fly-card";
+      const jitter = (i - (n-1)/2) * 10;
+      el.style.left = (from.x - 59 + jitter) + "px";
+      el.style.top = (from.y - 82.5) + "px";
+      el.style.opacity = "1";
+      document.body.appendChild(el);
+      requestAnimationFrame(() => {
+        el.style.transform = `translate(${to.x - from.x - jitter}px, ${to.y - from.y}px) scale(.72) rotate(${reverse ? -12 : 12}deg)`;
+        el.style.opacity = ".15";
+      });
+      setTimeout(() => el.remove(), 310 + i * 18);
+    }
+  }
+
+  // Wrap drawOne/drawCard if present.
+  if (typeof drawOne === "function" && !window.__v10DrawOneWrapped) {
+    window.__v10DrawOneWrapped = true;
+    const oldDrawOne = drawOne;
+    drawOne = function(player) {
+      player = player || (window.FirebaseCleanSync?.playerId || "p1");
+      const from = rectCenter(worldElementForLibrary(player));
+      const to = rectCenter(handContainerFor(player));
+      flyCard(from, to, 1, false);
+      return oldDrawOne(player);
+    };
+  }
+
+  if (typeof drawCard === "function" && !window.__v10DrawCardWrapped) {
+    window.__v10DrawCardWrapped = true;
+    const oldDrawCard = drawCard;
+    drawCard = function(player) {
+      player = player || (window.FirebaseCleanSync?.playerId || "p1");
+      const from = rectCenter(worldElementForLibrary(player));
+      const to = rectCenter(handContainerFor(player));
+      flyCard(from, to, 1, false);
+      return oldDrawCard(player);
+    };
+  }
+
+  // Wrap shuffle.
+  if (typeof shuffleLibrary === "function" && !window.__v10ShuffleWrapped) {
+    window.__v10ShuffleWrapped = true;
+    const oldShuffle = shuffleLibrary;
+    shuffleLibrary = function(player) {
+      player = player || (window.FirebaseCleanSync?.playerId || "p1");
+      playShuffleAnimation(player);
+      return oldShuffle(player);
+    };
+  }
+
+  // Mulligan: make it visibly return hand to deck, shuffle, then draw 7.
+  if (typeof mulligan === "function" && !window.__v10MulliganWrapped) {
+    window.__v10MulliganWrapped = true;
+    const oldMulligan = mulligan;
+    mulligan = function() {
+      const player = window.FirebaseCleanSync?.playerId || window.CleanTableLocalPlayer || "p1";
+      const hand = handContainerFor(player);
+      const lib = worldElementForLibrary(player);
+      const a = rectCenter(hand);
+      const b = rectCenter(lib);
+      try {
+        const count = (typeof ownerCards === "function") ? ownerCards(player, "hand").length : 7;
+        flyCard(a, b, Math.max(1, Math.min(count, 7)), true);
+      } catch { flyCard(a, b, 5, true); }
+      setTimeout(() => playShuffleAnimation(player), 220);
+      setTimeout(() => oldMulligan(), 520);
+    };
+  }
+
+  // Robust tap: double-click or T toggles battlefield card. This does not depend on old handlers.
+  function findCardByEl(el) {
+    const id = el?.dataset?.cardId;
+    if (!id) return null;
+    try { return state.cards.find(c => c.id === id); } catch { return null; }
+  }
+
+  document.addEventListener("dblclick", e => {
+    const el = e.target.closest?.(".card");
+    const card = findCardByEl(el);
+    if (!card || card.zone !== "battlefield") return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    card.tapped = !card.tapped;
+    try { if (typeof push === "function") push(); else { render(); } } catch { try { render(); } catch {} }
+  }, true);
+
+  document.addEventListener("keydown", e => {
+    if (!e.key || e.key.toLowerCase() !== "t") return;
+    let card = null;
+    try {
+      const id = window.hoveredCardId || hoveredCardId || (selectedIds && [...selectedIds][0]);
+      card = state.cards.find(c => c.id === id);
+    } catch {}
+    if (!card || card.zone !== "battlefield") return;
+    e.preventDefault();
+    card.tapped = !card.tapped;
+    try { if (typeof push === "function") push(); else { render(); } } catch { try { render(); } catch {} }
+  }, true);
+
+  // Ensure tapped visuals after every render if class transform logic misses it.
+  function applyTapVisuals() {
+    try {
+      document.querySelectorAll(".card[data-card-id]").forEach(el => {
+        const card = findCardByEl(el);
+        if (!card || card.zone !== "battlefield") return;
+        const current = el.style.transform || "";
+        const base = current.replace(/\s?rotate\([^)]*\)/g, "");
+        const ownerReadable = (typeof localPlayer !== "undefined" && card.owner === localPlayer) ? 0 : 180;
+        const tap = card.tapped ? 90 : 0;
+        if (!current.includes(`rotate(${ownerReadable + tap}deg)`)) {
+          el.style.transform = `${base} rotate(${ownerReadable + tap}deg)`;
+        }
+      });
+    } catch {}
+  }
+  const oldRAF = window.requestAnimationFrame;
+  if (!window.__v10TapVisualLoop) {
+    window.__v10TapVisualLoop = true;
+    setInterval(applyTapVisuals, 250);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => { bindDevPanel(); applyDev(); });
+  } else {
+    bindDevPanel();
+    applyDev();
+  }
+})();
