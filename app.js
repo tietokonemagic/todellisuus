@@ -146,6 +146,10 @@
 
   async function loadDeck() {
     const entries = parseDeckList(els.deckText.value);
+    if (!localPlayer) {
+      els.deckStatus.textContent = "Choose room/player first.";
+      return;
+    }
     if (!entries.length) {
       els.deckStatus.textContent = "No valid deck lines.";
       return;
@@ -155,34 +159,41 @@
     const unique = [...new Set(entries.map(e => e.name))];
     const map = new Map();
 
-    for (let i = 0; i < unique.length; i++) {
-      els.deckStatus.textContent = `Loading ${i + 1}/${unique.length}: ${unique[i]}`;
-      map.set(unique[i], await fetchPreferredCard(unique[i], "leb"));
-    }
-
-    state.cards = state.cards.filter(c => c.owner !== localPlayer);
-    const deck = [];
-    for (const e of entries) {
-      const data = map.get(e.name);
-      for (let i = 0; i < e.count; i++) {
-        deck.push({
-          id: uid(),
-          owner: localPlayer,
-          zone: localPlayer + "-library",
-          x: localPlayer === "p1" ? 1580 : 340,
-          y: localPlayer === "p1" ? 770 : 310,
-          rot: 0,
-          tapped: false,
-          marked: false,
-          ...data
-        });
+    try {
+      for (let i = 0; i < unique.length; i++) {
+        els.deckStatus.textContent = `Loading ${i + 1}/${unique.length}: ${unique[i]}`;
+        map.set(unique[i], await fetchPreferredCard(unique[i], "leb"));
       }
-    }
 
-    shuffle(deck);
-    state.cards = state.cards.concat(deck);
-    els.deckModal.classList.add("hidden");
-    push();
+      state.cards = state.cards.filter(c => c.owner !== localPlayer);
+      const deck = [];
+      for (const e of entries) {
+        const data = map.get(e.name);
+        for (let i = 0; i < e.count; i++) {
+          deck.push({
+            id: uid(),
+            owner: localPlayer,
+            zone: localPlayer + "-library",
+            x: localPlayer === "p1" ? 1580 : 340,
+            y: localPlayer === "p1" ? 770 : 310,
+            rot: 0,
+            tapped: false,
+            marked: false,
+            z: i + 1,
+            ...data
+          });
+        }
+      }
+
+      shuffle(deck);
+      state.cards = state.cards.concat(deck);
+      els.deckStatus.textContent = `Loaded ${deck.length} cards.`;
+      els.deckModal.classList.add("hidden");
+      push();
+    } catch (err) {
+      console.error(err);
+      els.deckStatus.textContent = err && err.message ? err.message : String(err);
+    }
   }
 
   function shuffle(arr) {
