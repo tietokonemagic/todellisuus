@@ -424,3 +424,39 @@ body[data-player="p1"] .opponent-hand {
 .pip.p7 { grid-area: 3 / 1; }
 .pip.p8 { grid-area: 3 / 2; }
 .pip.p9 { grid-area: 3 / 3; }
+
+
+/* v7 pile layout: library left, grave stack right, exile above grave, on own side edge */
+.library[data-player="p1"] { left: 1518px !important; top: 698px !important; }
+.grave[data-player="p1"] { left: 1680px !important; top: 698px !important; }
+.exile[data-player="p1"] { left: 1680px !important; top: 638px !important; height: 48px !important; }
+
+.library[data-player="p2"] { left: 260px !important; top: 184px !important; transform: rotate(180deg); }
+.grave[data-player="p2"] { left: 98px !important; top: 184px !important; transform: rotate(180deg); }
+.exile[data-player="p2"] { left: 98px !important; top: 394px !important; height: 48px !important; transform: rotate(180deg); }
+
+.grave .pile-card,
+.grave .mini-stack {
+  background: rgba(0,0,0,.32) !important;
+  border: 1px dashed rgba(255,255,255,.28);
+  box-shadow: none !important;
+}
+
+.grave .pile-card::after {
+  content: "GRAVE DROP";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(255,255,255,.35);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.grave-stack-card {
+  pointer-events: auto;
+}
+
+.die {
+  margin: 0 !important;
+}

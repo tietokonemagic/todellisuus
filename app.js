@@ -21,9 +21,12 @@
   let localPlayer = null;
   let selectedIds = new Set();
   let hoveredCardId = null;
+  let hoveredDieId = null;
   let selectedTutorId = null;
   let contextPlayer = null;
   let drag = null;
+  let localHandFan = 0;
+  let localHandDepth = 1;
 
   const els = {};
   [
@@ -319,6 +322,27 @@
         el.style.zIndex = String(card.z || 1);
         els.cardLayer.appendChild(el);
       });
+
+    renderGraveStack("p1");
+    renderGraveStack("p2");
+  }
+
+  function renderGraveStack(player) {
+    const cards = ownerCards(player, "grave");
+    const newestFirst = cards.slice().reverse();
+    const base = player === "p1" ? { x: 1680, y: 760, rot: 0 } : { x: 240, y: 320, rot: 180 };
+    newestFirst.forEach((card, index) => {
+      const el = createCardEl(card, "grave-stack-card");
+      const offset = Math.min(index, 14) * 18;
+      el.style.left = (base.x - CARD_W / 2) + "px";
+      el.style.top = (base.y - CARD_H / 2 - offset) + "px";
+      const ownerReadable = card.owner === localPlayer ? 0 : 180;
+      const worldComp = localPlayer === "p2" ? 180 : 0;
+      const rot = (ownerReadable - worldComp + 360) % 360;
+      el.style.transform = `rotate(${rot}deg)`;
+      el.style.zIndex = String(500 - index);
+      els.cardLayer.appendChild(el);
+    });
   }
 
   function renderHands() {
@@ -330,20 +354,22 @@
     container.innerHTML = "";
     const hand = ownerCards(player, "hand");
     const count = hand.length;
-    const spread = Math.min(68, 820 / Math.max(1, count));
+    const t = Math.max(0, Math.min(1, (localHandFan + 100) / 200));
+    const spread = (16 + t * 70) * Math.min(1, 11 / Math.max(1, count));
     const start = -((count - 1) * spread) / 2;
     const center = (count - 1) / 2;
+    const zReverse = localHandDepth < 0;
 
     hand.forEach((card, index) => {
       const el = createCardEl(card, "hand-card", !own && !state.revealHand[player]);
       const rel = index - center;
       const x = 630 + start + index * spread - CARD_W / 2;
-      const angle = rel * 4.5;
-      const raise = 18 - Math.pow(rel, 2) * 2.1;
+      const angle = rel * (1.5 + t * 5.5);
+      const raise = 18 - Math.pow(rel, 2) * (0.8 + t * 2.1);
       el.style.left = x + "px";
       el.style.bottom = Math.max(-12, raise) + "px";
       el.style.transform = `rotate(${angle}deg)`;
-      el.style.zIndex = String(100 + index);
+      el.style.zIndex = String(100 + (zReverse ? count - index : index));
       container.appendChild(el);
     });
   }
@@ -372,6 +398,18 @@
       if (card.zone === otherPlayer() + "-hand") {
         card.marked = !card.marked;
         push();
+      } else if (card.zone && card.zone.endsWith("-hand")) {
+        selectedIds = new Set([card.id]);
+        render();
+      }
+    });
+
+    el.addEventListener("dblclick", e => {
+      if (card.zone === "battlefield") {
+        e.preventDefault();
+        e.stopPropagation();
+        card.tapped = !card.tapped;
+        push();
       }
     });
 
@@ -391,7 +429,7 @@
     // Hand cards do not have meaningful stored x/y. Their real visual location is
     // the DOM card position after fan layout. Use that exact center to prevent
     // the card jumping to library/grave coordinates when drag starts.
-    const visualCenter = (fromZone && fromZone.endsWith("-hand"))
+    const visualCenter = (fromZone && fromZone !== "battlefield")
       ? cardCenterFromElement(e.currentTarget)
       : { x: card.x || pointerWorld.x, y: card.y || pointerWorld.y };
 
@@ -473,9 +511,10 @@
 
   function renderDice() {
     els.diceLayer.innerHTML = "";
+    // Dice sit just against the center line on each player's own side.
     const pos = {
-      "p1-life-1": [1530, 700], "p1-life-2": [1578, 700], "p1-life-3": [1626, 700], "p1-life-4": [1674, 700],
-      "p2-life-1": [390, 380], "p2-life-2": [342, 380], "p2-life-3": [294, 380], "p2-life-4": [246, 380]
+      "p1-life-1": [1500, 552], "p1-life-2": [1548, 552], "p1-life-3": [1596, 552], "p1-life-4": [1644, 552],
+      "p2-life-1": [420, 486], "p2-life-2": [372, 486], "p2-life-3": [324, 486], "p2-life-4": [276, 486]
     };
 
     const pipMap = {
@@ -491,6 +530,7 @@
       const [x,y] = pos[d.id] || [960,540];
       const el = document.createElement("div");
       el.className = "die";
+      el.dataset.dieId = d.id;
       el.style.left = x + "px";
       el.style.top = y + "px";
       el.style.transform = d.owner === localPlayer ? "rotate(0deg)" : "rotate(180deg)";
@@ -501,6 +541,10 @@
         pip.className = "pip p" + p;
         el.appendChild(pip);
       }
+
+      el.addEventListener("mouseenter", () => hoveredDieId = d.id);
+      el.addEventListener("mouseleave", () => { if (hoveredDieId === d.id) hoveredDieId = null; });
+      el.addEventListener("click", () => { hoveredDieId = d.id; });
 
       els.diceLayer.appendChild(el);
     });
@@ -609,6 +653,33 @@
     push();
   }
 
+  function adjustHoveredDie(delta) {
+    const die = state.dice.find(d => d.id === hoveredDieId);
+    if (!die || die.owner !== localPlayer) return false;
+    die.value = Math.max(1, Math.min(6, Number(die.value || 1) + delta));
+    push();
+    return true;
+  }
+
+  function moveSelectedHandCard(dir) {
+    const id = [...selectedIds][0];
+    if (!id) return false;
+    const card = state.cards.find(c => c.id === id);
+    if (!card || card.zone !== localPlayer + "-hand") return false;
+    const zone = card.zone;
+    const hand = ownerCards(localPlayer, "hand");
+    const oldIndex = hand.findIndex(c => c.id === id);
+    if (oldIndex < 0) return false;
+    const nextIndex = Math.max(0, Math.min(hand.length - 1, oldIndex + dir));
+    if (nextIndex === oldIndex) return true;
+    hand.splice(oldIndex, 1);
+    hand.splice(nextIndex, 0, card);
+    const others = state.cards.filter(c => c.zone !== zone);
+    state.cards = others.concat(hand);
+    push();
+    return true;
+  }
+
   function keyMoveHovered(action) {
     const targets = selectedIds.size ? state.cards.filter(c => selectedIds.has(c.id)) : state.cards.filter(c => c.id === hoveredCardId);
     if (!targets.length) return false;
@@ -689,6 +760,10 @@
   window.addEventListener("keydown", e => {
     if (!localPlayer) return;
     if (e.key === "Tab") { e.preventDefault(); drawOne(localPlayer); return; }
+    if (e.key === "ArrowUp") { if (adjustHoveredDie(1)) { e.preventDefault(); return; } }
+    if (e.key === "ArrowDown") { if (adjustHoveredDie(-1)) { e.preventDefault(); return; } }
+    if (e.key === "ArrowLeft") { if (moveSelectedHandCard(-1)) { e.preventDefault(); return; } }
+    if (e.key === "ArrowRight") { if (moveSelectedHandCard(1)) { e.preventDefault(); return; } }
     const k = e.key.toLowerCase();
     if (k === "d") drawOne(localPlayer);
     if (k === "g") keyMoveHovered("grave");
@@ -700,6 +775,18 @@
       push();
     }
   });
+
+  els.myHand.addEventListener("wheel", e => {
+    if (!localPlayer) return;
+    e.preventDefault();
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+      localHandDepth *= -1;
+    } else {
+      localHandFan += e.deltaY < 0 ? 12 : -12;
+      localHandFan = Math.max(-100, Math.min(100, localHandFan));
+    }
+    renderHands();
+  }, { passive: false });
 
   window.CleanTable = {
     getInitialSharedState,
