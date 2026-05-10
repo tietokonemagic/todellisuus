@@ -247,8 +247,13 @@
   }
 
   function cardRotation(card) {
-    const base = card.owner === localPlayer ? 0 : 180;
-    return base + (card.tapped ? 90 : 0);
+    // Desired SCREEN orientation:
+    // own cards readable, opponent cards upside down.
+    // Since player 2 rotates the whole world 180 degrees, compensate here.
+    const worldRot = localPlayer === "p2" ? 180 : 0;
+    const desiredScreenBase = card.owner === localPlayer ? 0 : 180;
+    const compensatedBase = (desiredScreenBase - worldRot + 360) % 360;
+    return compensatedBase + (card.tapped ? 90 : 0);
   }
 
   function render() {

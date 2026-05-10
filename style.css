@@ -368,3 +368,31 @@ button.danger { background: #7b2b20; }
   white-space: pre-wrap;
   line-height: 1.35;
 }
+
+
+/* v5 local perspective:
+   The whole world rotates for player 2. Therefore local hand zones must swap
+   world-side positions, and their contents must compensate rotation. */
+body[data-player="p2"] .my-hand {
+  top: 0 !important;
+  bottom: auto !important;
+  transform: rotate(180deg) !important;
+}
+
+body[data-player="p2"] .opponent-hand {
+  top: auto !important;
+  bottom: 0 !important;
+  transform: none !important;
+}
+
+body[data-player="p1"] .my-hand {
+  top: auto !important;
+  bottom: 0 !important;
+  transform: none !important;
+}
+
+body[data-player="p1"] .opponent-hand {
+  top: 0 !important;
+  bottom: auto !important;
+  transform: rotate(180deg) !important;
+}
