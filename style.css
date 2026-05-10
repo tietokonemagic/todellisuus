@@ -396,3 +396,31 @@ body[data-player="p1"] .opponent-hand {
   bottom: auto !important;
   transform: rotate(180deg) !important;
 }
+
+
+/* v6 dice pips */
+.die {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  grid-template-rows: repeat(3, 1fr) !important;
+  padding: 6px !important;
+  place-items: center !important;
+}
+
+.pip {
+  width: 8px;
+  height: 8px;
+  background: #111;
+  border-radius: 50%;
+  place-self: center;
+}
+
+.pip.p1 { grid-area: 1 / 1; }
+.pip.p2 { grid-area: 1 / 2; }
+.pip.p3 { grid-area: 1 / 3; }
+.pip.p4 { grid-area: 2 / 1; }
+.pip.p5 { grid-area: 2 / 2; }
+.pip.p6 { grid-area: 2 / 3; }
+.pip.p7 { grid-area: 3 / 1; }
+.pip.p8 { grid-area: 3 / 2; }
+.pip.p9 { grid-area: 3 / 3; }

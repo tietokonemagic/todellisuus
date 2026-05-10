@@ -124,6 +124,29 @@
     };
   }
 
+  function unsnappedTablePoint(clientX, clientY) {
+    const rect = els.world.getBoundingClientRect();
+    const scaleX = rect.width / TABLE_W;
+    const scaleY = rect.height / TABLE_H;
+    let x = (clientX - rect.left) / scaleX;
+    let y = (clientY - rect.top) / scaleY;
+
+    if (localPlayer === "p2") {
+      x = TABLE_W - x;
+      y = TABLE_H - y;
+    }
+
+    return {
+      x: Math.max(0, Math.min(TABLE_W, x)),
+      y: Math.max(0, Math.min(TABLE_H, y))
+    };
+  }
+
+  function cardCenterFromElement(el) {
+    const r = el.getBoundingClientRect();
+    return unsnappedTablePoint(r.left + r.width / 2, r.top + r.height / 2);
+  }
+
   function updateScale() {
     const s = Math.min(window.innerWidth / TABLE_W, window.innerHeight / TABLE_H);
     const left = (window.innerWidth - TABLE_W * s) / 2;
@@ -360,9 +383,17 @@
     if (card.zone === otherPlayer() + "-hand") return;
 
     e.preventDefault();
-    const worldPoint = tableRectToWorld(e.clientX, e.clientY);
+
+    const pointerWorld = unsnappedTablePoint(e.clientX, e.clientY);
     const fromZone = card.zone;
     const handIndex = state.cards.filter(c => c.zone === fromZone).findIndex(c => c.id === card.id);
+
+    // Hand cards do not have meaningful stored x/y. Their real visual location is
+    // the DOM card position after fan layout. Use that exact center to prevent
+    // the card jumping to library/grave coordinates when drag starts.
+    const visualCenter = (fromZone && fromZone.endsWith("-hand"))
+      ? cardCenterFromElement(e.currentTarget)
+      : { x: card.x || pointerWorld.x, y: card.y || pointerWorld.y };
 
     if (!selectedIds.has(card.id)) selectedIds = new Set([card.id]);
 
@@ -372,11 +403,14 @@
       handIndex,
       startClientX: e.clientX,
       startClientY: e.clientY,
-      startX: card.x || worldPoint.x,
-      startY: card.y || worldPoint.y,
-      offsetX: worldPoint.x - (card.x || worldPoint.x),
-      offsetY: worldPoint.y - (card.y || worldPoint.y)
+      startX: visualCenter.x,
+      startY: visualCenter.y,
+      offsetX: pointerWorld.x - visualCenter.x,
+      offsetY: pointerWorld.y - visualCenter.y
     };
+
+    card.x = visualCenter.x;
+    card.y = visualCenter.y;
 
     bringToFront(card);
     document.addEventListener("pointermove", onDragMove);
@@ -444,14 +478,30 @@
       "p2-life-1": [390, 380], "p2-life-2": [342, 380], "p2-life-3": [294, 380], "p2-life-4": [246, 380]
     };
 
+    const pipMap = {
+      1: [5],
+      2: [1,9],
+      3: [1,5,9],
+      4: [1,3,7,9],
+      5: [1,3,5,7,9],
+      6: [1,3,4,6,7,9]
+    };
+
     state.dice.forEach(d => {
       const [x,y] = pos[d.id] || [960,540];
       const el = document.createElement("div");
       el.className = "die";
-      el.textContent = d.value;
       el.style.left = x + "px";
       el.style.top = y + "px";
       el.style.transform = d.owner === localPlayer ? "rotate(0deg)" : "rotate(180deg)";
+
+      const value = Math.max(1, Math.min(6, Number(d.value) || 1));
+      for (const p of pipMap[value]) {
+        const pip = document.createElement("div");
+        pip.className = "pip p" + p;
+        el.appendChild(pip);
+      }
+
       els.diceLayer.appendChild(el);
     });
   }
