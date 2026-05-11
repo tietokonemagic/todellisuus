@@ -1147,6 +1147,57 @@
 
   bindDev();
 
+
+  // v16: robust battlefield double-click tap/untap.
+  // Uses both dblclick and a pointerup double-tap fallback.
+  function cardFromElement(el) {
+    if (!el) return null;
+    const id = el.dataset.cardId;
+    if (!id) return null;
+    return state.cards.find(c => c.id === id) || null;
+  }
+
+  function toggleBattlefieldTapFromElement(el, ev) {
+    const card = cardFromElement(el);
+    if (!card || card.zone !== "battlefield") return false;
+    if (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (typeof ev.stopImmediatePropagation === "function") ev.stopImmediatePropagation();
+    }
+    toggleTap(card);
+    return true;
+  }
+
+  document.addEventListener("dblclick", e => {
+    const el = e.target.closest?.(".card");
+    if (!el) return;
+    toggleBattlefieldTapFromElement(el, e);
+  }, true);
+
+  let lastTapClick = { id: null, t: 0, x: 0, y: 0 };
+
+  document.addEventListener("pointerup", e => {
+    if (e.button !== 0) return;
+    const el = e.target.closest?.(".card");
+    if (!el) return;
+    const card = cardFromElement(el);
+    if (!card || card.zone !== "battlefield") return;
+
+    const now = performance.now();
+    const same = lastTapClick.id === card.id;
+    const fast = now - lastTapClick.t < 380;
+    const near = Math.abs(e.clientX - lastTapClick.x) < 16 && Math.abs(e.clientY - lastTapClick.y) < 16;
+
+    if (same && fast && near) {
+      lastTapClick = { id: null, t: 0, x: 0, y: 0 };
+      toggleBattlefieldTapFromElement(el, e);
+      return;
+    }
+
+    lastTapClick = { id: card.id, t: now, x: e.clientX, y: e.clientY };
+  }, true);
+
   window.CleanTable = {
     initialState,
     applyRemoteState,

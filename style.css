@@ -152,3 +152,25 @@ textarea { width: 100%; height: 300px; resize: vertical; background: #080808; co
   cursor: move;
   min-height: 18px;
 }
+
+
+/* v16: final hand hover fix.
+   The hand-card keeps its fan transform. Its child image/back must NOT receive that transform again. */
+.hand-card:hover {
+  transform: var(--hand-transform, none) !important;
+  z-index: var(--hand-z, 100) !important;
+  filter: none !important;
+  scale: 1 !important;
+  translate: 0 0 !important;
+  outline: none !important;
+}
+
+.hand-card:hover img,
+.hand-card:hover .back,
+.hand-card:hover .card-face,
+.hand-card:hover .card-back {
+  transform: none !important;
+  filter: none !important;
+  scale: 1 !important;
+  translate: 0 0 !important;
+}
