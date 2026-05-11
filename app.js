@@ -13,8 +13,8 @@
   [
     "seatScreen","seatStatus","joinR1P1","joinR1P2","joinR2P1","joinR2P2","kickRoom1","kickRoom2",
     "game","viewport","world","pileLayer","cardLayer","dragLayer","diceLayer","myHand","opponentHand",
-    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","helpBtn","devTuningBtn","resetVoteBtn","leaveBtn","roomInfo",
-    "deckModal","deckText","doLoadDeck","closeDeckModal","deckStatus",
+    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","helpBtn","devTuningBtn","resetVoteBtn","leaveBtn","roomInfo",
+    "deckModal","deckText","coreSetSelect","doLoadDeck","closeDeckModal","deckStatus",
     "tutorModal","tutorGrid","tutorToHand","tutorToTable","closeTutor",
     "graveModal","graveGrid","closeGrave","exileModal","exileGrid","closeExile","helpModal","closeHelp",
     "libraryMenu","cardMenu","handCardMenu","resetPrompt","acceptReset","rejectReset",
@@ -71,8 +71,8 @@
     "handArtX": -76,
     "handArtY": -133,
     "handArtSize": 164,
-    "thumbMinX": -4,
-    "thumbMaxX": 93,
+    "thumbMinX": 0,
+    "thumbMaxX": 45,
     "thumbMinY": 0,
     "thumbMaxY": 0,
     "handDropZoneX": 0,
@@ -207,7 +207,7 @@
     const map = new Map();
     for (let i = 0; i < unique.length; i++) {
       els.deckStatus.textContent = `Loading ${i + 1}/${unique.length}: ${unique[i]}`;
-      map.set(unique[i], await fetchPreferredCard(unique[i], "leb"));
+      map.set(unique[i], await fetchPreferredCard(unique[i], els.coreSetSelect ? els.coreSetSelect.value : "leb"));
     }
     state.cards = state.cards.filter(c => c.owner !== player);
     const deck = [];
@@ -312,6 +312,14 @@
 
   function moveCardToZone(card, zone) {
     if (!card) return;
+
+    // Tokens never enter library/grave/exile. Dropping them there deletes them from the game.
+    if (card.isToken && (zone.endsWith("-grave") || zone.endsWith("-exile") || zone.endsWith("-library"))) {
+      state.cards = state.cards.filter(c => c.id !== card.id);
+      selectedIds.delete(card.id);
+      return;
+    }
+
     card.zone = zone;
     card.tapped = false;
     card.marked = false;
@@ -319,6 +327,7 @@
       state.cards = state.cards.filter(c => c.id !== card.id).concat(card);
     }
   }
+
 
   function setLife(player, nextLife) {
     state.life[player] = Math.max(1, Number(nextLife) || 1);
@@ -455,10 +464,9 @@
   }
 
   function cardRenderPosition(card) {
+    if (drag && drag.id === card.id) return { x: card.x, y: card.y };
     if (!card.tapped) return { x: card.x, y: card.y };
 
-    // Untapped corners: A top-left, B top-right, C bottom-left, D bottom-right.
-    // When tapped, rotated D must land where untapped C was.
     const baseDeg = cardRotation(card) - 90;
     const tappedDeg = cardRotation(card);
 
@@ -710,7 +718,69 @@
     });
 
     addSylvanButtons(el, card);
+    addSylvanCardPanel(el, card);
+    addTokenLabel(el, card);
     return el;
+  }
+
+  function addTokenLabel(el, card) {
+    if (!card.isToken) return;
+    const label = document.createElement("div");
+    label.className = "token-label";
+    label.textContent = "token";
+    el.appendChild(label);
+  }
+
+  function addSylvanCardPanel(el, card) {
+    if (!isOwnBattlefieldSylvan(card)) return;
+
+    const panel = document.createElement("div");
+    panel.className = "sylvan-card-panel";
+
+    const minus = document.createElement("button");
+    minus.type = "button";
+    minus.textContent = "−";
+    minus.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); });
+    minus.addEventListener("click", e => {
+      e.preventDefault(); e.stopPropagation();
+      sylvanCount = Math.max(1, sylvanCount - 1);
+      render();
+    });
+
+    const count = document.createElement("span");
+    count.textContent = String(sylvanCount);
+
+    const plus = document.createElement("button");
+    plus.type = "button";
+    plus.textContent = "+";
+    plus.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); });
+    plus.addEventListener("click", e => {
+      e.preventDefault(); e.stopPropagation();
+      sylvanCount = Math.min(9, sylvanCount + 1);
+      render();
+    });
+
+    const draw = document.createElement("button");
+    draw.type = "button";
+    draw.textContent = "draw " + sylvanCount;
+    draw.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); });
+    draw.addEventListener("click", e => {
+      e.preventDefault(); e.stopPropagation();
+      startSylvanLibrary(localPlayer);
+    });
+
+    panel.appendChild(minus);
+    panel.appendChild(count);
+    panel.appendChild(plus);
+    panel.appendChild(draw);
+    el.appendChild(panel);
+  }
+
+  function isOwnBattlefieldSylvan(card) {
+    return card &&
+      card.zone === "battlefield" &&
+      card.owner === localPlayer &&
+      String(card.name || "").toLowerCase() === "sylvan library";
   }
 
   function addSylvanButtons(el, card) {
@@ -857,9 +927,7 @@
     const fromHand = fromZone && fromZone.endsWith("-hand");
     const pointer = tablePoint(e.clientX, e.clientY, false);
     const rect = e.currentTarget.getBoundingClientRect();
-    const visualCenter = fromZone !== "battlefield"
-      ? tablePoint(rect.left + rect.width / 2, rect.top + rect.height / 2, false)
-      : { x: card.x, y: card.y };
+    const visualCenter = tablePoint(rect.left + rect.width / 2, rect.top + rect.height / 2, false);
 
     const handIndex = fromHand ? ownerCards(card.owner, "hand").findIndex(c => c.id === card.id) : -1;
     const handCount = fromHand ? ownerCards(card.owner, "hand").length : 0;
@@ -913,6 +981,9 @@
     drag.clientY = e.clientY;
 
     card.zone = "battlefield";
+
+    // During drag, state x/y means the visual center directly.
+    // This prevents tapped cards from jumping sideways when picked up.
     card.x = snap(p.x - drag.offsetX);
     card.y = snap(p.y - drag.offsetY);
 
@@ -1441,7 +1512,7 @@
   }
 
   function addToken(file) {
-    const card = { id: uid(), owner: localPlayer, zone: "battlefield", x: 960, y: localPlayer === "p1" ? 720 : 360, z: 1000 + state.cards.length, tapped: false, faceDown: false, marked: false, name: file.replace(".png",""), typeLine: "Token", oracle: "", image: "token/" + file };
+    const card = { id: uid(), owner: localPlayer, zone: "battlefield", x: 960, y: localPlayer === "p1" ? 720 : 360, z: 1000 + state.cards.length, tapped: false, faceDown: false, marked: false, name: file.replace(".png",""), typeLine: "Token", oracle: "", image: "token/" + file, isToken: true };
     state.cards.push(card); bringToFront(card); push();
   }
 
@@ -1517,8 +1588,24 @@
   if (els.playmatMenuBtn) els.playmatMenuBtn.onclick = () => toggleSection(els.playmatMenu, els.playmatMenuBtn);
   if (els.sleevesMenuBtn) els.sleevesMenuBtn.onclick = () => toggleSection(els.sleevesMenu, els.sleevesMenuBtn);
   if (els.addTokenMenuBtn) els.addTokenMenuBtn.onclick = () => toggleSection(els.tokenMenu, els.addTokenMenuBtn);
-  if (els.ogBackSleeveBtn) els.ogBackSleeveBtn.onclick = () => { state.sleeves[localPlayer] = { type: "og", color: "#6a3b20" }; push(); };
-  if (els.sleeveColorInput) els.sleeveColorInput.oninput = () => { state.sleeves[localPlayer] = { type: "color", color: els.sleeveColorInput.value }; push(); };
+  if (els.ogBackSleeveBtn) els.ogBackSleeveBtn.onclick = () => {
+    state.sleeves[localPlayer] = { type: "og", color: "#6a3b20" };
+    els.ogBackSleeveBtn.classList.add("active");
+    if (els.colorSleeveBtn) els.colorSleeveBtn.classList.remove("active");
+    push();
+  };
+  if (els.colorSleeveBtn) els.colorSleeveBtn.onclick = () => {
+    state.sleeves[localPlayer] = { type: "color", color: els.sleeveColorInput.value };
+    els.colorSleeveBtn.classList.add("active");
+    if (els.ogBackSleeveBtn) els.ogBackSleeveBtn.classList.remove("active");
+    push();
+  };
+  if (els.sleeveColorInput) els.sleeveColorInput.oninput = () => {
+    if (state.sleeves[localPlayer]?.type === "color") {
+      state.sleeves[localPlayer] = { type: "color", color: els.sleeveColorInput.value };
+      push();
+    }
+  };
   if (els.addDiceBtn) els.addDiceBtn.onclick = () => addCounterDie();
   if (els.menuFlipOrbBtn) els.menuFlipOrbBtn.onclick = e => { e.preventDefault(); e.stopPropagation(); toggleSharedFlip("chaosfront.png"); };
   if (els.menuFlipStarBtn) els.menuFlipStarBtn.onclick = e => { e.preventDefault(); e.stopPropagation(); toggleSharedFlip("fallingstar.png"); };
@@ -1675,7 +1762,6 @@
     if (!a) return;
     closeMenus();
     const p = contextLibraryPlayer || localPlayer;
-    if (a === "sylvanLibrary") startSylvanLibrary(p);
     if (a === "draw") drawOne(p);
     if (a === "shuffle") shuffleLibrary(p);
     if (a === "tutor") openTutor();
@@ -1694,6 +1780,21 @@
     const card = state.cards.find(c => c.id === contextCardId);
     if (!a || !card) return;
     if (a === "flip") card.faceDown = !card.faceDown;
+    if (a === "clone") {
+      const copy = clone(card);
+      copy.id = uid();
+      copy.isToken = true;
+      copy.name = card.name || "copy";
+      copy.typeLine = (card.typeLine || "Token") + " Token";
+      copy.zone = "battlefield";
+      copy.x = (card.x || 960) + 28;
+      copy.y = (card.y || 540) + 28;
+      copy.faceDown = false;
+      copy.marked = false;
+      copy.tapped = false;
+      bringToFront(copy);
+      state.cards.push(copy);
+    }
     if (a === "hand") card.zone = card.owner + "-hand";
     if (a === "grave") moveCardToZone(card, card.owner + "-grave");
     if (a === "exile") moveCardToZone(card, card.owner + "-exile");
