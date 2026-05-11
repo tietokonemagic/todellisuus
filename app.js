@@ -19,7 +19,7 @@
     "graveModal","graveGrid","closeGrave","exileModal","exileGrid","closeExile","helpModal","closeHelp",
     "libraryMenu","cardMenu","handCardMenu","resetPrompt","acceptReset","rejectReset",
     "inspector","inspectorHeader","inspectorMinus","inspectorPlus","inspectorName","inspectorType","inspectorOracle",
-    "devPanel","devDragHandle","devReset","devCopy","devClose","devOutput"
+    "selectBox","devPanel","devDragHandle","devReset","devCopy","devClose","devOutput"
   ].forEach(id => els[id] = document.getElementById(id));
 
   let localRoom = null;
@@ -40,6 +40,7 @@
   let inspectorFont = 15;
   let sylvanCount = 3;
   let localFlipOverlaySignature = null;
+  let boxSelect = null;
 
   const devDefaults = {
     "p1LibraryX": 81,
@@ -207,7 +208,9 @@
     const map = new Map();
     for (let i = 0; i < unique.length; i++) {
       els.deckStatus.textContent = `Loading ${i + 1}/${unique.length}: ${unique[i]}`;
-      map.set(unique[i], await fetchPreferredCard(unique[i], els.coreSetSelect ? els.coreSetSelect.value : "leb"));
+      const chosenCore = els.coreSetSelect ? els.coreSetSelect.value : "leb";
+      const fixedCore = chosenCore === "lea" && /^(volcanic island|circle of protection:\s*black)$/i.test(unique[i]) ? "leb" : chosenCore;
+      map.set(unique[i], await fetchPreferredCard(unique[i], fixedCore));
     }
     state.cards = state.cards.filter(c => c.owner !== player);
     const deck = [];
@@ -313,10 +316,20 @@
   function moveCardToZone(card, zone) {
     if (!card) return;
 
-    // Tokens never enter library/grave/exile. Dropping them there deletes them from the game.
+    // Tokens never enter hidden/real card zones. Grave/exile/library delete them.
     if (card.isToken && (zone.endsWith("-grave") || zone.endsWith("-exile") || zone.endsWith("-library"))) {
       state.cards = state.cards.filter(c => c.id !== card.id);
       selectedIds.delete(card.id);
+      return;
+    }
+
+    // Tokens also cannot be hand cards. Send them to the center of their owner's table side.
+    if (card.isToken && zone.endsWith("-hand")) {
+      card.zone = "battlefield";
+      card.faceDown = false;
+      card.x = 960;
+      card.y = card.owner === "p1" ? 720 : 360;
+      bringToFront(card);
       return;
     }
 
@@ -663,22 +676,32 @@
   }
 
 
-  function sleeveBackElement(owner) {
+  function sleeveBackElement(owner, card = null) {
     const back = document.createElement("div");
     back.className = "back";
+
+    if (card && card.isToken) {
+      back.style.background = '#050505 url("token/aieback.png") center / cover no-repeat';
+      return back;
+    }
+
     const sleeve = state.sleeves?.[owner] || { type: "og", color: "#6a3b20" };
-    if (sleeve.type === "color") back.style.background = sleeve.color || "#6a3b20";
+    if (sleeve.type === "color") {
+      back.style.background = sleeve.color || "#6a3b20";
+    }
     return back;
   }
+
 
   function createCardEl(card, cls, forceBack = false) {
     const el = document.createElement("div");
     el.className = `card ${cls}` + (selectedIds.has(card.id) ? " selected" : "") + (card.marked ? " discard-marked" : "");
     if (card.sylvanChoice) el.classList.add(card.sylvanChoice === "keep" ? "sylvan-keep" : "sylvan-mark");
+    if (card.isToken) el.classList.add("token-card");
     el.dataset.cardId = card.id;
 
     if (forceBack) {
-      const back = sleeveBackElement(card.owner);
+      const back = sleeveBackElement(card.owner, card);
       el.appendChild(back);
     } else if (card.image) {
       const img = document.createElement("img");
@@ -687,7 +710,7 @@
       img.draggable = false;
       el.appendChild(img);
     } else {
-      const back = sleeveBackElement(card.owner);
+      const back = sleeveBackElement(card.owner, card);
       back.textContent = card.name || "";
       el.appendChild(back);
     }
@@ -702,12 +725,17 @@
         toggleTap(card);
       }
     });
-    el.addEventListener("click", () => {
+    el.addEventListener("click", e => {
       if (card.zone === otherPlayer() + "-hand") {
         card.marked = !card.marked;
         push();
       } else if (card.zone.endsWith("-hand") || card.zone === "battlefield") {
-        selectedIds = new Set([card.id]);
+        if (e.shiftKey) {
+          if (selectedIds.has(card.id)) selectedIds.delete(card.id);
+          else selectedIds.add(card.id);
+        } else {
+          selectedIds = new Set([card.id]);
+        }
         render();
       }
     });
@@ -737,29 +765,6 @@
     const panel = document.createElement("div");
     panel.className = "sylvan-card-panel";
 
-    const minus = document.createElement("button");
-    minus.type = "button";
-    minus.textContent = "−";
-    minus.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); });
-    minus.addEventListener("click", e => {
-      e.preventDefault(); e.stopPropagation();
-      sylvanCount = Math.max(1, sylvanCount - 1);
-      render();
-    });
-
-    const count = document.createElement("span");
-    count.textContent = String(sylvanCount);
-
-    const plus = document.createElement("button");
-    plus.type = "button";
-    plus.textContent = "+";
-    plus.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); });
-    plus.addEventListener("click", e => {
-      e.preventDefault(); e.stopPropagation();
-      sylvanCount = Math.min(9, sylvanCount + 1);
-      render();
-    });
-
     const draw = document.createElement("button");
     draw.type = "button";
     draw.textContent = "draw " + sylvanCount;
@@ -768,13 +773,21 @@
       e.preventDefault(); e.stopPropagation();
       startSylvanLibrary(localPlayer);
     });
+    draw.addEventListener("contextmenu", e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const n = prompt("Sylvan draw amount 3-7", String(sylvanCount));
+      const parsed = Number(n);
+      if (Number.isFinite(parsed)) {
+        sylvanCount = Math.max(3, Math.min(7, Math.round(parsed)));
+        render();
+      }
+    });
 
-    panel.appendChild(minus);
-    panel.appendChild(count);
-    panel.appendChild(plus);
     panel.appendChild(draw);
     el.appendChild(panel);
   }
+
 
   function isOwnBattlefieldSylvan(card) {
     return card &&
@@ -938,6 +951,7 @@
 
     drag = {
       id: card.id,
+      group: selectedIds.has(card.id) ? state.cards.filter(c => selectedIds.has(c.id) && c.zone === "battlefield").map(c => ({ id: c.id, x: c.x, y: c.y })) : null,
       fromZone,
       fromHand,
       handIndex,
@@ -986,6 +1000,22 @@
     // This prevents tapped cards from jumping sideways when picked up.
     card.x = snap(p.x - drag.offsetX);
     card.y = snap(p.y - drag.offsetY);
+
+    if (drag.group && drag.group.length > 1) {
+      const origin = drag.group.find(g => g.id === card.id);
+      if (origin) {
+        const dx = card.x - origin.x;
+        const dy = card.y - origin.y;
+        drag.group.forEach(g => {
+          if (g.id === card.id) return;
+          const c = state.cards.find(x => x.id === g.id);
+          if (c && c.zone === "battlefield") {
+            c.x = snap(g.x + dx);
+            c.y = snap(g.y + dy);
+          }
+        });
+      }
+    }
 
     if (drag.fromHand) card.z = drag.handZ || card.z || 100;
     else card.z = 10000;
@@ -1090,6 +1120,15 @@
   }
 
   function insertIntoHandAtWorldX(card, player, worldX, indexOverride = null) {
+    if (card.isToken) {
+      card.zone = "battlefield";
+      card.faceDown = false;
+      card.x = 960;
+      card.y = card.owner === "p1" ? 720 : 360;
+      bringToFront(card);
+      return;
+    }
+
     const zone = player + "-hand";
     const hand = ownerCards(player, "hand").filter(c => c.id !== card.id);
     const others = state.cards.filter(c => c.zone !== zone && c.id !== card.id);
@@ -1109,6 +1148,7 @@
     state.cards = others.concat(hand);
   }
 
+
   function onCardDragEnd(e) {
     document.removeEventListener("pointermove", onCardDragMove);
     if (!drag) return;
@@ -1126,9 +1166,11 @@
       return;
     }
 
-    if (moved < 5 && currentDrag.fromZone && currentDrag.fromZone.endsWith("-hand")) {
+    if (moved < 5) {
       card.zone = currentDrag.fromZone;
-      card.z = currentDrag.handZ || card.z;
+      card.x = currentDrag.originalX;
+      card.y = currentDrag.originalY;
+      card.z = currentDrag.fromHand ? (currentDrag.handZ || card.z) : card.z;
       drag = null;
       handDropPreview = null;
       if (els.dragLayer) els.dragLayer.innerHTML = "";
@@ -1405,17 +1447,27 @@
   }
 
   function keyMoveHovered(action) {
-    const targets = selectedIds.size ? state.cards.filter(c => selectedIds.has(c.id)) : state.cards.filter(c => c.id === hoveredCardId);
+    let targets = [];
+
+    const hoverCard = state.cards.find(c => c.id === hoveredCardId);
+    if (hoverCard) {
+      targets = [hoverCard];
+    } else if (selectedIds.size) {
+      targets = state.cards.filter(c => selectedIds.has(c.id));
+    }
+
     if (!targets.length) return false;
+
     targets.forEach(card => {
       if (action === "grave") moveCardToZone(card, card.owner + "-grave");
       if (action === "exile") moveCardToZone(card, card.owner + "-exile");
-      if (action === "hand") card.zone = card.owner + "-hand";
+      if (action === "hand") moveCardToZone(card, card.owner + "-hand");
       if (action === "tap" && card.zone === "battlefield") card.tapped = !card.tapped;
     });
     push();
     return true;
   }
+
 
   function onResetVoteChanged(vote) {
     if (!localPlayer) return;
@@ -1575,7 +1627,84 @@
     if (els.addTokenMenuBtn) els.addTokenMenuBtn.classList.toggle("active", !els.tokenMenu.classList.contains("hidden"));
   }
 
+  function screenRectForCard(card) {
+    const pos = card.zone === "battlefield" ? cardRenderPosition(card) : { x: card.x, y: card.y };
+    const p1 = screenPoint(pos.x - CARD_W / 2, pos.y - CARD_H / 2);
+    const p2 = screenPoint(pos.x + CARD_W / 2, pos.y + CARD_H / 2);
+    return {
+      left: Math.min(p1.x, p2.x),
+      top: Math.min(p1.y, p2.y),
+      right: Math.max(p1.x, p2.x),
+      bottom: Math.max(p1.y, p2.y)
+    };
+  }
+
+  function screenPoint(x, y) {
+    const rect = els.world.getBoundingClientRect();
+    const sx = rect.width / TABLE_W;
+    const sy = rect.height / TABLE_H;
+    let px = x;
+    let py = y;
+    if (localPlayer === "p2") {
+      px = TABLE_W - x;
+      py = TABLE_H - y;
+    }
+    return { x: rect.left + px * sx, y: rect.top + py * sy };
+  }
+
+  function rectsOverlap(a, b) {
+    return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
+  }
+
+  function beginBoxSelect(e) {
+    if (e.button !== 0) return;
+    if (e.target.closest(".card,.die,.pile,.hand,.main-menu,.main-menu-btn,.modal,.context-menu,.inspector,.dev-panel")) return;
+    boxSelect = { x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY };
+    els.selectBox.classList.remove("hidden");
+    updateBoxSelect(e);
+    document.addEventListener("pointermove", updateBoxSelect);
+    document.addEventListener("pointerup", finishBoxSelect, { once: true });
+  }
+
+  function updateBoxSelect(e) {
+    if (!boxSelect) return;
+    boxSelect.x1 = e.clientX;
+    boxSelect.y1 = e.clientY;
+    const r = {
+      left: Math.min(boxSelect.x0, boxSelect.x1),
+      top: Math.min(boxSelect.y0, boxSelect.y1),
+      right: Math.max(boxSelect.x0, boxSelect.x1),
+      bottom: Math.max(boxSelect.y0, boxSelect.y1)
+    };
+    els.selectBox.style.left = r.left + "px";
+    els.selectBox.style.top = r.top + "px";
+    els.selectBox.style.width = (r.right - r.left) + "px";
+    els.selectBox.style.height = (r.bottom - r.top) + "px";
+  }
+
+  function finishBoxSelect(e) {
+    document.removeEventListener("pointermove", updateBoxSelect);
+    if (!boxSelect) return;
+    const r = {
+      left: Math.min(boxSelect.x0, boxSelect.x1),
+      top: Math.min(boxSelect.y0, boxSelect.y1),
+      right: Math.max(boxSelect.x0, boxSelect.x1),
+      bottom: Math.max(boxSelect.y0, boxSelect.y1)
+    };
+    els.selectBox.classList.add("hidden");
+
+    if (Math.abs(r.right - r.left) > 6 || Math.abs(r.bottom - r.top) > 6) {
+      const hits = battlefieldCards().filter(card => rectsOverlap(screenRectForCard(card), r)).map(c => c.id);
+      selectedIds = new Set(hits);
+      render();
+    }
+
+    boxSelect = null;
+  }
+
   // UI bindings
+  els.viewport.addEventListener("pointerdown", beginBoxSelect);
+
   els.joinR1P1.onclick = () => join("room1", "p1");
   els.joinR1P2.onclick = () => join("room1", "p2");
   els.joinR2P1.onclick = () => join("room2", "p1");
@@ -1594,18 +1723,21 @@
     if (els.colorSleeveBtn) els.colorSleeveBtn.classList.remove("active");
     push();
   };
+
   if (els.colorSleeveBtn) els.colorSleeveBtn.onclick = () => {
     state.sleeves[localPlayer] = { type: "color", color: els.sleeveColorInput.value };
     els.colorSleeveBtn.classList.add("active");
     if (els.ogBackSleeveBtn) els.ogBackSleeveBtn.classList.remove("active");
     push();
   };
+
   if (els.sleeveColorInput) els.sleeveColorInput.oninput = () => {
     if (state.sleeves[localPlayer]?.type === "color") {
       state.sleeves[localPlayer] = { type: "color", color: els.sleeveColorInput.value };
       push();
     }
   };
+
   if (els.addDiceBtn) els.addDiceBtn.onclick = () => addCounterDie();
   if (els.menuFlipOrbBtn) els.menuFlipOrbBtn.onclick = e => { e.preventDefault(); e.stopPropagation(); toggleSharedFlip("chaosfront.png"); };
   if (els.menuFlipStarBtn) els.menuFlipStarBtn.onclick = e => { e.preventDefault(); e.stopPropagation(); toggleSharedFlip("fallingstar.png"); };
@@ -1647,7 +1779,7 @@
   els.closeDeckModal.onclick = () => els.deckModal.classList.add("hidden");
   els.doLoadDeck.onclick = loadDeck;
   els.helpBtn.onclick = () => { els.helpModal.classList.toggle("hidden"); updateMenuActiveStates(); };
-  els.closeHelp.onclick = () => { els.helpModal.classList.add("hidden"); updateMenuActiveStates(); };
+  if (els.closeHelp) els.closeHelp.onclick = () => { els.helpModal.classList.add("hidden"); updateMenuActiveStates(); };
   els.devTuningBtn.onclick = () => { els.devPanel.classList.toggle("hidden"); renderHandDropZoneDebug(); renderHandSafeZoneDebug(); updateMenuActiveStates(); };
   els.devClose.onclick = () => { els.devPanel.classList.add("hidden"); updateMenuActiveStates(); };
   els.devReset.onclick = () => { dev = { ...devDefaults }; saveDev(); bindDev(); render(); };
@@ -1706,7 +1838,7 @@
   }
 
   function startSylvanLibrary(player = localPlayer) {
-    const n = Math.max(1, Math.min(9, Number(sylvanCount) || 3));
+    const n = Math.max(3, Math.min(7, Number(sylvanCount) || 3));
     const drawn = [];
     for (let i = 0; i < n; i++) {
       const lib = ownerCards(player, "library");
