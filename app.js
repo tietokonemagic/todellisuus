@@ -12,7 +12,7 @@
   const els = {};
   [
     "seatScreen","seatStatus","joinR1P1","joinR1P2","joinR2P1","joinR2P2","kickRoom1","kickRoom2",
-    "game","viewport","world","pileLayer","cardLayer","diceLayer","myHand","opponentHand",
+    "game","viewport","world","pileLayer","cardLayer","dragLayer","diceLayer","myHand","opponentHand",
     "mainMenuBtn","mainMenu","loadDeckBtn","helpBtn","devTuningBtn","resetVoteBtn","leaveBtn","roomInfo",
     "deckModal","deckText","doLoadDeck","closeDeckModal","deckStatus",
     "tutorModal","tutorGrid","tutorToHand","tutorToTable","closeTutor",
@@ -355,6 +355,7 @@
     renderCards();
     renderHands();
     renderDice();
+    renderDragCard();
   }
 
   function renderPiles() {
@@ -420,14 +421,18 @@
 
   function renderCards() {
     els.cardLayer.innerHTML = "";
-    battlefieldCards().sort((a,b) => (a.z || 1) - (b.z || 1)).forEach(card => {
-      const el = createCardEl(card, "table-card", card.faceDown);
-      el.style.left = (card.x - CARD_W / 2) + "px";
-      el.style.top = (card.y - CARD_H / 2) + "px";
-      el.style.transform = `rotate(${cardRotation(card)}deg)`;
-      el.style.zIndex = String(card.z || 1);
-      els.cardLayer.appendChild(el);
-    });
+    if (els.dragLayer) els.dragLayer.innerHTML = "";
+    battlefieldCards()
+      .filter(card => !(drag && drag.id === card.id))
+      .sort((a,b) => (a.z || 1) - (b.z || 1))
+      .forEach(card => {
+        const el = createCardEl(card, "table-card", card.faceDown);
+        el.style.left = (card.x - CARD_W / 2) + "px";
+        el.style.top = (card.y - CARD_H / 2) + "px";
+        el.style.transform = `rotate(${cardRotation(card)}deg)`;
+        el.style.zIndex = String(card.z || 1);
+        els.cardLayer.appendChild(el);
+      });
     renderGraveStack("p1");
     renderGraveStack("p2");
   }
@@ -443,6 +448,26 @@
       el.style.zIndex = String(500 - i);
       els.cardLayer.appendChild(el);
     });
+  }
+
+  function renderDragCard() {
+    if (!drag || !drag.id) return;
+    const card = state.cards.find(c => c.id === drag.id);
+    if (!card || card.zone !== "battlefield") return;
+
+    const fromHand = drag.fromZone && drag.fromZone.endsWith("-hand");
+    const targetLayer = fromHand ? els.cardLayer : els.dragLayer;
+    if (!targetLayer) return;
+
+    const el = createCardEl(card, fromHand ? "table-card hand-origin-drag" : "table-card above-hand-drag", card.faceDown);
+    el.style.left = (card.x - CARD_W / 2) + "px";
+    el.style.top = (card.y - CARD_H / 2) + "px";
+    el.style.transform = `rotate(${cardRotation(card)}deg)`;
+
+    // Table/public cards being dragged jump above hand.
+    // Hand cards keep their original hand order number and are not promoted while dragging.
+    el.style.zIndex = fromHand ? String(drag.originalHandZ || 100) : "9999";
+    targetLayer.appendChild(el);
   }
 
   function renderHands() {
@@ -615,9 +640,13 @@
     drag = {
       id: card.id,
       fromZone,
+      fromHand: fromZone && fromZone.endsWith("-hand"),
       handIndex: fromZone && fromZone.endsWith("-hand")
         ? ownerCards(card.owner, "hand").findIndex(c => c.id === card.id)
         : -1,
+      originalHandZ: fromZone && fromZone.endsWith("-hand")
+        ? 100 + ownerCards(card.owner, "hand").findIndex(c => c.id === card.id)
+        : null,
       startClientX: e.clientX,
       startClientY: e.clientY,
       offsetX: pointer.x - visualCenter.x,
@@ -627,7 +656,7 @@
     };
     card.x = visualCenter.x;
     card.y = visualCenter.y;
-    bringToFront(card);
+    if (!(fromZone && fromZone.endsWith("-hand"))) bringToFront(card);
     document.addEventListener("pointermove", onCardDragMove);
     document.addEventListener("pointerup", onCardDragEnd, { once: true });
   }
@@ -641,6 +670,27 @@
     card.x = snap(p.x - drag.offsetX);
     card.y = snap(p.y - drag.offsetY);
     render();
+  }
+
+  function handDropAt(clientX, clientY) {
+    if (!localPlayer) return null;
+    const rect = els.myHand.getBoundingClientRect();
+    const inside = clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+    return inside ? localPlayer : null;
+  }
+
+  function insertIntoHandAtWorldX(card, player, worldX) {
+    const zone = player + "-hand";
+    const hand = ownerCards(player, "hand").filter(c => c.id !== card.id);
+    const others = state.cards.filter(c => c.zone !== zone && c.id !== card.id);
+    const ratio = Math.max(0, Math.min(1, (worldX - 330) / 1260));
+    const index = Math.round(ratio * hand.length);
+    card.zone = zone;
+    card.tapped = false;
+    card.faceDown = false;
+    card.marked = false;
+    hand.splice(index, 0, card);
+    state.cards = others.concat(hand);
   }
 
   function onCardDragEnd(e) {
@@ -658,11 +708,17 @@
     }
 
     const pile = pileAt(e.clientX, e.clientY);
+    const handDrop = handDropAt(e.clientX, e.clientY);
+
     if (pile) {
       moveCardToZone(card, pile.player + "-" + pile.kind);
+    } else if (handDrop) {
+      const p = tablePoint(e.clientX, e.clientY, false);
+      insertIntoHandAtWorldX(card, handDrop, p.x);
     } else {
       card.zone = "battlefield";
       card.marked = false;
+      if (!(drag.fromZone && drag.fromZone.endsWith("-hand"))) bringToFront(card);
     }
 
     drag = null;

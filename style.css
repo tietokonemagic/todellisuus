@@ -186,3 +186,11 @@ textarea { width: 100%; height: 300px; resize: vertical; background: #080808; co
   outline: 1px dashed rgba(255,255,255,.35);
   background: rgba(255,255,255,.04);
 }
+
+/* v18 layer rules: piles below battlefield, hand above battlefield, dragged table card above hand */
+#pileLayer { z-index: 20 !important; }
+#cardLayer { z-index: 30 !important; }
+#diceLayer { z-index: 40 !important; }
+.hand { z-index: 50 !important; }
+#dragLayer { position: absolute; inset: 0; z-index: 80; pointer-events: none; }
+#dragLayer .card { pointer-events: none; }
