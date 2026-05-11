@@ -279,14 +279,39 @@ textarea { width: 100%; height: 300px; resize: vertical; background: #080808; co
 }
 
 
-/* v24 live hand insert preview */
-.hand-preview-gap{
-  position:absolute;
-  width:118px;
-  height:165px;
-  border-radius:7px;
-  pointer-events:none;
-  opacity:.28;
-  outline:1px dashed rgba(255,255,255,.55);
-  background:rgba(255,255,255,.08);
+/* v25 hand drag/drop zone */
+#dragLayer {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 80 !important;
+  pointer-events: none !important;
+}
+
+#dragLayer .card {
+  pointer-events: none !important;
+}
+
+.drag-hand-visual {
+  position: absolute !important;
+  pointer-events: none !important;
+}
+
+.hand-preview-gap {
+  position: absolute;
+  width: 118px;
+  height: 165px;
+  border-radius: 7px;
+  pointer-events: none;
+  opacity: .28;
+  outline: 1px dashed rgba(255,255,255,.55);
+  background: rgba(255,255,255,.08);
+}
+
+.hand-drop-zone-debug {
+  position: fixed;
+  z-index: 250000;
+  border: 2px dashed rgba(120, 255, 160, .85);
+  background: rgba(120, 255, 160, .07);
+  pointer-events: none;
+  box-sizing: border-box;
 }

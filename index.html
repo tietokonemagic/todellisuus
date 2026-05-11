@@ -255,6 +255,11 @@ Click opponent hand card to mark it.</pre>
     <label>Thumb min Y <input id="devThumbMinY" type="range" min="-180" max="180" value="0"><span id="devThumbMinYVal">0</span></label>
     <label>Thumb max Y <input id="devThumbMaxY" type="range" min="-180" max="180" value="0"><span id="devThumbMaxYVal">0</span></label>
 
+    <label>Hand drop zone X <input id="devHandDropZoneX" type="range" min="-900" max="900" value="0"><span id="devHandDropZoneXVal">0</span></label>
+    <label>Hand drop zone Y <input id="devHandDropZoneY" type="range" min="-400" max="400" value="0"><span id="devHandDropZoneYVal">0</span></label>
+    <label>Hand drop zone W <input id="devHandDropZoneWidth" type="range" min="80" max="1400" value="236"><span id="devHandDropZoneWidthVal">236</span></label>
+    <label>Hand drop zone H <input id="devHandDropZoneHeight" type="range" min="60" max="360" value="190"><span id="devHandDropZoneHeightVal">190</span></label>
+
     <label>Grave height <input id="devGraveHeight" type="range" min="120" max="520" value="260"><span id="devGraveHeightVal">260</span></label>
     <label>Exile height <input id="devExileHeight" type="range" min="36" max="180" value="64"><span id="devExileHeightVal">64</span></label>
     <label>Dice size <input id="devDieSize" type="range" min="18" max="64" value="30"><span id="devDieSizeVal">30</span></label>
@@ -278,5 +283,6 @@ Click opponent hand card to mark it.</pre>
   <script type="module" src="firebase-sync.js"></script>
   <script src="app.js"></script>
   <script src="orbflip.js"></script>
+  <div id="handDropZoneDebug" class="hand-drop-zone-debug hidden"></div>
 </body>
 </html>

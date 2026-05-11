@@ -32,7 +32,7 @@
   let contextCardId = null;
   let contextHandCardId = null;
   let drag = null;
-let handDropPreview = null;
+  let handDropPreview = null;
   let handFan = { p1: 0, p2: 0 };
   let handDepth = { p1: 1, p2: 1 };
   let inspectorEnabled = true;
@@ -72,7 +72,11 @@ let handDropPreview = null;
     "thumbMinX": -4,
     "thumbMaxX": 93,
     "thumbMinY": 0,
-    "thumbMaxY": 0
+    "thumbMaxY": 0,
+    "handDropZoneX": 0,
+    "handDropZoneY": 0,
+    "handDropZoneWidth": 236,
+    "handDropZoneHeight": 190
 };
   let dev = loadDev();
 
@@ -366,6 +370,7 @@ let handDropPreview = null;
     renderHands();
     renderDice();
     renderDragCard();
+    renderHandDropZoneDebug();
   }
 
   function renderPlaymats() {
@@ -449,25 +454,19 @@ let handDropPreview = null;
   function renderCards() {
     els.cardLayer.innerHTML = "";
     battlefieldCards()
+      .filter(card => !(drag && drag.id === card.id))
       .sort((a,b) => (a.z || 1) - (b.z || 1))
       .forEach(card => {
         const el = createCardEl(card, "table-card", card.faceDown);
         el.style.left = (card.x - CARD_W / 2) + "px";
         el.style.top = (card.y - CARD_H / 2) + "px";
         el.style.transform = `rotate(${cardRotation(card)}deg)`;
-
-        if (drag && drag.id === card.id && drag.fromHand) {
-          el.classList.add("dragging-from-hand");
-          el.style.zIndex = String(drag.handZ || 100);
-        } else if (drag && drag.id === card.id && !drag.fromHand) {
-          el.classList.add("dragging-from-table");
-          el.style.zIndex = String(10000);
-        } else {
-          el.style.zIndex = String(card.z || 1);
-        }
-
+        el.style.zIndex = String(card.z || 1);
         els.cardLayer.appendChild(el);
       });
+
+    renderGraveStack("p1");
+    renderGraveStack("p2");
   }
 
 
@@ -477,24 +476,42 @@ let handDropPreview = null;
 
 
   function renderDragCard() {
+    if (els.dragLayer) els.dragLayer.innerHTML = "";
+    const old = els.myHand.querySelector(".drag-hand-visual");
+    if (old) old.remove();
+
     if (!drag || !drag.id) return;
     const card = state.cards.find(c => c.id === drag.id);
     if (!card || card.zone !== "battlefield") return;
 
     const fromHand = drag.fromZone && drag.fromZone.endsWith("-hand");
-    const targetLayer = fromHand ? els.cardLayer : els.dragLayer;
-    if (!targetLayer) return;
 
-    const el = createCardEl(card, fromHand ? "table-card hand-origin-drag" : "table-card above-hand-drag", card.faceDown);
+    if (fromHand) {
+      const rect = els.myHand.getBoundingClientRect();
+      const el = createCardEl(card, "hand-card drag-hand-visual", card.faceDown);
+      const cx = drag.clientX ?? 0;
+      const cy = drag.clientY ?? 0;
+
+      el.style.left = (cx - rect.left - CARD_W / 2) + "px";
+      el.style.top = (cy - rect.top - CARD_H / 2) + "px";
+      el.style.bottom = "auto";
+      el.style.transform = `rotate(${cardRotation(card)}deg)`;
+      el.style.zIndex = String(drag.handZ || drag.originalHandZ || 100);
+      el.style.setProperty("--hand-z", String(drag.handZ || drag.originalHandZ || 100));
+      el.style.setProperty("--hand-transform", el.style.transform);
+      els.myHand.appendChild(el);
+      return;
+    }
+
+    if (!els.dragLayer) return;
+    const el = createCardEl(card, "table-card above-hand-drag", card.faceDown);
     el.style.left = (card.x - CARD_W / 2) + "px";
     el.style.top = (card.y - CARD_H / 2) + "px";
     el.style.transform = `rotate(${cardRotation(card)}deg)`;
-
-    // Table/public cards being dragged jump above hand.
-    // Hand cards keep their original hand order number and are not promoted while dragging.
-    el.style.zIndex = fromHand ? String(drag.originalHandZ || 100) : "9999";
-    targetLayer.appendChild(el);
+    el.style.zIndex = "9999";
+    els.dragLayer.appendChild(el);
   }
+
 
   function renderHands() {
     renderHand(localPlayer, els.myHand, true);
@@ -502,12 +519,12 @@ let handDropPreview = null;
   }
 
   function renderHand(player, container, own) {
+    const oldDragVisual = container.querySelector(".drag-hand-visual");
     container.innerHTML = "";
 
     const fanValue = handFan[player] || 0;
     const fanT = Math.max(0, Math.min(1, (fanValue + 100) / 200));
 
-    // hand.png below cards
     const baseHand = document.createElement("img");
     baseHand.className = "hand-art hand-art-base";
     baseHand.src = "hand.png";
@@ -529,9 +546,8 @@ let handDropPreview = null;
 
     if (draggingFromThisHand) {
       const gapIndex = Math.max(0, Math.min(drag.handIndex, items.length));
-      items.splice(gapIndex, 0, { type: "gap", cls:"hand-gap" });
+      items.splice(gapIndex, 0, { type: "gap", cls: "hand-gap" });
     }
-
 
     const previewingIntoThisHand =
       handDropPreview &&
@@ -541,7 +557,7 @@ let handDropPreview = null;
 
     if (previewingIntoThisHand) {
       const previewIndex = Math.max(0, Math.min(handDropPreview.index, items.length));
-      items.splice(previewIndex, 0, { type:"gap", cls:"hand-preview-gap" });
+      items.splice(previewIndex, 0, { type: "gap", cls: "hand-preview-gap" });
     }
 
     const count = items.length;
@@ -583,7 +599,6 @@ let handDropPreview = null;
       container.appendChild(el);
     });
 
-    // thumb.png above cards. It begins exactly over hand.png, then moves by configured min/max as fan opens.
     const thumbX = (dev.thumbMinX || 0) + ((dev.thumbMaxX || 0) - (dev.thumbMinX || 0)) * fanT;
     const thumbY = (dev.thumbMinY || 0) + ((dev.thumbMaxY || 0) - (dev.thumbMinY || 0)) * fanT;
 
@@ -596,7 +611,12 @@ let handDropPreview = null;
     thumb.style.left = `calc(50% + ${(dev.handArtX || 0) + thumbX}px)`;
     thumb.style.bottom = ((dev.handArtY || 0) + thumbY) + "px";
     container.appendChild(thumb);
+
+    if (oldDragVisual && drag && drag.fromZone === player + "-hand") {
+      container.appendChild(oldDragVisual);
+    }
   }
+
 
   function sleeveBackElement(owner) {
     const back = document.createElement("div");
@@ -784,6 +804,9 @@ let handDropPreview = null;
       fromHand,
       handIndex,
       handZ,
+      originalHandZ: handZ,
+      clientX: e.clientX,
+      clientY: e.clientY,
       startClientX: e.clientX,
       startClientY: e.clientY,
       offsetX: pointer.x - visualCenter.x,
@@ -794,65 +817,31 @@ let handDropPreview = null;
 
     card.x = visualCenter.x;
     card.y = visualCenter.y;
+    card.zone = "battlefield";
 
     if (fromHand) {
       card.z = handZ;
     } else {
       bringToFront(card);
+      card.z = 10000;
     }
 
-    if (fromHand) {
-      card.zone = "battlefield";
-      render();
-      drag.el = els.cardLayer.querySelector(`[data-card-id="${card.id}"]`);
-    } else {
-      drag.el = e.currentTarget;
-      drag.el.classList.add("dragging-from-table");
-    }
+    render();
 
     document.addEventListener("pointermove", onCardDragMove);
     document.addEventListener("pointerup", onCardDragEnd, { once: true });
   }
 
 
-  
-
-function handInsertIndexAtClientX(player, clientX){
-  const rect = els.myHand.getBoundingClientRect();
-  const hand = ownerCards(player,"hand").filter(c => !(drag && c.id === drag.id));
-  const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(1, rect.width)));
-  return Math.max(0, Math.min(hand.length, Math.round(ratio * hand.length)));
-}
-
-function updateHandDropPreview(clientX, clientY){
-  const rect = els.myHand.getBoundingClientRect();
-  const inside =
-    clientX >= rect.left &&
-    clientX <= rect.right &&
-    clientY >= rect.top &&
-    clientY <= rect.bottom;
-
-  if (!inside || !drag || drag.fromZone === localPlayer + "-hand"){
-    if(handDropPreview){
-      handDropPreview = null;
-      renderHands();
-    }
-    return;
-  }
-
-  const idx = handInsertIndexAtClientX(localPlayer, clientX);
-
-  if(!handDropPreview || handDropPreview.index !== idx){
-    handDropPreview = { player: localPlayer, index: idx };
-    renderHands();
-  }
-}
-
-function onCardDragMove(e) {
+  function onCardDragMove(e) {
     if (!drag) return;
     const card = state.cards.find(c => c.id === drag.id);
     if (!card) return;
+
     const p = tablePoint(e.clientX, e.clientY);
+    drag.clientX = e.clientX;
+    drag.clientY = e.clientY;
+
     card.zone = "battlefield";
     card.x = snap(p.x - drag.offsetX);
     card.y = snap(p.y - drag.offsetY);
@@ -860,29 +849,84 @@ function onCardDragMove(e) {
     if (drag.fromHand) card.z = drag.handZ || card.z || 100;
     else card.z = 10000;
 
-    const el = drag.el || els.cardLayer.querySelector(`[data-card-id="${card.id}"]`);
-    if (el) {
-      drag.el = el;
-      el.style.left = (card.x - CARD_W / 2) + "px";
-      el.style.top = (card.y - CARD_H / 2) + "px";
-      el.style.transform = `rotate(${cardRotation(card)}deg)`;
-      el.style.zIndex = String(drag.fromHand ? (drag.handZ || 100) : 10000);
+    updateHandDropPreview(e.clientX, e.clientY);
+    renderDragCard();
+  }
+
+
+  function handDropZoneRect() {
+    const rect = els.myHand.getBoundingClientRect();
+    const w = Number(dev.handDropZoneWidth || 236);
+    const h = Number(dev.handDropZoneHeight || 190);
+    const x = rect.left + rect.width / 2 - w / 2 + Number(dev.handDropZoneX || 0);
+    const y = rect.top + rect.height / 2 - h / 2 + Number(dev.handDropZoneY || 0);
+    return { left: x, top: y, right: x + w, bottom: y + h, width: w, height: h };
+  }
+
+  function renderHandDropZoneDebug() {
+    const el = document.getElementById("handDropZoneDebug");
+    if (!el) return;
+
+    const devOpen = els.devPanel && !els.devPanel.classList.contains("hidden");
+    if (!devOpen || !localPlayer) {
+      el.classList.add("hidden");
+      return;
     }
+
+    const r = handDropZoneRect();
+    el.style.left = r.left + "px";
+    el.style.top = r.top + "px";
+    el.style.width = r.width + "px";
+    el.style.height = r.height + "px";
+    el.classList.remove("hidden");
   }
 
   function handDropAt(clientX, clientY) {
     if (!localPlayer) return null;
-    const rect = els.myHand.getBoundingClientRect();
-    const inside = clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+    const r = handDropZoneRect();
+    const inside = clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom;
     return inside ? localPlayer : null;
   }
 
-  function insertIntoHandAtWorldX(card, player, worldX) {
+  function handInsertIndexAtClientX(player, clientX) {
+    const rect = els.myHand.getBoundingClientRect();
+    const hand = ownerCards(player, "hand").filter(c => !(drag && c.id === drag.id));
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(1, rect.width)));
+    return Math.max(0, Math.min(hand.length, Math.round(ratio * hand.length)));
+  }
+
+  function updateHandDropPreview(clientX, clientY) {
+    const player = handDropAt(clientX, clientY);
+
+    if (!player || !drag || drag.fromZone === player + "-hand") {
+      if (handDropPreview) {
+        handDropPreview = null;
+        renderHands();
+        renderDragCard();
+      }
+      return;
+    }
+
+    const index = handInsertIndexAtClientX(player, clientX);
+    if (!handDropPreview || handDropPreview.player !== player || handDropPreview.index !== index) {
+      handDropPreview = { player, index };
+      renderHands();
+      renderDragCard();
+    }
+  }
+
+  function insertIntoHandAtWorldX(card, player, worldX, indexOverride = null) {
     const zone = player + "-hand";
     const hand = ownerCards(player, "hand").filter(c => c.id !== card.id);
     const others = state.cards.filter(c => c.zone !== zone && c.id !== card.id);
-    const ratio = Math.max(0, Math.min(1, (worldX - 330) / 1260));
-    const index = Math.round(ratio * hand.length);
+
+    let index = indexOverride;
+    if (index === null || index === undefined) {
+      const ratio = Math.max(0, Math.min(1, (worldX - 330) / 1260));
+      index = Math.round(ratio * hand.length);
+    }
+
+    index = Math.max(0, Math.min(hand.length, index));
     card.zone = zone;
     card.tapped = false;
     card.faceDown = false;
@@ -896,13 +940,15 @@ function onCardDragMove(e) {
     if (!drag) return;
 
     const currentDrag = drag;
+    const currentPreview = handDropPreview;
     const card = state.cards.find(c => c.id === currentDrag.id);
     const moved = Math.hypot(e.clientX - currentDrag.startClientX, e.clientY - currentDrag.startClientY);
 
     if (!card) {
       drag = null;
-  handDropPreview = null;
-  renderHands();
+      handDropPreview = null;
+      if (els.dragLayer) els.dragLayer.innerHTML = "";
+      renderHands();
       return;
     }
 
@@ -910,24 +956,34 @@ function onCardDragMove(e) {
       card.zone = currentDrag.fromZone;
       card.z = currentDrag.handZ || card.z;
       drag = null;
-  handDropPreview = null;
-  renderHands();
+      handDropPreview = null;
+      if (els.dragLayer) els.dragLayer.innerHTML = "";
       push();
       return;
     }
 
-    const pile = pileAt(e.clientX, e.clientY);
-    if (pile) {
-      moveCardToZone(card, pile.player + "-" + pile.kind);
+    const handPlayer = handDropAt(e.clientX, e.clientY);
+    if (handPlayer === localPlayer) {
+      insertIntoHandAtWorldX(
+        card,
+        handPlayer,
+        card.x,
+        currentPreview && currentPreview.player === handPlayer ? currentPreview.index : null
+      );
     } else {
-      card.zone = "battlefield";
-      card.marked = false;
-      if (currentDrag.fromHand) bringToFront(card);
+      const pile = pileAt(e.clientX, e.clientY);
+      if (pile) {
+        moveCardToZone(card, pile.player + "-" + pile.kind);
+      } else {
+        card.zone = "battlefield";
+        card.marked = false;
+        if (currentDrag.fromHand) bringToFront(card);
+      }
     }
 
     drag = null;
-  handDropPreview = null;
-  renderHands();
+    handDropPreview = null;
+    if (els.dragLayer) els.dragLayer.innerHTML = "";
     push();
   }
 
@@ -1239,7 +1295,7 @@ function onCardDragMove(e) {
       els.devPanel.style.left = Math.max(0, Math.min(innerWidth - 80, e.clientX - dragDev.dx)) + "px";
       els.devPanel.style.top = Math.max(0, Math.min(innerHeight - 40, e.clientY - dragDev.dy)) + "px";
     });
-    document.addEventListener("pointerup", () => dragDev = null);
+    document.addEventListener("pointerup", () => { dragDev = null; renderHandDropZoneDebug(); });
   }
 
   const PLAYMAT_FILES = ["zombi.png","vault.png","urzaglas.png","unicorn.png","terrain.png","terracorn.png","spawn.png","purge.png","phantom.png","pesti.png","mold.png","mire.png","miracle.png","mesa.png","life.png","kudzu.png","hordes.png","hell.png","grem2.png","grem1.png","golem.png","geddon.png","gate.png","flash2.png","flash.png","farm.png","dance.png","cross.png","cland.png","camel.png","boris.png","bluemana2.png","bluemana1.png","allergy2.png","allergy1.png"];
@@ -1338,7 +1394,7 @@ function onCardDragMove(e) {
   els.doLoadDeck.onclick = loadDeck;
   els.helpBtn.onclick = () => els.helpModal.classList.remove("hidden");
   els.closeHelp.onclick = () => els.helpModal.classList.add("hidden");
-  els.devTuningBtn.onclick = () => els.devPanel.classList.toggle("hidden");
+  els.devTuningBtn.onclick = () => { els.devPanel.classList.toggle("hidden"); renderHandDropZoneDebug(); };
   els.devClose.onclick = () => els.devPanel.classList.add("hidden");
   els.devReset.onclick = () => { dev = { ...devDefaults }; saveDev(); bindDev(); render(); };
   els.devCopy.onclick = async () => { const text = JSON.stringify(dev, null, 2); els.devOutput.value = text; try { await navigator.clipboard.writeText(text); } catch {} };
