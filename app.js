@@ -64,7 +64,14 @@
     "selColor": "#755929",
     "shuffleSpeed": 64,
     "shuffleLength": 650,
-    "shuffleSpread": 8
+    "shuffleSpread": 8,
+    "handArtX": 0,
+    "handArtY": 0,
+    "handArtSize": 190,
+    "thumbMinX": 0,
+    "thumbMaxX": 38,
+    "thumbMinY": 0,
+    "thumbMaxY": 0
 };
   let dev = loadDev();
 
@@ -421,21 +428,31 @@
 
   function renderCards() {
     els.cardLayer.innerHTML = "";
-    if (els.dragLayer) els.dragLayer.innerHTML = "";
     battlefieldCards()
-      .filter(card => !(drag && drag.id === card.id))
       .sort((a,b) => (a.z || 1) - (b.z || 1))
       .forEach(card => {
         const el = createCardEl(card, "table-card", card.faceDown);
         el.style.left = (card.x - CARD_W / 2) + "px";
         el.style.top = (card.y - CARD_H / 2) + "px";
         el.style.transform = `rotate(${cardRotation(card)}deg)`;
-        el.style.zIndex = String(card.z || 1);
+
+        if (drag && drag.id === card.id && drag.fromHand) {
+          el.classList.add("dragging-from-hand");
+          el.style.zIndex = String(drag.handZ || 100);
+        } else if (drag && drag.id === card.id && !drag.fromHand) {
+          el.classList.add("dragging-from-table");
+          el.style.zIndex = String(10000);
+        } else {
+          el.style.zIndex = String(card.z || 1);
+        }
+
         els.cardLayer.appendChild(el);
       });
+
     renderGraveStack("p1");
     renderGraveStack("p2");
   }
+
 
   function renderGraveStack(player) {
     const cards = ownerCards(player, "grave");
@@ -478,6 +495,20 @@
   function renderHand(player, container, own) {
     container.innerHTML = "";
 
+    const fanValue = handFan[player] || 0;
+    const fanT = Math.max(0, Math.min(1, (fanValue + 100) / 200));
+
+    // hand.png below cards
+    const baseHand = document.createElement("img");
+    baseHand.className = "hand-art hand-art-base";
+    baseHand.src = "hand.png";
+    baseHand.alt = "";
+    baseHand.draggable = false;
+    baseHand.style.width = (dev.handArtSize || 190) + "px";
+    baseHand.style.left = `calc(50% + ${dev.handArtX || 0}px)`;
+    baseHand.style.bottom = (dev.handArtY || 0) + "px";
+    container.appendChild(baseHand);
+
     const realHand = ownerCards(player, "hand");
     const items = realHand.map(card => ({ type: "card", card }));
 
@@ -493,8 +524,7 @@
     }
 
     const count = items.length;
-    const fanValue = handFan[player] || 0;
-    const t = Math.max(0, Math.min(1, (fanValue + 100) / 200));
+    const t = fanT;
     const spread = (16 + t * 70) * Math.min(1, 11 / Math.max(1, count));
     const start = -((count - 1) * spread) / 2;
     const center = (count - 1) / 2;
@@ -531,6 +561,20 @@
 
       container.appendChild(el);
     });
+
+    // thumb.png above cards. It begins exactly over hand.png, then moves by configured min/max as fan opens.
+    const thumbX = (dev.thumbMinX || 0) + ((dev.thumbMaxX || 0) - (dev.thumbMinX || 0)) * fanT;
+    const thumbY = (dev.thumbMinY || 0) + ((dev.thumbMaxY || 0) - (dev.thumbMinY || 0)) * fanT;
+
+    const thumb = document.createElement("img");
+    thumb.className = "hand-art hand-art-thumb";
+    thumb.src = "thumb.png";
+    thumb.alt = "";
+    thumb.draggable = false;
+    thumb.style.width = (dev.handArtSize || 190) + "px";
+    thumb.style.left = `calc(50% + ${(dev.handArtX || 0) + thumbX}px)`;
+    thumb.style.bottom = ((dev.handArtY || 0) + thumbY) + "px";
+    container.appendChild(thumb);
   }
 
   function createCardEl(card, cls, forceBack = false) {
@@ -630,23 +674,26 @@
     closeMenus();
 
     const fromZone = card.zone;
+    const fromHand = fromZone && fromZone.endsWith("-hand");
     const pointer = tablePoint(e.clientX, e.clientY, false);
     const rect = e.currentTarget.getBoundingClientRect();
     const visualCenter = fromZone !== "battlefield"
       ? tablePoint(rect.left + rect.width / 2, rect.top + rect.height / 2, false)
       : { x: card.x, y: card.y };
 
+    const handIndex = fromHand ? ownerCards(card.owner, "hand").findIndex(c => c.id === card.id) : -1;
+    const handCount = fromHand ? ownerCards(card.owner, "hand").length : 0;
+    const depth = fromHand ? (handDepth[card.owner] || 1) : 1;
+    const handZ = fromHand ? (100 + (depth > 0 ? handIndex : handCount - handIndex)) : null;
+
     if (!selectedIds.has(card.id)) selectedIds = new Set([card.id]);
+
     drag = {
       id: card.id,
       fromZone,
-      fromHand: fromZone && fromZone.endsWith("-hand"),
-      handIndex: fromZone && fromZone.endsWith("-hand")
-        ? ownerCards(card.owner, "hand").findIndex(c => c.id === card.id)
-        : -1,
-      originalHandZ: fromZone && fromZone.endsWith("-hand")
-        ? 100 + ownerCards(card.owner, "hand").findIndex(c => c.id === card.id)
-        : null,
+      fromHand,
+      handIndex,
+      handZ,
       startClientX: e.clientX,
       startClientY: e.clientY,
       offsetX: pointer.x - visualCenter.x,
@@ -654,12 +701,20 @@
       originalX: card.x,
       originalY: card.y
     };
+
     card.x = visualCenter.x;
     card.y = visualCenter.y;
-    if (!(fromZone && fromZone.endsWith("-hand"))) bringToFront(card);
+
+    if (fromHand) {
+      card.z = handZ;
+    } else {
+      bringToFront(card);
+    }
+
     document.addEventListener("pointermove", onCardDragMove);
     document.addEventListener("pointerup", onCardDragEnd, { once: true });
   }
+
 
   function onCardDragMove(e) {
     if (!drag) return;
@@ -669,8 +724,16 @@
     card.zone = "battlefield";
     card.x = snap(p.x - drag.offsetX);
     card.y = snap(p.y - drag.offsetY);
+
+    if (drag.fromHand) {
+      card.z = drag.handZ || card.z || 100;
+    } else {
+      card.z = 10000;
+    }
+
     render();
   }
+
 
   function handDropAt(clientX, clientY) {
     if (!localPlayer) return null;
@@ -696,34 +759,37 @@
   function onCardDragEnd(e) {
     document.removeEventListener("pointermove", onCardDragMove);
     if (!drag) return;
-    const card = state.cards.find(c => c.id === drag.id);
-    const moved = Math.hypot(e.clientX - drag.startClientX, e.clientY - drag.startClientY);
-    if (!card) { drag = null; return; }
 
-    if (moved < 5 && drag.fromZone.endsWith("-hand")) {
-      card.zone = drag.fromZone;
+    const currentDrag = drag;
+    const card = state.cards.find(c => c.id === currentDrag.id);
+    const moved = Math.hypot(e.clientX - currentDrag.startClientX, e.clientY - currentDrag.startClientY);
+
+    if (!card) {
+      drag = null;
+      return;
+    }
+
+    if (moved < 5 && currentDrag.fromZone && currentDrag.fromZone.endsWith("-hand")) {
+      card.zone = currentDrag.fromZone;
+      card.z = currentDrag.handZ || card.z;
       drag = null;
       push();
       return;
     }
 
     const pile = pileAt(e.clientX, e.clientY);
-    const handDrop = handDropAt(e.clientX, e.clientY);
-
     if (pile) {
       moveCardToZone(card, pile.player + "-" + pile.kind);
-    } else if (handDrop) {
-      const p = tablePoint(e.clientX, e.clientY, false);
-      insertIntoHandAtWorldX(card, handDrop, p.x);
     } else {
       card.zone = "battlefield";
       card.marked = false;
-      if (!(drag.fromZone && drag.fromZone.endsWith("-hand"))) bringToFront(card);
+      if (currentDrag.fromHand) bringToFront(card);
     }
 
     drag = null;
     push();
   }
+
 
   function pileAt(clientX, clientY) {
     const el = document.elementFromPoint(clientX, clientY);

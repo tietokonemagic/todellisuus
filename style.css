@@ -194,3 +194,33 @@ textarea { width: 100%; height: 300px; resize: vertical; background: #080808; co
 .hand { z-index: 50 !important; }
 #dragLayer { position: absolute; inset: 0; z-index: 80; pointer-events: none; }
 #dragLayer .card { pointer-events: none; }
+
+/* v19: dragged hand card keeps the z-order it had in hand until released. */
+.card.dragging-from-hand { pointer-events: none !important; }
+.card.dragging-from-table { pointer-events: none !important; }
+
+
+/* v20: hand art layers. hand.png under cards, thumb.png above cards. */
+.hand-art {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: var(--hand-art-size, 190px);
+  height: auto;
+  transform-origin: 50% 100%;
+  pointer-events: none;
+  user-select: none;
+}
+
+.hand-art-base {
+  z-index: 10;
+}
+
+.hand-art-thumb {
+  z-index: 10000;
+}
+
+.hand .card,
+.hand .hand-gap {
+  z-index: 100;
+}
