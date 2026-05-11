@@ -232,3 +232,48 @@ textarea { width: 100%; height: 300px; resize: vertical; background: #080808; co
 .color-row,.die-color-row { display:grid; grid-template-columns:1fr 54px; gap:8px; align-items:center; font-size:12px; padding:6px 8px; color:#eee; }
 .color-row input,.die-color-row input { width:54px; height:26px; border:0; padding:0; background:transparent; }
 .die.counter-die { background:var(--die-color,#25aa3d); cursor:pointer; }
+
+
+/* v22 requested fixes */
+.menu-toggle-active {
+  background: #157a38 !important;
+}
+.inspector {
+  z-index: 2147482000 !important;
+  pointer-events: auto !important;
+}
+#inspectorName {
+  cursor: move !important;
+  background: rgba(255,255,255,.06);
+  padding: 4px 6px;
+  border-radius: 5px;
+}
+.grave-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-radius: 8px;
+  scrollbar-width: thin;
+}
+.grave-scroll-card {
+  position: relative !important;
+  left: 12px !important;
+  top: auto !important;
+  margin-bottom: -125px;
+  transform: none !important;
+}
+.pile.grave .grave-drop {
+  position: absolute;
+  inset: 0;
+}
+.pip {
+  background: var(--pip-color, #111) !important;
+}
+.die.dragging-die {
+  z-index: 2147481500 !important;
+  pointer-events: none !important;
+}
+.exile-grid-card {
+  cursor: grab;
+}

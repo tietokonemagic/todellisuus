@@ -118,6 +118,14 @@
     </div>
   </div>
 
+  <div id="exileModal" class="modal hidden">
+    <div class="modal-box tutor-box">
+      <h2>EXILE</h2>
+      <div id="exileGrid" class="card-grid"></div>
+      <div class="row"><button id="closeExile">CLOSE</button></div>
+    </div>
+  </div>
+
   <div id="helpModal" class="modal hidden">
     <div class="modal-box help-box">
 <pre>D = draw a card
@@ -192,7 +200,8 @@ Click opponent hand card to mark it.</pre>
     <button data-die-value="4">4</button>
     <button data-die-value="5">5</button>
     <button data-die-value="6">6</button>
-    <label class="die-color-row">COLOR <input id="dieColorInput" type="color" value="#25aa3d"></label>
+    <label class="die-color-row">DICE COLOR <input id="dieColorInput" type="color" value="#25aa3d"></label>
+    <label class="die-color-row">PIP COLOR <input id="diePipColorInput" type="color" value="#111111"></label>
   </div>
 
   <div id="resetPrompt" class="reset-prompt hidden">
