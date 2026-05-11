@@ -234,26 +234,59 @@ textarea { width: 100%; height: 300px; resize: vertical; background: #080808; co
 .die.counter-die { background:var(--die-color,#25aa3d); cursor:pointer; }
 
 
-/* v23: drag visual layer. It is above hand so parent layer never hides dragged card.
-   For hand-origin drag, the card keeps the same local z number it had in hand. */
-#dragLayer {
-  position: absolute !important;
-  inset: 0 !important;
-  z-index: 80 !important;
-  pointer-events: none !important;
+/* v22 requested fixes */
+.menu-toggle-active {
+  background: #157a38 !important;
 }
-
-#dragLayer .card {
-  pointer-events: none !important;
+.inspector {
+  z-index: 2147482000 !important;
+  pointer-events: auto !important;
 }
-
-.hand-preview-gap {
-  position: absolute;
-  width: 118px;
-  height: 165px;
-  border-radius: 7px;
-  pointer-events: none;
-  opacity: .24;
-  outline: 1px dashed rgba(255,255,255,.42);
+#inspectorName {
+  cursor: move !important;
   background: rgba(255,255,255,.06);
+  padding: 4px 6px;
+  border-radius: 5px;
+}
+.grave-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-radius: 8px;
+  scrollbar-width: thin;
+}
+.grave-scroll-card {
+  position: relative !important;
+  left: 12px !important;
+  top: auto !important;
+  margin-bottom: -125px;
+  transform: none !important;
+}
+.pile.grave .grave-drop {
+  position: absolute;
+  inset: 0;
+}
+.pip {
+  background: var(--pip-color, #111) !important;
+}
+.die.dragging-die {
+  z-index: 2147481500 !important;
+  pointer-events: none !important;
+}
+.exile-grid-card {
+  cursor: grab;
+}
+
+
+/* v24 live hand insert preview */
+.hand-preview-gap{
+  position:absolute;
+  width:118px;
+  height:165px;
+  border-radius:7px;
+  pointer-events:none;
+  opacity:.28;
+  outline:1px dashed rgba(255,255,255,.55);
+  background:rgba(255,255,255,.08);
 }

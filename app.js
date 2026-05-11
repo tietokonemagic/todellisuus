@@ -13,10 +13,10 @@
   [
     "seatScreen","seatStatus","joinR1P1","joinR1P2","joinR2P1","joinR2P2","kickRoom1","kickRoom2",
     "game","viewport","world","pileLayer","cardLayer","dragLayer","diceLayer","myHand","opponentHand",
-    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","dieMenu","dieColorInput","loadDeckBtn","helpBtn","devTuningBtn","resetVoteBtn","leaveBtn","roomInfo",
+    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","helpBtn","devTuningBtn","resetVoteBtn","leaveBtn","roomInfo",
     "deckModal","deckText","doLoadDeck","closeDeckModal","deckStatus",
     "tutorModal","tutorGrid","tutorToHand","tutorToTable","closeTutor",
-    "graveModal","graveGrid","closeGrave","helpModal","closeHelp",
+    "graveModal","graveGrid","closeGrave","exileModal","exileGrid","closeExile","helpModal","closeHelp",
     "libraryMenu","cardMenu","handCardMenu","resetPrompt","acceptReset","rejectReset",
     "inspector","inspectorMinus","inspectorPlus","inspectorName","inspectorType","inspectorOracle",
     "devPanel","devDragHandle","devReset","devCopy","devClose","devOutput"
@@ -32,7 +32,7 @@
   let contextCardId = null;
   let contextHandCardId = null;
   let drag = null;
-  let handDropPreview = null;
+let handDropPreview = null;
   let handFan = { p1: 0, p2: 0 };
   let handDepth = { p1: 1, p2: 1 };
   let inspectorEnabled = true;
@@ -324,7 +324,7 @@
   }
 
   function makeLifeDice(player, life) {
-    return diceValues(life).map((value, i) => ({ id: uid(), kind: "life", owner: player, value, z: 1000 + i }));
+    return diceValues(life).map((value, i) => ({ id: uid(), kind: "life", owner: player, value, color: "#eeeeee", pipColor: "#111111", z: 1000 + i }));
   }
 
   function makeAllLifeDice(life) {
@@ -406,11 +406,21 @@
           box.className = "grave-drop";
           box.textContent = "GRAVE";
           pile.appendChild(box);
+
+          const scroller = document.createElement("div");
+          scroller.className = "grave-scroll";
+          ownerCards(player, "grave").slice().reverse().forEach((card, i) => {
+            const el = createCardEl(card, "grave-stack-card grave-scroll-card", card.faceDown);
+            el.style.zIndex = String(1000 + i);
+            scroller.appendChild(el);
+          });
+          pile.appendChild(scroller);
         } else {
           const box = document.createElement("div");
           box.className = "exile-box";
           box.textContent = `EXILE ${ownerCards(player, "exile").length}`;
           pile.appendChild(box);
+          pile.addEventListener("dblclick", () => openExile(player));
         }
 
         const count = kind === "library" ? ownerCards(player, "library").length : kind === "grave" ? ownerCards(player, "grave").length : ownerCards(player, "exile").length;
@@ -439,148 +449,57 @@
   function renderCards() {
     els.cardLayer.innerHTML = "";
     battlefieldCards()
-      .filter(card => !(drag && drag.id === card.id))
       .sort((a,b) => (a.z || 1) - (b.z || 1))
       .forEach(card => {
         const el = createCardEl(card, "table-card", card.faceDown);
         el.style.left = (card.x - CARD_W / 2) + "px";
         el.style.top = (card.y - CARD_H / 2) + "px";
         el.style.transform = `rotate(${cardRotation(card)}deg)`;
-        el.style.zIndex = String(card.z || 1);
+
+        if (drag && drag.id === card.id && drag.fromHand) {
+          el.classList.add("dragging-from-hand");
+          el.style.zIndex = String(drag.handZ || 100);
+        } else if (drag && drag.id === card.id && !drag.fromHand) {
+          el.classList.add("dragging-from-table");
+          el.style.zIndex = String(10000);
+        } else {
+          el.style.zIndex = String(card.z || 1);
+        }
+
         els.cardLayer.appendChild(el);
       });
-
-    renderGraveStack("p1");
-    renderGraveStack("p2");
   }
 
 
   function renderGraveStack(player) {
-    const cards = ownerCards(player, "grave");
-    const base = pileBase(player, "grave");
-    cards.slice().reverse().forEach((card, i) => {
-      const el = createCardEl(card, "grave-stack-card", card.faceDown);
-      el.style.left = (base.x + 71 - CARD_W / 2) + "px";
-      el.style.top = (base.y + dev.graveHeight - CARD_H - Math.min(i, 20) * 18) + "px";
-      el.style.transform = player === "p2" ? "rotate(180deg)" : "none";
-      el.style.zIndex = String(500 - i);
-      els.cardLayer.appendChild(el);
-    });
+    // Grave cards are rendered inside the clipped grave-scroll area.
   }
+
 
   function renderDragCard() {
     if (!drag || !drag.id) return;
     const card = state.cards.find(c => c.id === drag.id);
     if (!card || card.zone !== "battlefield") return;
-    if (!els.dragLayer) return;
-
-    els.dragLayer.innerHTML = "";
 
     const fromHand = drag.fromZone && drag.fromZone.endsWith("-hand");
+    const targetLayer = fromHand ? els.cardLayer : els.dragLayer;
+    if (!targetLayer) return;
+
     const el = createCardEl(card, fromHand ? "table-card hand-origin-drag" : "table-card above-hand-drag", card.faceDown);
     el.style.left = (card.x - CARD_W / 2) + "px";
     el.style.top = (card.y - CARD_H / 2) + "px";
     el.style.transform = `rotate(${cardRotation(card)}deg)`;
-    el.style.zIndex = fromHand ? String(drag.handZ || drag.originalHandZ || 100) : "9999";
-    els.dragLayer.appendChild(el);
+
+    // Table/public cards being dragged jump above hand.
+    // Hand cards keep their original hand order number and are not promoted while dragging.
+    el.style.zIndex = fromHand ? String(drag.originalHandZ || 100) : "9999";
+    targetLayer.appendChild(el);
   }
 
-
-  function renderHand(player, container, own) {
-    container.innerHTML = "";
-
-    const fanValue = handFan[player] || 0;
-    const fanT = Math.max(0, Math.min(1, (fanValue + 100) / 200));
-
-    const baseHand = document.createElement("img");
-    baseHand.className = "hand-art hand-art-base";
-    baseHand.src = "hand.png";
-    baseHand.alt = "";
-    baseHand.draggable = false;
-    baseHand.style.width = (dev.handArtSize || 190) + "px";
-    baseHand.style.left = `calc(50% + ${dev.handArtX || 0}px)`;
-    baseHand.style.bottom = (dev.handArtY || 0) + "px";
-    container.appendChild(baseHand);
-
-    const realHand = ownerCards(player, "hand");
-    const items = realHand.map(card => ({ type: "card", card }));
-
-    const draggingFromThisHand =
-      drag &&
-      drag.fromZone === player + "-hand" &&
-      drag.handIndex >= 0 &&
-      !realHand.some(c => c.id === drag.id);
-
-    if (draggingFromThisHand) {
-      const gapIndex = Math.max(0, Math.min(drag.handIndex, items.length));
-      items.splice(gapIndex, 0, { type: "gap", cls: "hand-gap" });
-    }
-
-    const previewingIntoThisHand =
-      handDropPreview &&
-      handDropPreview.player === player &&
-      drag &&
-      drag.id &&
-      !(drag.fromZone === player + "-hand");
-
-    if (previewingIntoThisHand) {
-      const previewIndex = Math.max(0, Math.min(handDropPreview.index, items.length));
-      items.splice(previewIndex, 0, { type: "gap", cls: "hand-preview-gap" });
-    }
-
-    const count = items.length;
-    const t = fanT;
-    const spread = (16 + t * 70) * Math.min(1, 11 / Math.max(1, count));
-    const start = -((count - 1) * spread) / 2;
-    const center = (count - 1) / 2;
-    const depth = handDepth[player] || 1;
-
-    items.forEach((item, index) => {
-      const rel = index - center;
-      const transform = `rotate(${rel * (1.5 + t * 5.5)}deg)`;
-      const z = 100 + (depth > 0 ? index : count - index);
-      const left = 630 + start + index * spread - CARD_W / 2;
-      const bottom = Math.max(-12, 18 - Math.pow(rel, 2) * (0.8 + t * 2.1));
-
-      if (item.type === "gap") {
-        const gap = document.createElement("div");
-        gap.className = item.cls || "hand-gap";
-        gap.style.left = left + "px";
-        gap.style.bottom = bottom + "px";
-        gap.style.transform = transform;
-        gap.style.zIndex = String(z);
-        container.appendChild(gap);
-        return;
-      }
-
-      const card = item.card;
-      const hidden = !own && !state.revealHand[player];
-      const el = createCardEl(card, "hand-card", hidden || card.faceDown);
-
-      el.style.left = left + "px";
-      el.style.bottom = bottom + "px";
-      el.style.transform = transform;
-      el.style.zIndex = String(z);
-      el.style.setProperty("--hand-z", String(z));
-      el.style.setProperty("--hand-transform", transform);
-
-      container.appendChild(el);
-    });
-
-    const thumbX = (dev.thumbMinX || 0) + ((dev.thumbMaxX || 0) - (dev.thumbMinX || 0)) * fanT;
-    const thumbY = (dev.thumbMinY || 0) + ((dev.thumbMaxY || 0) - (dev.thumbMinY || 0)) * fanT;
-
-    const thumb = document.createElement("img");
-    thumb.className = "hand-art hand-art-thumb";
-    thumb.src = "thumb.png";
-    thumb.alt = "";
-    thumb.draggable = false;
-    thumb.style.width = (dev.handArtSize || 190) + "px";
-    thumb.style.left = `calc(50% + ${(dev.handArtX || 0) + thumbX}px)`;
-    thumb.style.bottom = ((dev.handArtY || 0) + thumbY) + "px";
-    container.appendChild(thumb);
+  function renderHands() {
+    renderHand(localPlayer, els.myHand, true);
+    renderHand(otherPlayer(), els.opponentHand, false);
   }
-
 
   function renderHand(player, container, own) {
     container.innerHTML = "";
@@ -610,7 +529,19 @@
 
     if (draggingFromThisHand) {
       const gapIndex = Math.max(0, Math.min(drag.handIndex, items.length));
-      items.splice(gapIndex, 0, { type: "gap" });
+      items.splice(gapIndex, 0, { type: "gap", cls:"hand-gap" });
+    }
+
+
+    const previewingIntoThisHand =
+      handDropPreview &&
+      handDropPreview.player === player &&
+      drag &&
+      !(drag.fromZone === player + "-hand");
+
+    if (previewingIntoThisHand) {
+      const previewIndex = Math.max(0, Math.min(handDropPreview.index, items.length));
+      items.splice(previewIndex, 0, { type:"gap", cls:"hand-preview-gap" });
     }
 
     const count = items.length;
@@ -629,7 +560,7 @@
 
       if (item.type === "gap") {
         const gap = document.createElement("div");
-        gap.className = "hand-gap";
+        gap.className = item.cls || "hand-gap";
         gap.style.left = left + "px";
         gap.style.bottom = bottom + "px";
         gap.style.transform = transform;
@@ -760,19 +691,71 @@
     el.style.left = x + "px";
     el.style.top = y + "px";
     el.style.transform = `rotate(${rot}deg)`;
-    el.style.setProperty("--die-color", d.color || "#25aa3d");
+    el.style.setProperty("--die-color", d.color || (d.kind === "counter" ? "#25aa3d" : "#eeeeee"));
+    el.style.setProperty("--pip-color", d.pipColor || "#111111");
+    el.style.background = d.color || (d.kind === "counter" ? "#25aa3d" : "#eeeeee");
     el.style.zIndex = String(d.z || 1000);
 
     for (const p of PIPS[Math.max(1, Math.min(6, Number(d.value) || 1))]) {
       const pip = document.createElement("div");
       pip.className = "pip p" + p;
+      pip.style.setProperty("--pip-color", d.pipColor || "#111111");
       el.appendChild(pip);
     }
 
     el.addEventListener("mouseenter", () => hoveredDieId = d.id);
     el.addEventListener("mouseleave", () => { if (hoveredDieId === d.id) hoveredDieId = null; });
     el.addEventListener("contextmenu", e => { e.preventDefault(); openDieMenu(e, d); });
+    el.addEventListener("pointerdown", e => onDiePointerDown(e, d));
     els.diceLayer.appendChild(el);
+  }
+
+  let dieDrag = null;
+
+  function onDiePointerDown(e, die) {
+    if (e.button !== 0) return;
+    if (!die || die.owner !== localPlayer) return;
+    closeMenus();
+    const p = tablePoint(e.clientX, e.clientY, false);
+    const startX = die.kind === "life" ? p.x : (die.x || p.x);
+    const startY = die.kind === "life" ? p.y : (die.y || p.y);
+    dieDrag = {
+      id: die.id,
+      kind: die.kind,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      offsetX: p.x - startX,
+      offsetY: p.y - startY
+    };
+    e.preventDefault();
+    e.stopPropagation();
+    document.addEventListener("pointermove", onDieDragMove);
+    document.addEventListener("pointerup", onDieDragEnd, { once: true });
+  }
+
+  function onDieDragMove(e) {
+    if (!dieDrag) return;
+    const die = state.dice.find(d => d.id === dieDrag.id);
+    if (!die) return;
+    const p = tablePoint(e.clientX, e.clientY);
+    die.x = snap(p.x - dieDrag.offsetX);
+    die.y = snap(p.y - dieDrag.offsetY);
+    die.kind = "counter";
+    die.z = 3000;
+    renderDice();
+  }
+
+  function onDieDragEnd(e) {
+    document.removeEventListener("pointermove", onDieDragMove);
+    if (!dieDrag) return;
+    const die = state.dice.find(d => d.id === dieDrag.id);
+    if (!die) { dieDrag = null; return; }
+    const pile = pileAt(e.clientX, e.clientY);
+    if (pile && pile.kind === "exile") {
+      state.dice = state.dice.filter(d => d.id !== die.id);
+    }
+    dieDrag = null;
+    push();
   }
 
   function onCardPointerDown(e, card) {
@@ -801,7 +784,6 @@
       fromHand,
       handIndex,
       handZ,
-      originalHandZ: handZ,
       startClientX: e.clientX,
       startClientY: e.clientY,
       offsetX: pointer.x - visualCenter.x,
@@ -817,18 +799,56 @@
       card.z = handZ;
     } else {
       bringToFront(card);
-      card.z = 10000;
     }
 
-    card.zone = "battlefield";
-    render();
+    if (fromHand) {
+      card.zone = "battlefield";
+      render();
+      drag.el = els.cardLayer.querySelector(`[data-card-id="${card.id}"]`);
+    } else {
+      drag.el = e.currentTarget;
+      drag.el.classList.add("dragging-from-table");
+    }
 
     document.addEventListener("pointermove", onCardDragMove);
     document.addEventListener("pointerup", onCardDragEnd, { once: true });
   }
 
 
-  function onCardDragMove(e) {
+  
+
+function handInsertIndexAtClientX(player, clientX){
+  const rect = els.myHand.getBoundingClientRect();
+  const hand = ownerCards(player,"hand").filter(c => !(drag && c.id === drag.id));
+  const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(1, rect.width)));
+  return Math.max(0, Math.min(hand.length, Math.round(ratio * hand.length)));
+}
+
+function updateHandDropPreview(clientX, clientY){
+  const rect = els.myHand.getBoundingClientRect();
+  const inside =
+    clientX >= rect.left &&
+    clientX <= rect.right &&
+    clientY >= rect.top &&
+    clientY <= rect.bottom;
+
+  if (!inside || !drag || drag.fromZone === localPlayer + "-hand"){
+    if(handDropPreview){
+      handDropPreview = null;
+      renderHands();
+    }
+    return;
+  }
+
+  const idx = handInsertIndexAtClientX(localPlayer, clientX);
+
+  if(!handDropPreview || handDropPreview.index !== idx){
+    handDropPreview = { player: localPlayer, index: idx };
+    renderHands();
+  }
+}
+
+function onCardDragMove(e) {
     if (!drag) return;
     const card = state.cards.find(c => c.id === drag.id);
     if (!card) return;
@@ -840,10 +860,15 @@
     if (drag.fromHand) card.z = drag.handZ || card.z || 100;
     else card.z = 10000;
 
-    updateHandDropPreview(e.clientX, e.clientY);
-    renderDragCard();
+    const el = drag.el || els.cardLayer.querySelector(`[data-card-id="${card.id}"]`);
+    if (el) {
+      drag.el = el;
+      el.style.left = (card.x - CARD_W / 2) + "px";
+      el.style.top = (card.y - CARD_H / 2) + "px";
+      el.style.transform = `rotate(${cardRotation(card)}deg)`;
+      el.style.zIndex = String(drag.fromHand ? (drag.handZ || 100) : 10000);
+    }
   }
-
 
   function handDropAt(clientX, clientY) {
     if (!localPlayer) return null;
@@ -852,42 +877,12 @@
     return inside ? localPlayer : null;
   }
 
-  function handInsertIndexAtClientX(player, clientX) {
-    const rect = els.myHand.getBoundingClientRect();
-    const hand = ownerCards(player, "hand").filter(c => !(drag && c.id === drag.id));
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(1, rect.width)));
-    return Math.max(0, Math.min(hand.length, Math.round(ratio * hand.length)));
-  }
-
-  function updateHandDropPreview(clientX, clientY) {
-    const player = handDropAt(clientX, clientY);
-    if (!player || !drag || drag.fromZone === player + "-hand") {
-      if (handDropPreview) {
-        handDropPreview = null;
-        renderHands();
-      }
-      return;
-    }
-
-    const index = handInsertIndexAtClientX(player, clientX);
-    if (!handDropPreview || handDropPreview.player !== player || handDropPreview.index !== index) {
-      handDropPreview = { player, index };
-      renderHands();
-    }
-  }
-
-  function insertIntoHandAtWorldX(card, player, worldX, indexOverride = null) {
+  function insertIntoHandAtWorldX(card, player, worldX) {
     const zone = player + "-hand";
     const hand = ownerCards(player, "hand").filter(c => c.id !== card.id);
     const others = state.cards.filter(c => c.zone !== zone && c.id !== card.id);
-
-    let index = indexOverride;
-    if (index === null || index === undefined) {
-      const ratio = Math.max(0, Math.min(1, (worldX - 330) / 1260));
-      index = Math.round(ratio * hand.length);
-    }
-
-    index = Math.max(0, Math.min(hand.length, index));
+    const ratio = Math.max(0, Math.min(1, (worldX - 330) / 1260));
+    const index = Math.round(ratio * hand.length);
     card.zone = zone;
     card.tapped = false;
     card.faceDown = false;
@@ -901,14 +896,13 @@
     if (!drag) return;
 
     const currentDrag = drag;
-    const currentPreview = handDropPreview;
     const card = state.cards.find(c => c.id === currentDrag.id);
     const moved = Math.hypot(e.clientX - currentDrag.startClientX, e.clientY - currentDrag.startClientY);
 
     if (!card) {
       drag = null;
-      handDropPreview = null;
-      if (els.dragLayer) els.dragLayer.innerHTML = "";
+  handDropPreview = null;
+  renderHands();
       return;
     }
 
@@ -916,38 +910,43 @@
       card.zone = currentDrag.fromZone;
       card.z = currentDrag.handZ || card.z;
       drag = null;
-      handDropPreview = null;
-      if (els.dragLayer) els.dragLayer.innerHTML = "";
+  handDropPreview = null;
+  renderHands();
       push();
       return;
     }
 
-    const handPlayer = handDropAt(e.clientX, e.clientY);
-    if (handPlayer === localPlayer) {
-      insertIntoHandAtWorldX(card, handPlayer, card.x, currentPreview && currentPreview.player === handPlayer ? currentPreview.index : null);
+    const pile = pileAt(e.clientX, e.clientY);
+    if (pile) {
+      moveCardToZone(card, pile.player + "-" + pile.kind);
     } else {
-      const pile = pileAt(e.clientX, e.clientY);
-      if (pile) {
-        moveCardToZone(card, pile.player + "-" + pile.kind);
-      } else {
-        card.zone = "battlefield";
-        card.marked = false;
-        if (currentDrag.fromHand) bringToFront(card);
-      }
+      card.zone = "battlefield";
+      card.marked = false;
+      if (currentDrag.fromHand) bringToFront(card);
     }
 
     drag = null;
-    handDropPreview = null;
-    if (els.dragLayer) els.dragLayer.innerHTML = "";
+  handDropPreview = null;
+  renderHands();
     push();
   }
 
 
   function pileAt(clientX, clientY) {
-    const el = document.elementFromPoint(clientX, clientY);
-    const pile = el && el.closest ? el.closest(".pile") : null;
-    if (!pile) return null;
-    return { player: pile.dataset.player, kind: pile.dataset.kind };
+    const p = tablePoint(clientX, clientY, false);
+    const candidates = [];
+    for (const player of ["p1", "p2"]) {
+      for (const kind of ["grave", "exile", "library"]) {
+        const b = pileBase(player, kind);
+        const w = 142;
+        const h = kind === "grave" ? Number(dev.graveHeight || 260) : kind === "exile" ? Number(dev.exileHeight || 64) : 198;
+        const pad = kind === "grave" || kind === "exile" ? 22 : 0;
+        if (p.x >= b.x - pad && p.x <= b.x + w + pad && p.y >= b.y - pad && p.y <= b.y + h + pad) {
+          candidates.push({ player, kind });
+        }
+      }
+    }
+    return candidates[0] || null;
   }
 
   function openLibraryMenu(e, player) {
@@ -1010,6 +1009,30 @@
     selectedTutorId = null;
     els.tutorModal.classList.add("hidden");
     push();
+  }
+
+  function openExile(player) {
+    els.exileGrid.innerHTML = "";
+    ownerCards(player, "exile").slice().reverse().forEach(card => {
+      const wrap = document.createElement("div");
+      wrap.className = "grid-card exile-grid-card";
+      wrap.dataset.cardId = card.id;
+      const img = document.createElement("img");
+      img.src = card.faceDown ? "lapi2.png" : (card.image || "lapi2.png");
+      wrap.appendChild(img);
+      wrap.addEventListener("pointerdown", e => {
+        if (card.owner !== localPlayer) return;
+        els.exileModal.classList.add("hidden");
+        card.zone = "battlefield";
+        const p = tablePoint(e.clientX, e.clientY);
+        card.x = p.x;
+        card.y = p.y;
+        bringToFront(card);
+        push();
+      });
+      els.exileGrid.appendChild(wrap);
+    });
+    els.exileModal.classList.remove("hidden");
   }
 
   function openOpponentGrave() {
@@ -1244,7 +1267,11 @@
     }
   }
 
-  function toggleSection(el) { if (el) el.classList.toggle("hidden"); }
+  function toggleSection(el, btn) {
+    if (!el) return;
+    el.classList.toggle("hidden");
+    if (btn) btn.classList.toggle("menu-toggle-active", !el.classList.contains("hidden"));
+  }
 
   function addToken(file) {
     const card = { id: uid(), owner: localPlayer, zone: "battlefield", x: 960, y: localPlayer === "p1" ? 720 : 360, z: 1000 + state.cards.length, tapped: false, faceDown: false, marked: false, name: file.replace(".png",""), typeLine: "Token", oracle: "", image: "token/" + file };
@@ -1252,14 +1279,15 @@
   }
 
   function addCounterDie() {
-    state.dice.push({ id: uid(), kind: "counter", owner: localPlayer, value: 3, color: "#25aa3d", x: 960, y: localPlayer === "p1" ? 720 : 360, z: 2000 });
+    state.dice.push({ id: uid(), kind: "counter", owner: localPlayer, value: 3, color: "#25aa3d", pipColor: "#111111", x: 960, y: localPlayer === "p1" ? 720 : 360, z: 2000 });
     push();
   }
 
   let dieMenuTargetId = null;
   function openDieMenu(e, die) {
     dieMenuTargetId = die.id;
-    if (els.dieColorInput) els.dieColorInput.value = die.color || "#25aa3d";
+    if (els.dieColorInput) els.dieColorInput.value = die.color || (die.kind === "counter" ? "#25aa3d" : "#eeeeee");
+    if (els.diePipColorInput) els.diePipColorInput.value = die.pipColor || "#111111";
     els.dieMenu.style.left = e.clientX + "px";
     els.dieMenu.style.top = e.clientY + "px";
     els.dieMenu.classList.remove("hidden");
@@ -1275,14 +1303,34 @@
 
   els.mainMenuBtn.onclick = () => els.mainMenu.classList.toggle("hidden");
   populateGreenMenuLists();
-  if (els.playmatMenuBtn) els.playmatMenuBtn.onclick = () => toggleSection(els.playmatMenu);
-  if (els.sleevesMenuBtn) els.sleevesMenuBtn.onclick = () => toggleSection(els.sleevesMenu);
-  if (els.addTokenMenuBtn) els.addTokenMenuBtn.onclick = () => toggleSection(els.tokenMenu);
+  if (els.playmatMenuBtn) els.playmatMenuBtn.onclick = () => toggleSection(els.playmatMenu, els.playmatMenuBtn);
+  if (els.sleevesMenuBtn) els.sleevesMenuBtn.onclick = () => toggleSection(els.sleevesMenu, els.sleevesMenuBtn);
+  if (els.addTokenMenuBtn) els.addTokenMenuBtn.onclick = () => toggleSection(els.tokenMenu, els.addTokenMenuBtn);
   if (els.ogBackSleeveBtn) els.ogBackSleeveBtn.onclick = () => { state.sleeves[localPlayer] = { type: "og", color: "#6a3b20" }; push(); };
   if (els.sleeveColorInput) els.sleeveColorInput.oninput = () => { state.sleeves[localPlayer] = { type: "color", color: els.sleeveColorInput.value }; push(); };
   if (els.addDiceBtn) els.addDiceBtn.onclick = () => addCounterDie();
-  if (els.dieMenu) els.dieMenu.addEventListener("click", e => { const btn = e.target.closest("button[data-die-value]"); if (!btn) return; const die = state.dice.find(d => d.id === dieMenuTargetId); if (!die) return; die.value = Number(btn.dataset.dieValue); closeMenus(); push(); });
-  if (els.dieColorInput) els.dieColorInput.oninput = () => { const die = state.dice.find(d => d.id === dieMenuTargetId); if (!die) return; die.color = els.dieColorInput.value; push(); };
+  if (els.dieMenu) els.dieMenu.addEventListener("click", e => {
+    const btn = e.target.closest("button[data-die-value]");
+    if (!btn) return;
+    const die = state.dice.find(d => d.id === dieMenuTargetId);
+    if (!die) return;
+    die.value = Number(btn.dataset.dieValue);
+    if (die.kind === "life") state.life[die.owner] = state.dice.filter(d => d.kind === "life" && d.owner === die.owner).reduce((a,d)=>a+Number(d.value||0),0);
+    closeMenus();
+    push();
+  });
+  if (els.dieColorInput) els.dieColorInput.oninput = () => {
+    const die = state.dice.find(d => d.id === dieMenuTargetId);
+    if (!die) return;
+    die.color = els.dieColorInput.value;
+    push();
+  };
+  if (els.diePipColorInput) els.diePipColorInput.oninput = () => {
+    const die = state.dice.find(d => d.id === dieMenuTargetId);
+    if (!die) return;
+    die.pipColor = els.diePipColorInput.value;
+    push();
+  };
 
 
   els.loadDeckBtn.onclick = () => els.deckModal.classList.remove("hidden");
@@ -1303,6 +1351,7 @@
   els.tutorToHand.onclick = () => takeTutor("hand");
   els.tutorToTable.onclick = () => takeTutor("table");
   els.closeGrave.onclick = () => els.graveModal.classList.add("hidden");
+  if (els.closeExile) els.closeExile.onclick = () => els.exileModal.classList.add("hidden");
 
   els.inspectorMinus.onclick = () => { inspectorFont = Math.max(9, inspectorFont - 1); els.inspector.style.fontSize = inspectorFont + "px"; };
   els.inspectorPlus.onclick = () => { inspectorFont = Math.min(28, inspectorFont + 1); els.inspector.style.fontSize = inspectorFont + "px"; };
@@ -1401,8 +1450,14 @@
   window.addEventListener("keydown", e => {
     if (!localPlayer) return;
     if (/^[1-6]$/.test(e.key)) {
-      const die = state.dice.find(d => d.id === hoveredDieId && d.kind === "counter");
-      if (die) { die.value = Number(e.key); push(); e.preventDefault(); return; }
+      const die = state.dice.find(d => d.id === hoveredDieId);
+      if (die) {
+        die.value = Number(e.key);
+        if (die.kind === "life") state.life[die.owner] = state.dice.filter(d => d.kind === "life" && d.owner === die.owner).reduce((a,d)=>a+Number(d.value||0),0);
+        push();
+        e.preventDefault();
+        return;
+      }
     }
     if (e.key === "Tab") { e.preventDefault(); drawOne(localPlayer); return; }
     if (e.key === "1") { e.preventDefault(); drawOne(localPlayer); return; }
@@ -1448,8 +1503,8 @@
       catch { return {}; }
     })();
 
-    if (saved.left != null) els.inspector.style.left = saved.left + "px";
-    if (saved.top != null) els.inspector.style.top = saved.top + "px";
+    if (saved.left != null) { els.inspector.style.left = saved.left + "px"; els.inspector.style.right = "auto"; }
+    if (saved.top != null) { els.inspector.style.top = saved.top + "px"; els.inspector.style.bottom = "auto"; }
     if (saved.width != null) els.inspector.style.width = saved.width + "px";
     if (saved.height != null) els.inspector.style.height = saved.height + "px";
 
@@ -1497,8 +1552,10 @@
   }
 
   if (document.getElementById("inspectorToggleBtn")) {
+    document.getElementById("inspectorToggleBtn").classList.toggle("menu-toggle-active", inspectorEnabled);
     document.getElementById("inspectorToggleBtn").onclick = () => {
       inspectorEnabled = !inspectorEnabled;
+      document.getElementById("inspectorToggleBtn").classList.toggle("menu-toggle-active", inspectorEnabled);
       if (inspectorEnabled) {
         const card = state.cards.find(c => c.id === currentInspectorCardId);
         if (card) showInspector(card);
