@@ -457,14 +457,25 @@
   function cardRenderPosition(card) {
     if (!card.tapped) return { x: card.x, y: card.y };
 
-    // Tapped geometry: original untapped corner D must land where original C was.
-    // With center-based 90° rotation, this is achieved by shifting the center by:
-    // dx = -(CARD_W + CARD_H) / 2, dy = (CARD_W - CARD_H) / 2
-    // for p1/local-facing cards. Mirrored for opponent-facing cards.
-    const sign = card.owner === localPlayer ? 1 : -1;
+    // Untapped corners: A top-left, B top-right, C bottom-left, D bottom-right.
+    // When tapped, rotated D must land where untapped C was.
+    const baseDeg = cardRotation(card) - 90;
+    const tappedDeg = cardRotation(card);
+
+    function rot(pt, deg) {
+      const a = deg * Math.PI / 180;
+      return {
+        x: pt.x * Math.cos(a) - pt.y * Math.sin(a),
+        y: pt.x * Math.sin(a) + pt.y * Math.cos(a)
+      };
+    }
+
+    const untappedC = rot({ x: -CARD_W / 2, y: CARD_H / 2 }, baseDeg);
+    const tappedD = rot({ x: CARD_W / 2, y: CARD_H / 2 }, tappedDeg);
+
     return {
-      x: card.x - sign * ((CARD_W + CARD_H) / 2),
-      y: card.y + sign * ((CARD_W - CARD_H) / 2)
+      x: card.x + untappedC.x - tappedD.x,
+      y: card.y + untappedC.y - tappedD.y
     };
   }
 
