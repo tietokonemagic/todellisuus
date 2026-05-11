@@ -452,8 +452,22 @@
 
   function renderHand(player, container, own) {
     container.innerHTML = "";
-    const hand = ownerCards(player, "hand");
-    const count = hand.length;
+
+    const realHand = ownerCards(player, "hand");
+    const items = realHand.map(card => ({ type: "card", card }));
+
+    const draggingFromThisHand =
+      drag &&
+      drag.fromZone === player + "-hand" &&
+      drag.handIndex >= 0 &&
+      !realHand.some(c => c.id === drag.id);
+
+    if (draggingFromThisHand) {
+      const gapIndex = Math.max(0, Math.min(drag.handIndex, items.length));
+      items.splice(gapIndex, 0, { type: "gap" });
+    }
+
+    const count = items.length;
     const fanValue = handFan[player] || 0;
     const t = Math.max(0, Math.min(1, (fanValue + 100) / 200));
     const spread = (16 + t * 70) * Math.min(1, 11 / Math.max(1, count));
@@ -461,15 +475,30 @@
     const center = (count - 1) / 2;
     const depth = handDepth[player] || 1;
 
-    hand.forEach((card, index) => {
-      const hidden = !own && !state.revealHand[player];
-      const el = createCardEl(card, "hand-card", hidden || card.faceDown);
+    items.forEach((item, index) => {
       const rel = index - center;
       const transform = `rotate(${rel * (1.5 + t * 5.5)}deg)`;
       const z = 100 + (depth > 0 ? index : count - index);
+      const left = 630 + start + index * spread - CARD_W / 2;
+      const bottom = Math.max(-12, 18 - Math.pow(rel, 2) * (0.8 + t * 2.1));
 
-      el.style.left = (630 + start + index * spread - CARD_W / 2) + "px";
-      el.style.bottom = Math.max(-12, 18 - Math.pow(rel, 2) * (0.8 + t * 2.1)) + "px";
+      if (item.type === "gap") {
+        const gap = document.createElement("div");
+        gap.className = "hand-gap";
+        gap.style.left = left + "px";
+        gap.style.bottom = bottom + "px";
+        gap.style.transform = transform;
+        gap.style.zIndex = String(z);
+        container.appendChild(gap);
+        return;
+      }
+
+      const card = item.card;
+      const hidden = !own && !state.revealHand[player];
+      const el = createCardEl(card, "hand-card", hidden || card.faceDown);
+
+      el.style.left = left + "px";
+      el.style.bottom = bottom + "px";
       el.style.transform = transform;
       el.style.zIndex = String(z);
       el.style.setProperty("--hand-z", String(z));
@@ -586,6 +615,9 @@
     drag = {
       id: card.id,
       fromZone,
+      handIndex: fromZone && fromZone.endsWith("-hand")
+        ? ownerCards(card.owner, "hand").findIndex(c => c.id === card.id)
+        : -1,
       startClientX: e.clientX,
       startClientY: e.clientY,
       offsetX: pointer.x - visualCenter.x,
@@ -1148,8 +1180,8 @@
   bindDev();
 
 
-  // v16: robust battlefield double-click tap/untap.
-  // Uses both dblclick and a pointerup double-tap fallback.
+  // v17: robust battlefield double-click tap/untap.
+  // Detects second click on pointerdown capture, before the drag handler starts.
   function cardFromElement(el) {
     if (!el) return null;
     const id = el.dataset.cardId;
@@ -1169,15 +1201,9 @@
     return true;
   }
 
-  document.addEventListener("dblclick", e => {
-    const el = e.target.closest?.(".card");
-    if (!el) return;
-    toggleBattlefieldTapFromElement(el, e);
-  }, true);
-
   let lastTapClick = { id: null, t: 0, x: 0, y: 0 };
 
-  document.addEventListener("pointerup", e => {
+  document.addEventListener("pointerdown", e => {
     if (e.button !== 0) return;
     const el = e.target.closest?.(".card");
     if (!el) return;
@@ -1197,6 +1223,13 @@
 
     lastTapClick = { id: card.id, t: now, x: e.clientX, y: e.clientY };
   }, true);
+
+  document.addEventListener("dblclick", e => {
+    const el = e.target.closest?.(".card");
+    if (!el) return;
+    toggleBattlefieldTapFromElement(el, e);
+  }, true);
+
 
   window.CleanTable = {
     initialState,

@@ -174,3 +174,15 @@ textarea { width: 100%; height: 300px; resize: vertical; background: #080808; co
   scale: 1 !important;
   translate: 0 0 !important;
 }
+
+/* v17: visible empty slot while dragging a card out of hand */
+.hand-gap {
+  position: absolute;
+  width: 118px;
+  height: 165px;
+  border-radius: 7px;
+  pointer-events: none;
+  opacity: .18;
+  outline: 1px dashed rgba(255,255,255,.35);
+  background: rgba(255,255,255,.04);
+}
