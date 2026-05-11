@@ -18,7 +18,7 @@
     "tutorModal","tutorGrid","tutorToHand","tutorToTable","closeTutor",
     "graveModal","graveGrid","closeGrave","exileModal","exileGrid","closeExile","helpModal","closeHelp",
     "libraryMenu","cardMenu","handCardMenu","resetPrompt","acceptReset","rejectReset",
-    "inspector","inspectorMinus","inspectorPlus","inspectorName","inspectorType","inspectorOracle",
+    "inspector","inspectorHeader","inspectorMinus","inspectorPlus","inspectorName","inspectorType","inspectorOracle",
     "devPanel","devDragHandle","devReset","devCopy","devClose","devOutput"
   ].forEach(id => els[id] = document.getElementById(id));
 
@@ -76,7 +76,11 @@
     "handDropZoneX": 0,
     "handDropZoneY": 0,
     "handDropZoneWidth": 236,
-    "handDropZoneHeight": 190
+    "handDropZoneHeight": 190,
+    "handSafeZoneX": 0,
+    "handSafeZoneY": 0,
+    "handSafeZoneWidth": 520,
+    "handSafeZoneHeight": 260
 };
   let dev = loadDev();
 
@@ -371,6 +375,7 @@
     renderDice();
     renderDragCard();
     renderHandDropZoneDebug();
+    renderHandSafeZoneDebug();
   }
 
   function renderPlaymats() {
@@ -444,6 +449,14 @@
     return (desired - worldRot + 360) % 360 + (card.tapped ? 90 : 0);
   }
 
+  function cardRenderPosition(card) {
+    if (!card.tapped) return { x: card.x, y: card.y };
+    const sign = card.owner === localPlayer ? 1 : -1;
+    const d = (CARD_H - CARD_W) / 2;
+    return { x: card.x + sign * d, y: card.y - sign * d };
+  }
+
+
   function cardVisibleToMe(card) {
     if (!card) return false;
     if (card.zone === otherPlayer() + "-hand" && !state.revealHand[otherPlayer()]) return false;
@@ -458,8 +471,9 @@
       .sort((a,b) => (a.z || 1) - (b.z || 1))
       .forEach(card => {
         const el = createCardEl(card, "table-card", card.faceDown);
-        el.style.left = (card.x - CARD_W / 2) + "px";
-        el.style.top = (card.y - CARD_H / 2) + "px";
+        const pos = cardRenderPosition(card);
+        el.style.left = (pos.x - CARD_W / 2) + "px";
+        el.style.top = (pos.y - CARD_H / 2) + "px";
         el.style.transform = `rotate(${cardRotation(card)}deg)`;
         el.style.zIndex = String(card.z || 1);
         els.cardLayer.appendChild(el);
@@ -881,6 +895,39 @@
     el.classList.remove("hidden");
   }
 
+  function handSafeZoneRect() {
+    const rect = els.myHand.getBoundingClientRect();
+    const w = Number(dev.handSafeZoneWidth || 520);
+    const h = Number(dev.handSafeZoneHeight || 260);
+    const x = rect.left + rect.width / 2 - w / 2 + Number(dev.handSafeZoneX || 0);
+    const y = rect.top + rect.height / 2 - h / 2 + Number(dev.handSafeZoneY || 0);
+    return { left: x, top: y, right: x + w, bottom: y + h, width: w, height: h };
+  }
+
+  function renderHandSafeZoneDebug() {
+    const el = document.getElementById("handSafeZoneDebug");
+    if (!el) return;
+
+    const devOpen = els.devPanel && !els.devPanel.classList.contains("hidden");
+    if (!devOpen || !localPlayer) {
+      el.classList.add("hidden");
+      return;
+    }
+
+    const r = handSafeZoneRect();
+    el.style.left = r.left + "px";
+    el.style.top = r.top + "px";
+    el.style.width = r.width + "px";
+    el.style.height = r.height + "px";
+    el.classList.remove("hidden");
+  }
+
+  function handSafeAt(clientX, clientY) {
+    if (!localPlayer) return false;
+    const r = handSafeZoneRect();
+    return clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom;
+  }
+
   function handDropAt(clientX, clientY) {
     if (!localPlayer) return null;
     const r = handDropZoneRect();
@@ -963,7 +1010,9 @@
     }
 
     const handPlayer = handDropAt(e.clientX, e.clientY);
-    if (handPlayer === localPlayer) {
+    if (currentDrag.fromHand && handSafeAt(e.clientX, e.clientY)) {
+      insertIntoHandAtWorldX(card, localPlayer, card.x, currentDrag.handIndex);
+    } else if (handPlayer === localPlayer) {
       insertIntoHandAtWorldX(
         card,
         handPlayer,
@@ -1107,31 +1156,37 @@
   function showInspector(card) {
     currentInspectorCardId = card ? card.id : null;
     if (!inspectorEnabled) return;
+
+    els.inspector.classList.remove("hidden");
+    els.inspector.style.fontSize = inspectorFont + "px";
+
     if (!card || !cardVisibleToMe(card)) {
-      clearInspectorContent();
+      els.inspectorName.textContent = "INSPECTOR";
+      els.inspectorType.textContent = "";
+      els.inspectorOracle.textContent = "Hover a visible card.";
       return;
     }
-    els.inspector.classList.remove("hidden");
-    els.inspector.classList.add("visible-empty");
-    els.inspector.style.fontSize = inspectorFont + "px";
+
     els.inspectorName.textContent = card.name || "";
     els.inspectorType.textContent = card.typeLine || "";
     els.inspectorOracle.textContent = card.oracle || "";
   }
 
+
   function clearInspectorContent() {
     if (!inspectorEnabled) return;
     els.inspector.classList.remove("hidden");
-    els.inspector.classList.add("visible-empty");
     els.inspectorName.textContent = "INSPECTOR";
     els.inspectorType.textContent = "";
     els.inspectorOracle.textContent = "Hover a visible card.";
   }
 
+
   function hideInspector() {
     currentInspectorCardId = null;
     clearInspectorContent();
   }
+
 
   function rectCenter(el) {
     const r = el?.getBoundingClientRect();
@@ -1295,7 +1350,7 @@
       els.devPanel.style.left = Math.max(0, Math.min(innerWidth - 80, e.clientX - dragDev.dx)) + "px";
       els.devPanel.style.top = Math.max(0, Math.min(innerHeight - 40, e.clientY - dragDev.dy)) + "px";
     });
-    document.addEventListener("pointerup", () => { dragDev = null; renderHandDropZoneDebug(); });
+    document.addEventListener("pointerup", () => { dragDev = null; renderHandDropZoneDebug(); renderHandSafeZoneDebug(); });
   }
 
   const PLAYMAT_FILES = ["zombi.png","vault.png","urzaglas.png","unicorn.png","terrain.png","terracorn.png","spawn.png","purge.png","phantom.png","pesti.png","mold.png","mire.png","miracle.png","mesa.png","life.png","kudzu.png","hordes.png","hell.png","grem2.png","grem1.png","golem.png","geddon.png","gate.png","flash2.png","flash.png","farm.png","dance.png","cross.png","cland.png","camel.png","boris.png","bluemana2.png","bluemana1.png","allergy2.png","allergy1.png"];
@@ -1394,7 +1449,7 @@
   els.doLoadDeck.onclick = loadDeck;
   els.helpBtn.onclick = () => els.helpModal.classList.remove("hidden");
   els.closeHelp.onclick = () => els.helpModal.classList.add("hidden");
-  els.devTuningBtn.onclick = () => { els.devPanel.classList.toggle("hidden"); renderHandDropZoneDebug(); };
+  els.devTuningBtn.onclick = () => { els.devPanel.classList.toggle("hidden"); renderHandDropZoneDebug(); renderHandSafeZoneDebug(); };
   els.devClose.onclick = () => els.devPanel.classList.add("hidden");
   els.devReset.onclick = () => { dev = { ...devDefaults }; saveDev(); bindDev(); render(); };
   els.devCopy.onclick = async () => { const text = JSON.stringify(dev, null, 2); els.devOutput.value = text; try { await navigator.clipboard.writeText(text); } catch {} };
@@ -1555,22 +1610,23 @@
 
   function bindInspectorPanel() {
     const saved = (() => {
-      try { return JSON.parse(localStorage.getItem("oldschoolInspectorPanelV15") || "{}"); }
+      try { return JSON.parse(localStorage.getItem("oldschoolInspectorPanelV26") || "{}"); }
       catch { return {}; }
     })();
 
-    if (saved.left != null) { els.inspector.style.left = saved.left + "px"; els.inspector.style.right = "auto"; }
-    if (saved.top != null) { els.inspector.style.top = saved.top + "px"; els.inspector.style.bottom = "auto"; }
+    if (saved.left != null) els.inspector.style.left = saved.left + "px";
+    if (saved.top != null) els.inspector.style.top = saved.top + "px";
     if (saved.width != null) els.inspector.style.width = saved.width + "px";
     if (saved.height != null) els.inspector.style.height = saved.height + "px";
 
     let dragInspector = null;
-    els.inspectorName.addEventListener("pointerdown", e => {
+
+    els.inspectorHeader.addEventListener("pointerdown", e => {
       if (!inspectorEnabled) return;
       const r = els.inspector.getBoundingClientRect();
       dragInspector = { dx: e.clientX - r.left, dy: e.clientY - r.top };
-      els.inspector.classList.add("dragging-inspector");
       e.preventDefault();
+      e.stopPropagation();
     });
 
     document.addEventListener("pointermove", e => {
@@ -1581,12 +1637,12 @@
       els.inspector.style.top = top + "px";
       els.inspector.style.right = "auto";
       els.inspector.style.bottom = "auto";
+      e.preventDefault();
     });
 
     document.addEventListener("pointerup", () => {
       if (!dragInspector) return;
       dragInspector = null;
-      els.inspector.classList.remove("dragging-inspector");
       saveInspectorPanel();
     });
 
@@ -1599,7 +1655,7 @@
 
   function saveInspectorPanel() {
     const r = els.inspector.getBoundingClientRect();
-    localStorage.setItem("oldschoolInspectorPanelV15", JSON.stringify({
+    localStorage.setItem("oldschoolInspectorPanelV26", JSON.stringify({
       left: Math.round(r.left),
       top: Math.round(r.top),
       width: Math.round(r.width),
@@ -1608,10 +1664,9 @@
   }
 
   if (document.getElementById("inspectorToggleBtn")) {
-    document.getElementById("inspectorToggleBtn").classList.toggle("menu-toggle-active", inspectorEnabled);
     document.getElementById("inspectorToggleBtn").onclick = () => {
       inspectorEnabled = !inspectorEnabled;
-      document.getElementById("inspectorToggleBtn").classList.toggle("menu-toggle-active", inspectorEnabled);
+      document.getElementById("inspectorToggleBtn").classList.toggle("active", inspectorEnabled);
       if (inspectorEnabled) {
         const card = state.cards.find(c => c.id === currentInspectorCardId);
         if (card) showInspector(card);
@@ -1620,6 +1675,7 @@
         els.inspector.classList.add("hidden");
       }
     };
+    document.getElementById("inspectorToggleBtn").classList.toggle("active", inspectorEnabled);
   }
 
   bindInspectorPanel();

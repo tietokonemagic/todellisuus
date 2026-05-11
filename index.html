@@ -212,15 +212,17 @@ Click opponent hand card to mark it.</pre>
       <button id="rejectReset">NO</button>
     </div>
   </div>
-
   <div id="inspector" class="inspector hidden">
-    <div class="inspector-controls">
-      <button id="inspectorMinus">-</button>
-      <button id="inspectorPlus">+</button>
+    <div id="inspectorHeader" class="inspector-header">
+      <span>INSPECTOR</span>
+      <div class="inspector-buttons">
+        <button id="inspectorMinus">-</button>
+        <button id="inspectorPlus">+</button>
+      </div>
     </div>
     <div id="inspectorName"></div>
     <div id="inspectorType"></div>
-    <div id="inspectorOracle"></div>
+    <div id="inspectorOracle">Hover a visible card.</div>
   </div>
 
   <div id="devPanel" class="dev-panel hidden">
@@ -260,6 +262,11 @@ Click opponent hand card to mark it.</pre>
     <label>Hand drop zone W <input id="devHandDropZoneWidth" type="range" min="80" max="1400" value="236"><span id="devHandDropZoneWidthVal">236</span></label>
     <label>Hand drop zone H <input id="devHandDropZoneHeight" type="range" min="60" max="360" value="190"><span id="devHandDropZoneHeightVal">190</span></label>
 
+    <label>Hand safe zone X <input id="devHandSafeZoneX" type="range" min="-900" max="900" value="0"><span id="devHandSafeZoneXVal">0</span></label>
+    <label>Hand safe zone Y <input id="devHandSafeZoneY" type="range" min="-400" max="400" value="0"><span id="devHandSafeZoneYVal">0</span></label>
+    <label>Hand safe zone W <input id="devHandSafeZoneWidth" type="range" min="80" max="1400" value="520"><span id="devHandSafeZoneWidthVal">520</span></label>
+    <label>Hand safe zone H <input id="devHandSafeZoneHeight" type="range" min="60" max="520" value="260"><span id="devHandSafeZoneHeightVal">260</span></label>
+
     <label>Grave height <input id="devGraveHeight" type="range" min="120" max="520" value="260"><span id="devGraveHeightVal">260</span></label>
     <label>Exile height <input id="devExileHeight" type="range" min="36" max="180" value="64"><span id="devExileHeightVal">64</span></label>
     <label>Dice size <input id="devDieSize" type="range" min="18" max="64" value="30"><span id="devDieSizeVal">30</span></label>
@@ -284,5 +291,6 @@ Click opponent hand card to mark it.</pre>
   <script src="app.js"></script>
   <script src="orbflip.js"></script>
   <div id="handDropZoneDebug" class="hand-drop-zone-debug hidden"></div>
+  <div id="handSafeZoneDebug" class="hand-safe-zone-debug hidden"></div>
 </body>
 </html>
