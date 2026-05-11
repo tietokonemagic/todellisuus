@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Oldschool Clean Shared Table</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="orbflip.css">
 </head>
 <body>
   <div id="seatScreen" class="seat-screen">
@@ -44,6 +45,21 @@
 
     <button id="mainMenuBtn" class="main-menu-btn">MENU</button>
     <div id="mainMenu" class="main-menu hidden">
+      <button id="playmatMenuBtn">PLAYMAT</button>
+      <div id="playmatMenu" class="menu-section hidden"></div>
+
+      <button id="sleevesMenuBtn">SLEEVES</button>
+      <div id="sleevesMenu" class="menu-section hidden">
+        <button id="ogBackSleeveBtn">OG BACK</button>
+        <label class="color-row">COLOR <input id="sleeveColorInput" type="color" value="#6a3b20"></label>
+      </div>
+
+      <button id="addTokenMenuBtn">ADD TOKEN</button>
+      <div id="tokenMenu" class="menu-section hidden"></div>
+
+      <button id="menuFlipOrbBtn">FLIP ORB</button>
+      <button id="menuFlipStarBtn">FLIP FALLING STAR</button>
+      <button id="addDiceBtn">ADD DICE</button>
       <button id="loadDeckBtn">LOAD DECK</button>
       <button id="helpBtn">HELP</button>
       <button id="devTuningBtn">DEV TUNING</button>
@@ -169,6 +185,16 @@ Click opponent hand card to mark it.</pre>
     <button data-hand-action="playFaceDown">PLAY FACE DOWN</button>
   </div>
 
+  <div id="dieMenu" class="context-menu hidden">
+    <button data-die-value="1">1</button>
+    <button data-die-value="2">2</button>
+    <button data-die-value="3">3</button>
+    <button data-die-value="4">4</button>
+    <button data-die-value="5">5</button>
+    <button data-die-value="6">6</button>
+    <label class="die-color-row">COLOR <input id="dieColorInput" type="color" value="#25aa3d"></label>
+  </div>
+
   <div id="resetPrompt" class="reset-prompt hidden">
     <div class="modal-box">
       <h2>RESET REQUEST</h2>
@@ -242,5 +268,6 @@ Click opponent hand card to mark it.</pre>
   <script src="scryfall.js"></script>
   <script type="module" src="firebase-sync.js"></script>
   <script src="app.js"></script>
+  <script src="orbflip.js"></script>
 </body>
 </html>

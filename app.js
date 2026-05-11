@@ -13,7 +13,7 @@
   [
     "seatScreen","seatStatus","joinR1P1","joinR1P2","joinR2P1","joinR2P2","kickRoom1","kickRoom2",
     "game","viewport","world","pileLayer","cardLayer","dragLayer","diceLayer","myHand","opponentHand",
-    "mainMenuBtn","mainMenu","loadDeckBtn","helpBtn","devTuningBtn","resetVoteBtn","leaveBtn","roomInfo",
+    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","dieMenu","dieColorInput","loadDeckBtn","helpBtn","devTuningBtn","resetVoteBtn","leaveBtn","roomInfo",
     "deckModal","deckText","doLoadDeck","closeDeckModal","deckStatus",
     "tutorModal","tutorGrid","tutorToHand","tutorToTable","closeTutor",
     "graveModal","graveGrid","closeGrave","helpModal","closeHelp",
@@ -65,11 +65,11 @@
     "shuffleSpeed": 64,
     "shuffleLength": 650,
     "shuffleSpread": 8,
-    "handArtX": 0,
-    "handArtY": 0,
-    "handArtSize": 190,
-    "thumbMinX": 0,
-    "thumbMaxX": 38,
+    "handArtX": -76,
+    "handArtY": -133,
+    "handArtSize": 164,
+    "thumbMinX": -4,
+    "thumbMaxX": 93,
     "thumbMinY": 0,
     "thumbMaxY": 0
 };
@@ -91,6 +91,7 @@
       revealTop: { p1: false, p2: false },
       revealHand: { p1: false, p2: false },
       playmats: { p1: "default-green", p2: "default-blue" },
+      sleeves: { p1: { type: "og", color: "#6a3b20" }, p2: { type: "og", color: "#6a3b20" } },
       updated: Date.now()
     };
   }
@@ -105,12 +106,12 @@
   }
 
   function loadDev() {
-    try { return { ...devDefaults, ...JSON.parse(localStorage.getItem("oldschoolCleanDevV14") || "{}") }; }
+    try { return { ...devDefaults, ...JSON.parse(localStorage.getItem("oldschoolCleanDevV21") || "{}") }; }
     catch { return { ...devDefaults }; }
   }
 
   function saveDev() {
-    localStorage.setItem("oldschoolCleanDevV14", JSON.stringify(dev));
+    localStorage.setItem("oldschoolCleanDevV21", JSON.stringify(dev));
   }
 
   function push() {
@@ -352,6 +353,7 @@
   function render() {
     if (!localPlayer) return;
     ensureState();
+    renderPlaymats();
     document.documentElement.style.setProperty("--grave-height", `${dev.graveHeight}px`);
     document.documentElement.style.setProperty("--exile-height", `${dev.exileHeight}px`);
     document.documentElement.style.setProperty("--die-size", `${dev.dieSize}px`);
@@ -363,6 +365,13 @@
     renderHands();
     renderDice();
     renderDragCard();
+  }
+
+  function renderPlaymats() {
+    const p1Mat = document.getElementById("p1Mat");
+    const p2Mat = document.getElementById("p2Mat");
+    if (state.playmats?.p1 && state.playmats.p1 !== "default-green") p1Mat.style.backgroundImage = `url("playmat/${state.playmats.p1}")`;
+    if (state.playmats?.p2 && state.playmats.p2 !== "default-blue") p2Mat.style.backgroundImage = `url("playmat/${state.playmats.p2}")`;
   }
 
   function renderPiles() {
@@ -577,14 +586,21 @@
     container.appendChild(thumb);
   }
 
+  function sleeveBackElement(owner) {
+    const back = document.createElement("div");
+    back.className = "back";
+    const sleeve = state.sleeves?.[owner] || { type: "og", color: "#6a3b20" };
+    if (sleeve.type === "color") back.style.background = sleeve.color || "#6a3b20";
+    return back;
+  }
+
   function createCardEl(card, cls, forceBack = false) {
     const el = document.createElement("div");
     el.className = `card ${cls}` + (selectedIds.has(card.id) ? " selected" : "") + (card.marked ? " discard-marked" : "");
     el.dataset.cardId = card.id;
 
     if (forceBack) {
-      const back = document.createElement("div");
-      back.className = "back";
+      const back = sleeveBackElement(card.owner);
       el.appendChild(back);
     } else if (card.image) {
       const img = document.createElement("img");
@@ -593,8 +609,7 @@
       img.draggable = false;
       el.appendChild(img);
     } else {
-      const back = document.createElement("div");
-      back.className = "back";
+      const back = sleeveBackElement(card.owner);
       back.textContent = card.name || "";
       el.appendChild(back);
     }
@@ -639,6 +654,7 @@
   function renderDice() {
     els.diceLayer.innerHTML = "";
     ensureState();
+
     for (const player of ["p1","p2"]) {
       const lifeDice = state.dice.filter(d => d.kind === "life" && d.owner === player);
       const expected = diceValues(state.life[player] || 20);
@@ -646,26 +662,36 @@
         state.dice = state.dice.filter(d => !(d.kind === "life" && d.owner === player)).concat(makeLifeDice(player, state.life[player] || 20));
       }
     }
+
     for (const player of ["p1","p2"]) {
       const base = pileBase(player, "dice");
       const list = state.dice.filter(d => d.kind === "life" && d.owner === player);
-      list.forEach((d, i) => {
-        const el = document.createElement("div");
-        el.className = "die";
-        el.dataset.dieId = d.id;
-        el.style.left = (base.x + i * (Number(dev.dieSize) + Number(dev.dieGap))) + "px";
-        el.style.top = base.y + "px";
-        el.style.transform = d.owner === localPlayer ? "rotate(0deg)" : "rotate(180deg)";
-        for (const p of PIPS[Math.max(1, Math.min(6, Number(d.value) || 1))]) {
-          const pip = document.createElement("div");
-          pip.className = "pip p" + p;
-          el.appendChild(pip);
-        }
-        el.addEventListener("mouseenter", () => hoveredDieId = d.id);
-        el.addEventListener("mouseleave", () => { if (hoveredDieId === d.id) hoveredDieId = null; });
-        els.diceLayer.appendChild(el);
-      });
+      list.forEach((d, i) => createDieEl(d, base.x + i * (Number(dev.dieSize) + Number(dev.dieGap)), base.y, d.owner === localPlayer ? 0 : 180));
     }
+
+    state.dice.filter(d => d.kind === "counter").forEach(d => createDieEl(d, d.x || 960, d.y || 540, d.owner === localPlayer ? 0 : 180));
+  }
+
+  function createDieEl(d, x, y, rot) {
+    const el = document.createElement("div");
+    el.className = "die" + (d.kind === "counter" ? " counter-die" : "");
+    el.dataset.dieId = d.id;
+    el.style.left = x + "px";
+    el.style.top = y + "px";
+    el.style.transform = `rotate(${rot}deg)`;
+    el.style.setProperty("--die-color", d.color || "#25aa3d");
+    el.style.zIndex = String(d.z || 1000);
+
+    for (const p of PIPS[Math.max(1, Math.min(6, Number(d.value) || 1))]) {
+      const pip = document.createElement("div");
+      pip.className = "pip p" + p;
+      el.appendChild(pip);
+    }
+
+    el.addEventListener("mouseenter", () => hoveredDieId = d.id);
+    el.addEventListener("mouseleave", () => { if (hoveredDieId === d.id) hoveredDieId = null; });
+    el.addEventListener("contextmenu", e => { e.preventDefault(); openDieMenu(e, d); });
+    els.diceLayer.appendChild(el);
   }
 
   function onCardPointerDown(e, card) {
@@ -711,6 +737,15 @@
       bringToFront(card);
     }
 
+    if (fromHand) {
+      card.zone = "battlefield";
+      render();
+      drag.el = els.cardLayer.querySelector(`[data-card-id="${card.id}"]`);
+    } else {
+      drag.el = e.currentTarget;
+      drag.el.classList.add("dragging-from-table");
+    }
+
     document.addEventListener("pointermove", onCardDragMove);
     document.addEventListener("pointerup", onCardDragEnd, { once: true });
   }
@@ -725,15 +760,18 @@
     card.x = snap(p.x - drag.offsetX);
     card.y = snap(p.y - drag.offsetY);
 
-    if (drag.fromHand) {
-      card.z = drag.handZ || card.z || 100;
-    } else {
-      card.z = 10000;
+    if (drag.fromHand) card.z = drag.handZ || card.z || 100;
+    else card.z = 10000;
+
+    const el = drag.el || els.cardLayer.querySelector(`[data-card-id="${card.id}"]`);
+    if (el) {
+      drag.el = el;
+      el.style.left = (card.x - CARD_W / 2) + "px";
+      el.style.top = (card.y - CARD_H / 2) + "px";
+      el.style.transform = `rotate(${cardRotation(card)}deg)`;
+      el.style.zIndex = String(drag.fromHand ? (drag.handZ || 100) : 10000);
     }
-
-    render();
   }
-
 
   function handDropAt(clientX, clientY) {
     if (!localPlayer) return null;
@@ -823,6 +861,7 @@
     els.libraryMenu.classList.add("hidden");
     els.cardMenu.classList.add("hidden");
     els.handCardMenu.classList.add("hidden");
+    if (els.dieMenu) els.dieMenu.classList.add("hidden");
   }
 
   function openTutor() {
@@ -1066,6 +1105,52 @@
     document.addEventListener("pointerup", () => dragDev = null);
   }
 
+  const PLAYMAT_FILES = ["zombi.png","vault.png","urzaglas.png","unicorn.png","terrain.png","terracorn.png","spawn.png","purge.png","phantom.png","pesti.png","mold.png","mire.png","miracle.png","mesa.png","life.png","kudzu.png","hordes.png","hell.png","grem2.png","grem1.png","golem.png","geddon.png","gate.png","flash2.png","flash.png","farm.png","dance.png","cross.png","cland.png","camel.png","boris.png","bluemana2.png","bluemana1.png","allergy2.png","allergy1.png"];
+  const TOKEN_FILES = ["wolf.png","wasp.png","thrull.png","tetravite.png","stangg.png","snake.png","saproling.png","sandwarrior.png","rukh.png","minordemon.png","goblin.png","djinn.png","copy.png","citizen.png","aieback.png","camarid.png"];
+
+  function populateGreenMenuLists() {
+    if (els.playmatMenu && !els.playmatMenu.dataset.ready) {
+      PLAYMAT_FILES.forEach(file => {
+        const b = document.createElement("button");
+        b.textContent = file.replace(".png","");
+        b.onclick = () => { state.playmats[localPlayer] = file; push(); };
+        els.playmatMenu.appendChild(b);
+      });
+      els.playmatMenu.dataset.ready = "1";
+    }
+    if (els.tokenMenu && !els.tokenMenu.dataset.ready) {
+      TOKEN_FILES.forEach(file => {
+        if (file === "aieback.png") return;
+        const b = document.createElement("button");
+        b.textContent = file.replace(".png","");
+        b.onclick = () => addToken(file);
+        els.tokenMenu.appendChild(b);
+      });
+      els.tokenMenu.dataset.ready = "1";
+    }
+  }
+
+  function toggleSection(el) { if (el) el.classList.toggle("hidden"); }
+
+  function addToken(file) {
+    const card = { id: uid(), owner: localPlayer, zone: "battlefield", x: 960, y: localPlayer === "p1" ? 720 : 360, z: 1000 + state.cards.length, tapped: false, faceDown: false, marked: false, name: file.replace(".png",""), typeLine: "Token", oracle: "", image: "token/" + file };
+    state.cards.push(card); bringToFront(card); push();
+  }
+
+  function addCounterDie() {
+    state.dice.push({ id: uid(), kind: "counter", owner: localPlayer, value: 3, color: "#25aa3d", x: 960, y: localPlayer === "p1" ? 720 : 360, z: 2000 });
+    push();
+  }
+
+  let dieMenuTargetId = null;
+  function openDieMenu(e, die) {
+    dieMenuTargetId = die.id;
+    if (els.dieColorInput) els.dieColorInput.value = die.color || "#25aa3d";
+    els.dieMenu.style.left = e.clientX + "px";
+    els.dieMenu.style.top = e.clientY + "px";
+    els.dieMenu.classList.remove("hidden");
+  }
+
   // UI bindings
   els.joinR1P1.onclick = () => join("room1", "p1");
   els.joinR1P2.onclick = () => join("room1", "p2");
@@ -1075,6 +1160,17 @@
   els.kickRoom2.onclick = () => window.FirebaseCleanSync?.kickRoom("room2");
 
   els.mainMenuBtn.onclick = () => els.mainMenu.classList.toggle("hidden");
+  populateGreenMenuLists();
+  if (els.playmatMenuBtn) els.playmatMenuBtn.onclick = () => toggleSection(els.playmatMenu);
+  if (els.sleevesMenuBtn) els.sleevesMenuBtn.onclick = () => toggleSection(els.sleevesMenu);
+  if (els.addTokenMenuBtn) els.addTokenMenuBtn.onclick = () => toggleSection(els.tokenMenu);
+  if (els.ogBackSleeveBtn) els.ogBackSleeveBtn.onclick = () => { state.sleeves[localPlayer] = { type: "og", color: "#6a3b20" }; push(); };
+  if (els.sleeveColorInput) els.sleeveColorInput.oninput = () => { state.sleeves[localPlayer] = { type: "color", color: els.sleeveColorInput.value }; push(); };
+  if (els.addDiceBtn) els.addDiceBtn.onclick = () => addCounterDie();
+  if (els.dieMenu) els.dieMenu.addEventListener("click", e => { const btn = e.target.closest("button[data-die-value]"); if (!btn) return; const die = state.dice.find(d => d.id === dieMenuTargetId); if (!die) return; die.value = Number(btn.dataset.dieValue); closeMenus(); push(); });
+  if (els.dieColorInput) els.dieColorInput.oninput = () => { const die = state.dice.find(d => d.id === dieMenuTargetId); if (!die) return; die.color = els.dieColorInput.value; push(); };
+
+
   els.loadDeckBtn.onclick = () => els.deckModal.classList.remove("hidden");
   els.closeDeckModal.onclick = () => els.deckModal.classList.add("hidden");
   els.doLoadDeck.onclick = loadDeck;
@@ -1190,6 +1286,10 @@
 
   window.addEventListener("keydown", e => {
     if (!localPlayer) return;
+    if (/^[1-6]$/.test(e.key)) {
+      const die = state.dice.find(d => d.id === hoveredDieId && d.kind === "counter");
+      if (die) { die.value = Number(e.key); push(); e.preventDefault(); return; }
+    }
     if (e.key === "Tab") { e.preventDefault(); drawOne(localPlayer); return; }
     if (e.key === "1") { e.preventDefault(); drawOne(localPlayer); return; }
     if (e.key === "7") { e.preventDefault(); drawMany(localPlayer, 7); return; }
