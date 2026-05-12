@@ -13,7 +13,7 @@
   [
     "seatScreen","seatStatus","joinR1P1","joinR1P2","joinR2P1","joinR2P2","kickRoom1","kickRoom2",
     "game","viewport","world","pileLayer","cardLayer","dragLayer","diceLayer","myHand","opponentHand",
-    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","helpOverlayV33","helpBtn","devTuningBtn","resetVoteBtn","leaveBtn","roomInfo",
+    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","helpOverlayV33","helpBtn","devTuningBtn","inspectorToggleBtn","resetVoteBtn","leaveBtn","roomInfo",
     "deckModal","deckText","coreSetSelect","doLoadDeck","closeDeckModal","deckStatus",
     "tutorModal","tutorGrid","tutorToHand","tutorToTable","closeTutor",
     "graveModal","graveGrid","closeGrave","exileModal","exileGrid","closeExile","helpModal","closeHelp",
@@ -115,10 +115,18 @@
   function ensureState() {
     if (!state || typeof state !== "object") state = initialState();
     if (!Array.isArray(state.cards)) state.cards = [];
-    if (!state.life) state.life = { p1:20, p2:20 };
+    if (!state.life) state.life = { p1: 20, p2: 20 };
     if (!Array.isArray(state.dice)) state.dice = makeAllLifeDice(state.life);
-    if (!state.revealTop) state.revealTop = { p1:false, p2:false };
-    if (!state.revealHand) state.revealHand = { p1:false, p2:false };
+    if (!state.revealTop) state.revealTop = { p1: false, p2: false };
+    if (!state.revealHand) state.revealHand = { p1: false, p2: false };
+    if (!state.playmats) state.playmats = { p1: "default-green", p2: "default-blue" };
+    if (!state.flipOverlay) state.flipOverlay = { active: false, front: "", nonce: 0 };
+    if (!state.sleeves) state.sleeves = {};
+    for (const p of ["p1", "p2"]) {
+      if (!state.sleeves[p]) state.sleeves[p] = { type: "og", color: "#6a3b20" };
+      if (state.sleeves[p].type !== "color") state.sleeves[p].type = "og";
+      if (!state.sleeves[p].color) state.sleeves[p].color = "#6a3b20";
+    }
   }
 
   function loadDev() {
@@ -682,6 +690,7 @@
   function sleeveBackElement(owner, card = null) {
     const back = document.createElement("div");
     back.className = "back";
+
     if (card && card.isToken) {
       back.style.backgroundImage = 'url("token/aieback.png")';
       back.style.backgroundColor = "#050505";
@@ -689,11 +698,18 @@
       back.style.backgroundPosition = "center";
       return back;
     }
-    const sleeve = state.sleeves?.[owner] || { type: "og", color: "#6a3b20" };
+
+    const sleeve = currentSleeve(owner);
     if (sleeve.type === "color") {
       back.style.backgroundImage = "none";
       back.style.backgroundColor = sleeve.color || "#6a3b20";
+    } else {
+      back.style.backgroundImage = 'url("lapi2.png")';
+      back.style.backgroundColor = "#050505";
+      back.style.backgroundSize = "cover";
+      back.style.backgroundPosition = "center";
     }
+
     return back;
   }
 
@@ -1630,14 +1646,14 @@
 
   function updateMenuActiveStates() {
     const flip = state.flipOverlay || {};
-    if (els.inspectorToggleBtn) els.inspectorToggleBtn.classList.toggle("active", inspectorEnabled);
+    if (els.inspectorToggleBtn) els.inspectorToggleBtn.classList.toggle("active", inspectorEnabled && !els.inspector?.classList.contains("hidden"));
     if (els.menuFlipOrbBtn) els.menuFlipOrbBtn.classList.toggle("active", !!flip.active && flip.front === "chaosfront.png");
     if (els.menuFlipStarBtn) els.menuFlipStarBtn.classList.toggle("active", !!flip.active && flip.front === "fallingstar.png");
-    if (els.helpBtn) els.helpBtn.classList.toggle("active", !els.helpOverlayV33.classList.contains("hidden"));
-    if (els.devTuningBtn) els.devTuningBtn.classList.toggle("active", !els.devPanel.classList.contains("hidden"));
-    if (els.playmatMenuBtn) els.playmatMenuBtn.classList.toggle("active", !els.playmatMenu.classList.contains("hidden"));
-    if (els.sleevesMenuBtn) els.sleevesMenuBtn.classList.toggle("active", !els.sleevesMenu.classList.contains("hidden"));
-    if (els.addTokenMenuBtn) els.addTokenMenuBtn.classList.toggle("active", !els.tokenMenu.classList.contains("hidden"));
+    if (els.helpBtn && els.helpOverlayV33) els.helpBtn.classList.toggle("active", !els.helpOverlayV33.classList.contains("hidden"));
+    if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active", !els.devPanel.classList.contains("hidden"));
+    if (els.playmatMenuBtn && els.playmatMenu) els.playmatMenuBtn.classList.toggle("active", !els.playmatMenu.classList.contains("hidden"));
+    if (els.sleevesMenuBtn && els.sleevesMenu) els.sleevesMenuBtn.classList.toggle("active", !els.sleevesMenu.classList.contains("hidden"));
+    if (els.addTokenMenuBtn && els.tokenMenu) els.addTokenMenuBtn.classList.toggle("active", !els.tokenMenu.classList.contains("hidden"));
     updateSleeveButtonsV33();
   }
 
@@ -1718,30 +1734,43 @@
   function rectsOverlapV31(a,b){ return !(a.right<b.left || a.left>b.right || a.bottom<b.top || a.top>b.bottom); }
 
 
-  function setHelpOpenV33(open){
+  function setHelpOpenV33(open) {
     if (!els.helpOverlayV33) return;
     els.helpOverlayV33.classList.toggle("hidden", !open);
     updateMenuActiveStates();
   }
-  function toggleHelpV33(e=null){
-    if(e){
+
+  function toggleHelpV33(e = null) {
+    if (e) {
       e.preventDefault();
       e.stopPropagation();
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
     }
-    if (!els.helpOverlayV33) return;
-    setHelpOpenV33(els.helpOverlayV33.classList.contains("hidden"));
+    setHelpOpenV33(els.helpOverlayV33?.classList.contains("hidden"));
   }
-  function updateSleeveButtonsV33(){
-    if(!localPlayer||!state.sleeves)return;
-    const s=state.sleeves[localPlayer]||{type:"og",color:"#6a3b20"};
-    if(els.ogBackSleeveBtn)els.ogBackSleeveBtn.classList.toggle("active",s.type==="og");
-    if(els.colorSleeveBtn)els.colorSleeveBtn.classList.toggle("active",s.type==="color");
-    if(els.sleeveColorInput&&s.color)els.sleeveColorInput.value=s.color;
+
+  function currentSleeve(player = localPlayer) {
+    ensureState();
+    return state.sleeves[player] || { type: "og", color: "#6a3b20" };
   }
-  function setSleeveV33(type){
-    if(!state.sleeves)state.sleeves={p1:{type:"og",color:"#6a3b20"},p2:{type:"og",color:"#6a3b20"}};
-    state.sleeves[localPlayer]=type==="color"?{type:"color",color:els.sleeveColorInput.value}:{type:"og",color:"#6a3b20"};
-    updateSleeveButtonsV33();push();
+
+  function updateSleeveButtonsV33() {
+    if (!localPlayer) return;
+    const sleeve = currentSleeve(localPlayer);
+    if (els.ogBackSleeveBtn) els.ogBackSleeveBtn.classList.toggle("active", sleeve.type === "og");
+    if (els.colorSleeveBtn) els.colorSleeveBtn.classList.toggle("active", sleeve.type === "color");
+    if (els.sleeveColorInput && sleeve.color) els.sleeveColorInput.value = sleeve.color;
+  }
+
+  function setSleeveV33(type) {
+    if (!localPlayer) return;
+    ensureState();
+    const color = els.sleeveColorInput?.value || currentSleeve(localPlayer).color || "#6a3b20";
+    state.sleeves[localPlayer] = type === "color"
+      ? { type: "color", color }
+      : { type: "og", color };
+    updateSleeveButtonsV33();
+    push();
   }
   let boxSelectV33=null;
   function beginBoxSelectV33(e){
@@ -1772,19 +1801,34 @@
   }
 
   // UI bindings
-  if (els.helpBtn) {
-    els.helpBtn.onclick = toggleHelpV33;
-  }
+  if (els.helpBtn) els.helpBtn.onclick = toggleHelpV33;
   if (els.helpOverlayV33) {
     els.helpOverlayV33.addEventListener("click", e => {
       if (e.target === els.helpOverlayV33) setHelpOpenV33(false);
     });
   }
-  if(els.ogBackSleeveBtn)els.ogBackSleeveBtn.onclick=e=>{e.preventDefault();e.stopPropagation();setSleeveV33("og");};
-  if(els.colorSleeveBtn)els.colorSleeveBtn.onclick=e=>{e.preventDefault();e.stopPropagation();setSleeveV33("color");};
-  if(els.sleeveColorInput)els.sleeveColorInput.oninput=()=>{if(state.sleeves?.[localPlayer]?.type==="color")setSleeveV33("color");};
+  if (els.ogBackSleeveBtn) {
+    els.ogBackSleeveBtn.onclick = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      setSleeveV33("og");
+    };
+  }
+  if (els.colorSleeveBtn) {
+    els.colorSleeveBtn.onclick = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      setSleeveV33("color");
+    };
+  }
+  if (els.sleeveColorInput) {
+    els.sleeveColorInput.oninput = () => {
+      if (currentSleeve(localPlayer).type === "color") setSleeveV33("color");
+      else updateSleeveButtonsV33();
+    };
+  }
   updateSleeveButtonsV33();
-  els.world.addEventListener("pointerdown",beginBoxSelectV33);
+  if (els.world) els.world.addEventListener("pointerdown", beginBoxSelectV33);
 
 
   els.joinR1P1.onclick = () => join("room1", "p1");
@@ -2106,19 +2150,29 @@
     }));
   }
 
-  if (document.getElementById("inspectorToggleBtn")) {
-    document.getElementById("inspectorToggleBtn").onclick = () => {
-      inspectorEnabled = !inspectorEnabled;
-      document.getElementById("inspectorToggleBtn").classList.toggle("active", inspectorEnabled); updateMenuActiveStates();
-      if (inspectorEnabled) {
-        const card = state.cards.find(c => c.id === currentInspectorCardId);
-        if (card) showInspector(card);
-        else clearInspectorContent();
-      } else {
-        els.inspector.classList.add("hidden");
-      }
-    };
-    document.getElementById("inspectorToggleBtn").classList.toggle("active", inspectorEnabled);
+  function toggleInspectorFromMenu(e = null) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+    }
+
+    inspectorEnabled = !(inspectorEnabled && !els.inspector.classList.contains("hidden"));
+
+    if (inspectorEnabled) {
+      const card = state.cards.find(c => c.id === currentInspectorCardId);
+      if (card) showInspector(card);
+      else clearInspectorContent();
+    } else {
+      els.inspector.classList.add("hidden");
+    }
+
+    updateMenuActiveStates();
+  }
+
+  if (els.inspectorToggleBtn) {
+    els.inspectorToggleBtn.onclick = toggleInspectorFromMenu;
+    updateMenuActiveStates();
   }
 
   document.addEventListener("click", e => {
@@ -2151,16 +2205,6 @@
 
   bindDev();
 
-  document.addEventListener("click", e => {
-    if (e.target && e.target.closest && e.target.closest("#orbflipExternal .orbflip-close")) {
-      if (state.flipOverlay && state.flipOverlay.active) {
-        state.flipOverlay = { active: false, front: "", nonce: Date.now() };
-        push();
-      }
-    }
-  }, true); // v27OrbCloseSync
-
-  bindDev();
 
 
   // v17: robust battlefield double-click tap/untap.
