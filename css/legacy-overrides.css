@@ -46,3 +46,78 @@
 #ogBackSleeveBtn.active,#colorSleeveBtn.active{background:#157a38!important}
 #sleevesMenu input[type=color]{width:100%;height:34px;border:1px solid #555;border-radius:6px;background:transparent;padding:0}
 .select-box{position:fixed!important;z-index:2147470000!important;border:2px dashed rgba(255,255,255,.95)!important;background:rgba(255,255,255,.10)!important;pointer-events:none!important}
+
+
+/* v34 floating help panel: non-blocking, draggable, resizable */
+.help-overlay-v33 {
+  display: none !important;
+}
+
+.help-panel-v34 {
+  position: fixed;
+  left: 24px;
+  top: 96px;
+  width: 390px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  z-index: 2147480000;
+  background: rgba(8,8,8,.94);
+  border: 1px solid #555;
+  border-radius: 10px;
+  color: #eee;
+  box-shadow: 0 16px 60px rgba(0,0,0,.65);
+  overflow: auto;
+  resize: both;
+  text-transform: none;
+  font-style: normal;
+  line-height: 1.35;
+}
+
+.help-panel-v34.hidden {
+  display: none !important;
+}
+
+.help-header-v34 {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(20,20,20,.98);
+  border-bottom: 1px solid #444;
+  cursor: move;
+  user-select: none;
+  text-transform: uppercase;
+  font-style: italic;
+}
+
+.help-controls-v34 {
+  display: flex;
+  gap: 6px;
+}
+
+.help-controls-v34 button {
+  min-width: 30px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 7px;
+}
+
+#helpContent {
+  margin: 0;
+  padding: 12px;
+  white-space: pre-wrap;
+  text-transform: none;
+  font-style: normal;
+  font-family: Arial, sans-serif;
+  line-height: 1.45;
+}
+
+.main-menu button.active,
+#ogBackSleeveBtn.active,
+#colorSleeveBtn.active {
+  background: #157a38 !important;
+}

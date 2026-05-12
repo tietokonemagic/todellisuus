@@ -13,7 +13,7 @@
   [
     "seatScreen","seatStatus","joinR1P1","joinR1P2","joinR2P1","joinR2P2","kickRoom1","kickRoom2",
     "game","viewport","world","pileLayer","cardLayer","dragLayer","diceLayer","myHand","opponentHand",
-    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","helpOverlayV33","helpBtn","devTuningBtn","inspectorToggleBtn","resetVoteBtn","leaveBtn","roomInfo",
+    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","helpOverlayV33","helpHeader","helpMinus","helpPlus","helpClose","helpContent","helpBtn","devTuningBtn","inspectorToggleBtn","resetVoteBtn","leaveBtn","roomInfo",
     "deckModal","deckText","coreSetSelect","doLoadDeck","closeDeckModal","deckStatus",
     "tutorModal","tutorGrid","tutorToHand","tutorToTable","closeTutor",
     "graveModal","graveGrid","closeGrave","exileModal","exileGrid","closeExile","helpModal","closeHelp",
@@ -38,6 +38,7 @@
   let inspectorEnabled = true;
   let currentInspectorCardId = null;
   let inspectorFont = 15;
+  let helpFont = 15;
   let sylvanCount = 3;
   let localFlipOverlaySignature = null;
   let boxSelect = null;
@@ -1731,8 +1732,126 @@
   function rectsOverlapV31(a,b){ return !(a.right<b.left || a.left>b.right || a.bottom<b.top || a.top>b.bottom); }
 
 
-  function setHelpOpenV33(open){if(!els.helpOverlayV33)return;els.helpOverlayV33.classList.toggle("hidden",!open);updateMenuActiveStates();}
-  function toggleHelpV33(e=null){if(e){e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();}if(!els.helpOverlayV33)return;setHelpOpenV33(els.helpOverlayV33.classList.contains("hidden"));}
+  function setHelpOpenV33(open) {
+    if (!els.helpOverlayV33) return;
+    els.helpOverlayV33.classList.toggle("hidden", !open);
+    if (open) {
+      els.helpOverlayV33.style.pointerEvents = "auto";
+      restoreHelpPanelV34();
+    }
+    updateMenuActiveStates();
+  }
+
+  function toggleHelpV33(e = null) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+    }
+    if (!els.helpOverlayV33) return;
+    setHelpOpenV33(els.helpOverlayV33.classList.contains("hidden"));
+  }
+
+  function applyHelpFontV34() {
+    if (!els.helpOverlayV33) return;
+    els.helpOverlayV33.style.fontSize = helpFont + "px";
+  }
+
+  function saveHelpPanelV34() {
+    if (!els.helpOverlayV33 || els.helpOverlayV33.classList.contains("hidden")) return;
+    const r = els.helpOverlayV33.getBoundingClientRect();
+    localStorage.setItem("oldschoolHelpPanelV34", JSON.stringify({
+      left: Math.round(r.left),
+      top: Math.round(r.top),
+      width: Math.round(r.width),
+      height: Math.round(r.height),
+      font: helpFont
+    }));
+  }
+
+  function restoreHelpPanelV34() {
+    if (!els.helpOverlayV33) return;
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem("oldschoolHelpPanelV34") || "{}"); }
+    catch { saved = {}; }
+
+    if (saved.font != null) helpFont = Math.max(10, Math.min(28, Number(saved.font) || 15));
+    applyHelpFontV34();
+
+    if (saved.left != null) els.helpOverlayV33.style.left = saved.left + "px";
+    if (saved.top != null) els.helpOverlayV33.style.top = saved.top + "px";
+    if (saved.width != null) els.helpOverlayV33.style.width = saved.width + "px";
+    if (saved.height != null) els.helpOverlayV33.style.height = saved.height + "px";
+  }
+
+  function bindHelpPanelV34() {
+    if (!els.helpOverlayV33) return;
+
+    restoreHelpPanelV34();
+
+    let dragHelp = null;
+
+    if (els.helpHeader) {
+      els.helpHeader.addEventListener("pointerdown", e => {
+        if (e.target.closest?.("button")) return;
+        const r = els.helpOverlayV33.getBoundingClientRect();
+        dragHelp = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+        e.preventDefault();
+        e.stopPropagation();
+      });
+    }
+
+    document.addEventListener("pointermove", e => {
+      if (!dragHelp) return;
+      const panel = els.helpOverlayV33;
+      const width = panel.offsetWidth || 360;
+      const height = panel.offsetHeight || 260;
+      const left = Math.max(0, Math.min(window.innerWidth - Math.min(80, width), e.clientX - dragHelp.dx));
+      const top = Math.max(0, Math.min(window.innerHeight - Math.min(40, height), e.clientY - dragHelp.dy));
+      panel.style.left = left + "px";
+      panel.style.top = top + "px";
+      e.preventDefault();
+    });
+
+    document.addEventListener("pointerup", () => {
+      if (!dragHelp) return;
+      dragHelp = null;
+      saveHelpPanelV34();
+    });
+
+    if (els.helpMinus) {
+      els.helpMinus.onclick = e => {
+        e.preventDefault();
+        e.stopPropagation();
+        helpFont = Math.max(10, helpFont - 1);
+        applyHelpFontV34();
+        saveHelpPanelV34();
+      };
+    }
+
+    if (els.helpPlus) {
+      els.helpPlus.onclick = e => {
+        e.preventDefault();
+        e.stopPropagation();
+        helpFont = Math.min(28, helpFont + 1);
+        applyHelpFontV34();
+        saveHelpPanelV34();
+      };
+    }
+
+    if (els.helpClose) {
+      els.helpClose.onclick = e => {
+        e.preventDefault();
+        e.stopPropagation();
+        setHelpOpenV33(false);
+      };
+    }
+
+    if (window.ResizeObserver) {
+      new ResizeObserver(() => saveHelpPanelV34()).observe(els.helpOverlayV33);
+    }
+  }
+
   function updateSleeveButtonsV33(){
     if(!localPlayer||!state.sleeves)return;
     const s=state.sleeves[localPlayer]||{type:"og",color:"#6a3b20"};
@@ -1775,7 +1894,7 @@
 
   // UI bindings
   if(els.helpBtn){els.helpBtn.onclick=toggleHelpV33;els.helpBtn.addEventListener("click",toggleHelpV33,true);}
-  if(els.helpOverlayV33)els.helpOverlayV33.addEventListener("click",e=>{if(e.target===els.helpOverlayV33)setHelpOpenV33(false);});
+  bindHelpPanelV34();
   if(els.ogBackSleeveBtn)els.ogBackSleeveBtn.onclick=e=>{e.preventDefault();e.stopPropagation();setSleeveV33("og");};
   if(els.colorSleeveBtn)els.colorSleeveBtn.onclick=e=>{e.preventDefault();e.stopPropagation();setSleeveV33("color");};
   if(els.sleeveColorInput)els.sleeveColorInput.oninput=()=>{if(state.sleeves?.[localPlayer]?.type==="color")setSleeveV33("color");};

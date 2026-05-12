@@ -266,7 +266,16 @@
   <script type="module" src="js/services/firebase-sync.js"></script>
   <div id="handDropZoneDebug" class="hand-drop-zone-debug hidden"></div>
   <div id="handSafeZoneDebug" class="hand-safe-zone-debug hidden"></div>
-  <div id="helpOverlayV33" class="help-overlay-v33 hidden"><div class="help-box-v33"><pre>D/TAB/1 = draw one
+  <div id="helpOverlayV33" class="help-panel-v34 hidden">
+    <div id="helpHeader" class="help-header-v34">
+      <strong>HELP</strong>
+      <div class="help-controls-v34">
+        <button id="helpMinus" type="button" title="Smaller text">−</button>
+        <button id="helpPlus" type="button" title="Bigger text">+</button>
+        <button id="helpClose" type="button" title="Close help">×</button>
+      </div>
+    </div>
+    <pre id="helpContent">D / TAB / 1 = draw one
 7 = draw seven
 G = grave hovered card
 E = exile hovered card
@@ -274,7 +283,19 @@ H = hand hovered card
 T = tap hovered card
 Shift-click = multi-select
 Drag empty table area = box-select cards
-Double-click card = tap/untap</pre></div></div>
+Double-click card = tap/untap
+
+Library right-click:
+DRAW 1, SHUFFLE, TUTOR, MULLIGAN, REVEAL TOP, REVEAL HAND
+
+Card right-click:
+FLIP, CLONE, TO HAND, TO GRAVE, TO EXILE, BRING TO FRONT, SEND TO BACK
+
+Menu:
+HELP opens/closes this floating window.
+INSPECTOR opens/closes the card text inspector.
+SLEEVES changes only your own card backs.</pre>
+  </div>
   <div id="selectBox" class="select-box hidden"></div>
 </body>
 </html>
