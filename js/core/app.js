@@ -22,7 +22,7 @@
     "selectBox","devPanel","devDragHandle","devReset","devCopy","devClose","devOutput"
   ].forEach(id => els[id] = document.getElementById(id));
 
-  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-017";
+  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-018";
   let localRoom = null;
   let localPlayer = null;
   let localNickname = localStorage.getItem("oldschoolNicknameV1") || "Player";
@@ -85,8 +85,8 @@
     "alphaCardRadius": 10,
     "helpPanelX": 669,
     "helpPanelY": 409,
-    "inspectorPanelX": 1653,
-    "inspectorPanelY": 42,
+    "inspectorPanelX": -1,
+    "inspectorPanelY": -1,
     "chatPanelX": 1280,
     "chatPanelY": 42,
     "chatFontSize": 14,
@@ -479,17 +479,41 @@
     root.style.setProperty("--sleeve-noise-opacity", `${Math.max(0, Math.min(100, Number(dev.sleeveNoiseStrength) || 0)) / 100}`);
   }
 
+  function clampPanelPosition(panel, x, y) {
+    if (!panel) return { x: 0, y: 0 };
+    const r = panel.getBoundingClientRect();
+    const w = r.width || Number(panel.offsetWidth) || 320;
+    const h = r.height || Number(panel.offsetHeight) || 220;
+    return {
+      x: Math.max(0, Math.min(Math.max(0, window.innerWidth - Math.min(80, w)), Math.round(x))),
+      y: Math.max(0, Math.min(Math.max(0, window.innerHeight - Math.min(40, h)), Math.round(y)))
+    };
+  }
+
+  function panelCenterPosition(panel) {
+    if (!panel) return { x: 0, y: 0 };
+    const r = panel.getBoundingClientRect();
+    const w = r.width || Number(panel.offsetWidth) || 320;
+    const h = r.height || Number(panel.offsetHeight) || 220;
+    return clampPanelPosition(panel, (window.innerWidth - w) / 2, (window.innerHeight - h) / 2);
+  }
+
   function applyPanelDefaultPositionsV37(force = false) {
-    const place = (panel, x, y) => {
+    const place = (panel, x, y, centerWhenNegative = false) => {
       if (!panel) return;
       if (!force && !panel.classList.contains("hidden")) return;
-      panel.style.left = `${Number(x) || 0}px`;
-      panel.style.top = `${Number(y) || 0}px`;
+      const nx = Number(x);
+      const ny = Number(y);
+      const pos = centerWhenNegative && (nx < 0 || ny < 0)
+        ? panelCenterPosition(panel)
+        : clampPanelPosition(panel, Number.isFinite(nx) ? nx : 0, Number.isFinite(ny) ? ny : 0);
+      panel.style.left = `${pos.x}px`;
+      panel.style.top = `${pos.y}px`;
       panel.style.right = "auto";
       panel.style.bottom = "auto";
     };
     place(els.helpPanel, dev.helpPanelX, dev.helpPanelY);
-    place(els.inspector, dev.inspectorPanelX, dev.inspectorPanelY);
+    place(els.inspector, dev.inspectorPanelX, dev.inspectorPanelY, true);
   }
 
   function render() {
@@ -2408,7 +2432,21 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
   if (els.resetOriginalSideboard) els.resetOriginalSideboard.onclick = resetSideboardToOriginal;
   if (els.closeDeckModal) els.closeDeckModal.onclick = () => { els.deckModal.classList.add("hidden"); updateMenuActiveStates(); };
   els.doLoadDeck.onclick = loadDeck;
-  els.devTuningBtn.onclick = () => { els.devPanel.classList.toggle("hidden"); renderHandDropZoneDebug(); renderHandSafeZoneDebug(); updateMenuActiveStates(); };
+  els.devTuningBtn.onclick = () => {
+    if (els.devPanel.classList.contains("hidden")) {
+      const pass = prompt("DEV TUNING PASSWORD");
+      if (pass !== "perseensuti") {
+        updateMenuActiveStates();
+        return;
+      }
+      els.devPanel.classList.remove("hidden");
+    } else {
+      els.devPanel.classList.add("hidden");
+    }
+    renderHandDropZoneDebug();
+    renderHandSafeZoneDebug();
+    updateMenuActiveStates();
+  };
   els.devClose.onclick = () => { els.devPanel.classList.add("hidden"); updateMenuActiveStates(); };
   els.devReset.onclick = () => { dev = { ...devDefaults }; saveDev(); applyMenuDevStylesV36(); bindDev(); render(); };
   els.devCopy.onclick = async () => { const text = JSON.stringify(dev, null, 2); els.devOutput.value = text; try { await navigator.clipboard.writeText(text); } catch {} };
@@ -2849,10 +2887,18 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
       catch { return {}; }
     })();
 
-    if (saved.left != null) els.inspector.style.left = saved.left + "px";
-    else els.inspector.style.left = (Number(dev.inspectorPanelX) || 1550) + "px";
-    if (saved.top != null) els.inspector.style.top = saved.top + "px";
-    else els.inspector.style.top = (Number(dev.inspectorPanelY) || 600) + "px";
+    const savedLeft = Number(saved.left);
+    const savedTop = Number(saved.top);
+    const hasSavedPos = Number.isFinite(savedLeft) && Number.isFinite(savedTop);
+    const defaultX = Number(dev.inspectorPanelX);
+    const defaultY = Number(dev.inspectorPanelY);
+    const pos = hasSavedPos
+      ? clampPanelPosition(els.inspector, savedLeft, savedTop)
+      : ((defaultX < 0 || defaultY < 0)
+          ? panelCenterPosition(els.inspector)
+          : clampPanelPosition(els.inspector, defaultX, defaultY));
+    els.inspector.style.left = pos.x + "px";
+    els.inspector.style.top = pos.y + "px";
     if (saved.width != null) els.inspector.style.width = saved.width + "px";
     if (saved.height != null) els.inspector.style.height = saved.height + "px";
 
