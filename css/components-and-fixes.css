@@ -422,3 +422,48 @@
 #ogBackSleeveBtn.active {
   background: #157a38 !important;
 }
+
+
+/* v35: smaller green main menu and cleaner sleeve backs */
+.main-menu {
+  width: 206px !important;
+  gap: 6px !important;
+  padding: 9px !important;
+  font-size: 13px !important;
+}
+
+.main-menu button,
+.main-menu input,
+.main-menu select {
+  font-size: 13px !important;
+}
+
+.main-menu button {
+  padding: 6px 9px !important;
+  border-radius: 7px !important;
+  min-height: 30px !important;
+}
+
+.main-menu .menu-section {
+  gap: 6px !important;
+}
+
+#sleevesMenu {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+}
+
+#sleeveColorInput {
+  width: 100% !important;
+  height: 30px !important;
+  padding: 2px !important;
+  grid-column: 1 / -1;
+}
+
+.grid-sleeve-back {
+  width: 118px;
+  height: 165px;
+  border-radius: 7px;
+  display: block;
+}

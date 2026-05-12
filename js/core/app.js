@@ -440,10 +440,14 @@
           const visual = document.createElement("div");
           visual.className = "pile-card";
           const top = ownerCards(player, "library").at(-1);
-          if (top && (state.revealTop[player])) {
-            visual.style.backgroundImage = top.image ? `url("${top.image}")` : 'url("lapi2.png")';
-            visual.style.backgroundSize = "cover";
-            visual.style.backgroundPosition = "center";
+          if (top && state.revealTop[player]) {
+            if (top.image) {
+              visual.style.background = `#050505 url("${top.image}") center / cover no-repeat`;
+            } else {
+              applySleeveBackV35(visual, player, top);
+            }
+          } else {
+            applySleeveBackV35(visual, player);
           }
           pile.appendChild(visual);
           pile.addEventListener("dblclick", () => { if (player === localPlayer) drawOne(player); });
@@ -686,29 +690,54 @@
   }
 
 
-  function sleeveBackElement(owner, card = null) {
-    const back = document.createElement("div");
-    back.className = "back";
+  function defaultSleeveV35() {
+    return { type: "og", color: "#6a3b20" };
+  }
+
+  function normalizeSleeveV35(sleeve) {
+    const s = sleeve && typeof sleeve === "object" ? sleeve : defaultSleeveV35();
+    const type = s.type === "color" ? "color" : "og";
+    const color = /^#[0-9a-f]{6}$/i.test(String(s.color || "")) ? s.color : "#6a3b20";
+    return { type, color };
+  }
+
+  function sleeveForPlayerV35(player) {
+    ensureState();
+    const owner = player === "p2" ? "p2" : "p1";
+    state.sleeves[owner] = normalizeSleeveV35(state.sleeves[owner]);
+    return state.sleeves[owner];
+  }
+
+  function applySleeveBackV35(el, owner, card = null) {
+    if (!el) return el;
+
+    el.classList.add("back");
+    el.textContent = "";
+
     if (card && card.isToken) {
-      back.style.backgroundImage = 'url("token/aieback.png")';
-      back.style.backgroundColor = "#050505";
-      back.style.backgroundSize = "cover";
-      back.style.backgroundPosition = "center";
-      return back;
+      el.style.background = '#050505 url("token/aieback.png") center / cover no-repeat';
+      return el;
     }
-    const sleeve = state.sleeves?.[owner] || { type: "og", color: "#6a3b20" };
+
+    const sleeve = sleeveForPlayerV35(owner);
     if (sleeve.type === "color") {
-      back.style.backgroundImage = "none";
-      back.style.backgroundColor = sleeve.color || "#6a3b20";
-      back.style.backgroundSize = "cover";
-      back.style.backgroundPosition = "center";
+      el.style.backgroundImage = "none";
+      el.style.backgroundColor = sleeve.color;
+      el.style.backgroundSize = "cover";
+      el.style.backgroundPosition = "center";
+      el.style.border = "1px solid rgba(255,255,255,.22)";
+      el.style.boxShadow = "inset 0 0 0 4px rgba(0,0,0,.20), inset 0 0 26px rgba(255,255,255,.10)";
     } else {
-      back.style.backgroundImage = 'url("lapi2.png")';
-      back.style.backgroundColor = "#050505";
-      back.style.backgroundSize = "cover";
-      back.style.backgroundPosition = "center";
+      el.style.background = '#050505 url("lapi2.png") center / cover no-repeat';
+      el.style.border = "";
+      el.style.boxShadow = "";
     }
-    return back;
+
+    return el;
+  }
+
+  function sleeveBackElement(owner, card = null) {
+    return applySleeveBackV35(document.createElement("div"), owner, card);
   }
 
 
@@ -1318,9 +1347,15 @@
       const wrap = document.createElement("div");
       wrap.className = "grid-card exile-grid-card";
       wrap.dataset.cardId = card.id;
-      const img = document.createElement("img");
-      img.src = card.faceDown ? "lapi2.png" : (card.image || "lapi2.png");
-      wrap.appendChild(img);
+      if (card.faceDown) {
+        const back = applySleeveBackV35(document.createElement("div"), card.owner, card);
+        back.classList.add("grid-sleeve-back");
+        wrap.appendChild(back);
+      } else {
+        const img = document.createElement("img");
+        img.src = card.image || "lapi2.png";
+        wrap.appendChild(img);
+      }
       wrap.addEventListener("pointerdown", e => {
         if (card.owner !== localPlayer) return;
         els.exileModal.classList.add("hidden");
@@ -1853,16 +1888,27 @@
   }
 
   function updateSleeveButtonsV33(){
-    if(!localPlayer||!state.sleeves)return;
-    const s=state.sleeves[localPlayer]||{type:"og",color:"#6a3b20"};
-    if(els.ogBackSleeveBtn)els.ogBackSleeveBtn.classList.toggle("active",s.type==="og");
-    if(els.colorSleeveBtn)els.colorSleeveBtn.classList.toggle("active",s.type==="color");
-    if(els.sleeveColorInput&&s.color)els.sleeveColorInput.value=s.color;
+    if(!localPlayer)return;
+    const s=sleeveForPlayerV35(localPlayer);
+    if(els.ogBackSleeveBtn){
+      els.ogBackSleeveBtn.classList.toggle("active",s.type==="og");
+      els.ogBackSleeveBtn.setAttribute("aria-pressed", String(s.type==="og"));
+    }
+    if(els.colorSleeveBtn){
+      els.colorSleeveBtn.classList.toggle("active",s.type==="color");
+      els.colorSleeveBtn.setAttribute("aria-pressed", String(s.type==="color"));
+    }
+    if(els.sleeveColorInput)els.sleeveColorInput.value=s.color;
   }
   function setSleeveV33(type){
-    if(!state.sleeves)state.sleeves={p1:{type:"og",color:"#6a3b20"},p2:{type:"og",color:"#6a3b20"}};
-    state.sleeves[localPlayer]=type==="color"?{type:"color",color:els.sleeveColorInput.value}:{type:"og",color:"#6a3b20"};
-    updateSleeveButtonsV33();push();
+    if(!localPlayer)return;
+    const current=sleeveForPlayerV35(localPlayer);
+    const pickedColor=els.sleeveColorInput?.value || current.color || "#6a3b20";
+    state.sleeves[localPlayer]=type==="color"
+      ? {type:"color",color:pickedColor}
+      : {type:"og",color:current.color || "#6a3b20"};
+    updateSleeveButtonsV33();
+    push();
   }
   let boxSelectV33=null;
   function beginBoxSelectV33(e){
