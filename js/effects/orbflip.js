@@ -383,9 +383,9 @@
     apply();
   }
 
-  function open(front) {
+  function open(front, owner) {
     ensureOverlay();
-    flipOwner = currentActivePlayer();
+    flipOwner = owner || currentActivePlayer();
     root.classList.remove("hidden");
     reset(front);
   }
@@ -955,23 +955,18 @@
   }, true);
 
   document.addEventListener("click", e => {
-    const orbBtn = document.getElementById("menuFlipOrbBtn");
-    const starBtn = document.getElementById("menuFlipStarBtn");
-
-    if (e.target === orbBtn) {
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      open("chaosfront.png");
-    }
-
-    if (e.target === starBtn) {
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      open("fallingstar.png");
-    }
+    // Main app owns MENU flip buttons so the event can be synced to Firebase.
+    // This listener intentionally does not intercept them.
   }, true);
+
+
+  window.OrbFlipExternal = {
+    open,
+    close,
+    isOpen() {
+      return !!root && !root.classList.contains("hidden");
+    }
+  };
 
   (function chargeLoop() {
     if (root && !root.classList.contains("hidden") && st.charging) {

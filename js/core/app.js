@@ -29,7 +29,7 @@
     document.body.appendChild(els.selectBox);
   }
 
-  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-026";
+  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-027";
   let localRoom = null;
   let localPlayer = null;
   let localNickname = localStorage.getItem("oldschoolNicknameV1") || "Player";
@@ -117,12 +117,12 @@
     "sleeveNoiseStrength": 16,
     "dieSelectWidth": 1,
     "dieSelectColor": "#ffffff",
-    "stone1Size": 1.15,
-    "stone2Size": 1.15,
-    "stone1X": 929,
-    "stone1Y": 540,
-    "stone2X": 991,
-    "stone2Y": 540,
+    "stone1Size": 2.05,
+    "stone2Size": 3,
+    "stone1X": 246,
+    "stone1Y": 190,
+    "stone2X": 1663,
+    "stone2Y": 926,
     "stoneWanderEvery": 70,
     "stoneWanderDistance": 22,
     "stoneWanderRotation": 32,
@@ -264,7 +264,7 @@
       revealTop: { p1: false, p2: false },
       revealHand: { p1: false, p2: false },
       playmats: { p1: "default-green", p2: "default-blue" },
-      flipOverlay: { active: false, front: "", nonce: 0 },
+      flipOverlay: { active: false, front: "", nonce: 0, owner: "" },
       sleeves: { p1: { type: "og", color: "#6a3b20" }, p2: { type: "og", color: "#6a3b20" } },
       deckOrigins: { p1: {}, p2: {} },
       chat: [],
@@ -2091,34 +2091,39 @@
   }
 
   function syncSharedFlipOverlay() {
-    if (!state.flipOverlay) state.flipOverlay = { active: false, front: "", nonce: 0 };
-    const sig = state.flipOverlay.active ? `${state.flipOverlay.front}:${state.flipOverlay.nonce}` : "off";
+    if (!state.flipOverlay) state.flipOverlay = { active: false, front: "", nonce: 0, owner: "" };
+    const flip = state.flipOverlay;
+    const sig = flip.active ? `${flip.front}:${flip.nonce}:${flip.owner || ""}` : "off";
 
     if (sig === localFlipOverlaySignature) return;
     localFlipOverlaySignature = sig;
 
-    if (state.flipOverlay.active) {
-      const btn = state.flipOverlay.front === "fallingstar.png" ? els.menuFlipStarBtn : els.menuFlipOrbBtn;
-      if (btn) {
-        btn.dataset.internalOrbflipOpen = "1";
-        btn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-        delete btn.dataset.internalOrbflipOpen;
+    if (flip.active) {
+      if (window.OrbFlipExternal && typeof window.OrbFlipExternal.open === "function") {
+        window.OrbFlipExternal.open(flip.front, flip.owner || localPlayer || "p1");
+      } else {
+        setTimeout(() => syncSharedFlipOverlay(), 80);
       }
     } else {
-      const close = document.querySelector("#orbflipExternal .orbflip-close");
-      if (close) close.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      if (window.OrbFlipExternal && typeof window.OrbFlipExternal.close === "function") {
+        window.OrbFlipExternal.close();
+      } else {
+        const close = document.querySelector("#orbflipExternal .orbflip-close");
+        if (close) close.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      }
     }
 
     updateMenuActiveStates();
   }
 
   function toggleSharedFlip(front) {
-    if (!state.flipOverlay) state.flipOverlay = { active: false, front: "", nonce: 0 };
+    if (!state.flipOverlay) state.flipOverlay = { active: false, front: "", nonce: 0, owner: "" };
     if (state.flipOverlay.active && state.flipOverlay.front === front) {
-      state.flipOverlay = { active: false, front: "", nonce: Date.now() };
+      state.flipOverlay = { active: false, front: "", nonce: Date.now(), owner: localPlayer || "" };
     } else {
-      state.flipOverlay = { active: true, front, nonce: Date.now() };
+      state.flipOverlay = { active: true, front, nonce: Date.now(), owner: localPlayer || "p1" };
     }
+    localFlipOverlaySignature = null;
     push();
   }
 
