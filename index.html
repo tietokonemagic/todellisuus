@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>COMPUTER MAGIC WIZARD GAMING EXPANDER</title>
+  <title>Oldschool Clean Shared Table</title>
   <link rel="stylesheet" href="css/base-table.css">
   <link rel="stylesheet" href="css/components-and-fixes.css">
   <link rel="stylesheet" href="css/legacy-overrides.css">
@@ -12,9 +12,9 @@
 <body>
   <div id="seatScreen" class="seat-screen">
     <div class="seat-box">
-      <h1>COMPUTER MAGIG NERD GAMES</h1>
-      <p>Choose name and room and seat.</p>
-      <div id="appVersionLabel" class="app-version-label">v2026.05.12-018</div>
+      <h1>Oldschool Table</h1>
+      <p>Choose room and seat.</p>
+      <div id="appVersionLabel" class="app-version-label">v2026.05.12-020</div>
       <label class="nickname-row">NICKNAME <input id="nicknameInput" type="text" maxlength="24" placeholder="Player"></label>
       <div class="seat-grid">
         <button id="joinR1P1">ROOM 1 / PLAYER 1</button>
@@ -65,6 +65,13 @@
       <button id="menuFlipOrbBtn">FLIP ORB</button>
       <button id="menuFlipStarBtn">FLIP FALLING STAR</button>
       <button id="addDiceBtn">ADD DICE</button>
+      <div class="throw-dice-row">
+        <select id="throwDiceCount" aria-label="Throw dice count">
+          <option value="1">1 DIE</option>
+          <option value="2">2 DICE</option>
+        </select>
+        <button id="throwDiceBtn" type="button">THROW DICE</button>
+      </div>
       <button id="loadDeckBtn">LOAD DECK</button>
       <button id="sideboardBtn">SIDEBOARD</button>
       <button id="chatBtn">CHAT</button>
@@ -81,13 +88,28 @@
     <div class="modal-box">
       <h2>LOAD DECK</h2>
       <textarea id="deckText">4 Lightning Bolt
-40 Counterspell
-20 Island
+4 Counterspell
+4 Hypnotic Specter
+4 Dark Ritual
+4 Sinkhole
+4 Swords to Plowshares
+1 Sol Ring
+1 Demonic Tutor
+1 Regrowth
+1 Chaos Orb
+1 Strip Mine
+4 Mishra's Factory
+4 Underground Sea
+4 Badlands
+4 Scrubland
+4 City of Brass
+7 Swamp
 
 SIDEBOARD:
-10 Mountain
-5 Fireball
-		</textarea>
+2 Red Elemental Blast
+2 Blue Elemental Blast
+2 Disenchant
+1 Shatter</textarea>
       <div class="row core-row">
         <label>CORE SET
           <select id="coreSetSelect">
@@ -325,6 +347,15 @@ SIDEBOARD:
     <label>Menu gap <input id="devMenuGap" type="range" min="2" max="14" value="5"><span id="devMenuGapVal">5</span></label>
     <label>Menu width <input id="devMenuWidth" type="range" min="160" max="300" value="196"><span id="devMenuWidthVal">196</span></label>
     <label>Sleeve noise <input id="devSleeveNoiseStrength" type="range" min="0" max="100" value="16"><span id="devSleeveNoiseStrengthVal">16</span></label>
+    <label>Dice select width <input id="devDieSelectWidth" type="range" min="0" max="4" step="0.25" value="1"><span id="devDieSelectWidthVal">1</span></label>
+    <label>Dice select color <input id="devDieSelectColor" type="color" value="#ffffff"><span id="devDieSelectColorVal">#ffffff</span></label>
+
+    <div class="dev-subtitle">STONES</div>
+    <label>Kivi 1 size <input id="devStone1Size" type="range" min="0.5" max="3" step="0.05" value="1.15"><span id="devStone1SizeVal">1.15</span></label>
+    <label>Kivi 2 size <input id="devStone2Size" type="range" min="0.5" max="3" step="0.05" value="1.15"><span id="devStone2SizeVal">1.15</span></label>
+    <label>Kivi 3 size <input id="devStone3Size" type="range" min="0.5" max="3" step="0.05" value="1.15"><span id="devStone3SizeVal">1.15</span></label>
+    <label>Kivi 4 size <input id="devStone4Size" type="range" min="0.5" max="3" step="0.05" value="1.15"><span id="devStone4SizeVal">1.15</span></label>
+    <label>Kivi 5 size <input id="devStone5Size" type="range" min="0.5" max="3" step="0.05" value="1.15"><span id="devStone5SizeVal">1.15</span></label>
 
     <div class="dev-buttons">
       <button id="devReset">RESET DEV</button>

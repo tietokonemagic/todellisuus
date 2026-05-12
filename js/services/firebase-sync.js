@@ -26,9 +26,30 @@ function path(p = "") {
   return "cleanRoomsV13/" + roomId + (p ? "/" + p : "");
 }
 
+async function clearChatIfRoomEmpty(targetRoom = roomId) {
+  if (!targetRoom) return;
+  try {
+    const seatsSnap = await get(ref(db, "cleanRoomsV13/" + targetRoom + "/seats"));
+    const seats = seatsSnap.val() || {};
+    const activeSeats = Object.values(seats).filter(s => s && Date.now() - (s.updated || 0) < 30000);
+    if (activeSeats.length === 0) {
+      const stateRef = ref(db, "cleanRoomsV13/" + targetRoom + "/state");
+      const stateSnap = await get(stateRef);
+      const current = stateSnap.val();
+      if (current && Array.isArray(current.chat) && current.chat.length) {
+        await update(stateRef, { chat: [] });
+      }
+    }
+  } catch (err) {
+    console.warn("Could not clear empty room chat", err);
+  }
+}
+
 async function joinRoom(nextRoom, nextPlayer) {
   roomId = nextRoom;
   playerId = nextPlayer;
+
+  await clearChatIfRoomEmpty(roomId);
 
   const seatRef = ref(db, "cleanRoomsV13/" + roomId + "/seats/" + playerId);
   const snap = await get(seatRef);
@@ -82,13 +103,19 @@ async function clearResetVote() {
 
 async function leaveRoom() {
   if (!roomId || !playerId) return;
+  const leavingRoom = roomId;
   await remove(ref(db, path("seats/" + playerId)));
+  await clearChatIfRoomEmpty(leavingRoom);
   location.reload();
 }
 
 async function kickRoom(r) {
   await remove(ref(db, "cleanRoomsV13/" + r + "/seats"));
   await remove(ref(db, "cleanRoomsV13/" + r + "/resetVote"));
+  const stateRef = ref(db, "cleanRoomsV13/" + r + "/state");
+  const stateSnap = await get(stateRef);
+  const current = stateSnap.val();
+  if (current) await update(stateRef, { chat: [] });
 }
 
 window.FirebaseCleanSync = {

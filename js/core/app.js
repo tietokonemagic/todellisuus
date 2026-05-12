@@ -13,7 +13,7 @@
   [
     "seatScreen","seatStatus","appVersionLabel","nicknameInput","joinR1P1","joinR1P2","joinR2P1","joinR2P2","kickRoom1","kickRoom2",
     "game","viewport","world","pileLayer","cardLayer","dragLayer","diceLayer","myHand","opponentHand",
-    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","sideboardBtn","sideboardModal","sideboardWindow","closeSideboardEditor","resetOriginalSideboard","mainboardScroll","mainboardBoard","sideboardScroll","sideboardBoard","mainboardCount","sideboardCount","chatBtn","chatPanel","chatHeader","chatMinus","chatPlus","chatMessages","chatText","chatSend","helpBtn","helpPanel","helpHeader","helpMinus","helpPlus","helpBody","devTuningBtn","inspectorToggleBtn","resetVoteBtn","leaveBtn","roomInfo",
+    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","throwDiceCount","throwDiceBtn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","sideboardBtn","sideboardModal","sideboardWindow","closeSideboardEditor","resetOriginalSideboard","mainboardScroll","mainboardBoard","sideboardScroll","sideboardBoard","mainboardCount","sideboardCount","chatBtn","chatPanel","chatHeader","chatMinus","chatPlus","chatMessages","chatText","chatSend","helpBtn","helpPanel","helpHeader","helpMinus","helpPlus","helpBody","devTuningBtn","inspectorToggleBtn","resetVoteBtn","leaveBtn","roomInfo",
     "deckModal","deckText","coreSetSelect","doLoadDeck","closeDeckModal","deckStatus",
     "tutorModal","tutorGrid","tutorToHand","tutorToTable","closeTutor",
     "graveModal","graveGrid","closeGrave","exileModal","exileGrid","closeExile",
@@ -22,12 +22,20 @@
     "selectBox","devPanel","devDragHandle","devReset","devCopy","devClose","devOutput"
   ].forEach(id => els[id] = document.getElementById(id));
 
-  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-018";
+  if (!els.selectBox) {
+    els.selectBox = document.createElement("div");
+    els.selectBox.id = "selectBox";
+    els.selectBox.className = "select-box hidden";
+    document.body.appendChild(els.selectBox);
+  }
+
+  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-022";
   let localRoom = null;
   let localPlayer = null;
   let localNickname = localStorage.getItem("oldschoolNicknameV1") || "Player";
   if (els.nicknameInput) els.nicknameInput.value = localNickname;
   let selectedIds = new Set();
+  let selectedDieIds = new Set();
   let hoveredCardId = null;
   let hoveredDieId = null;
   let selectedTutorId = null;
@@ -106,7 +114,14 @@
     "menuButtonPaddingX": 15,
     "menuGap": 5,
     "menuWidth": 160,
-    "sleeveNoiseStrength": 16
+    "sleeveNoiseStrength": 16,
+    "dieSelectWidth": 1,
+    "dieSelectColor": "#ffffff",
+    "stone1Size": 1.15,
+    "stone2Size": 1.15,
+    "stone3Size": 1.15,
+    "stone4Size": 1.15,
+    "stone5Size": 1.15
 };
   let dev = loadDev();
 
@@ -116,6 +131,33 @@
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   function otherPlayer() { return localPlayer === "p1" ? "p2" : "p1"; }
   function snap(v) { return Math.round(v / GRID) * GRID; }
+
+  function makeDefaultStones() {
+    const list = [];
+    for (const player of ["p1", "p2"]) {
+      const lib = pileBaseStatic(player, "library");
+      for (let i = 1; i <= 5; i++) {
+        list.push({
+          id: `${player}-stone-${i}`,
+          owner: player,
+          image: `kivi${i}.png`,
+          x: lib.x + 18 + (i - 1) * 42,
+          y: lib.y + 214,
+          z: 2400 + i,
+          rot: 0
+        });
+      }
+    }
+    return list;
+  }
+
+  function pileBaseStatic(player, kind) {
+    const base = {
+      p1: { library: { x: 1518, y: 698 } },
+      p2: { library: { x: 260, y: 184 } }
+    };
+    return base[player]?.[kind] || { x: 960, y: 540 };
+  }
 
   function initialState() {
     return {
@@ -130,6 +172,7 @@
       sleeves: { p1: { type: "og", color: "#6a3b20" }, p2: { type: "og", color: "#6a3b20" } },
       deckOrigins: { p1: {}, p2: {} },
       chat: [],
+      stones: makeDefaultStones(),
       updated: Date.now()
     };
   }
@@ -144,6 +187,10 @@
     if (!state.sleeves) state.sleeves = { p1: { type: "og", color: "#6a3b20" }, p2: { type: "og", color: "#6a3b20" } };
     if (!state.deckOrigins) state.deckOrigins = { p1: {}, p2: {} };
     if (!Array.isArray(state.chat)) state.chat = [];
+    if (!Array.isArray(state.stones) || state.stones.length < 10) {
+      const existing = new Map((state.stones || []).map(s => [s.id, s]));
+      state.stones = makeDefaultStones().map(s => ({ ...s, ...(existing.get(s.id) || {}) }));
+    }
     for (const player of ["p1", "p2"]) {
       if (!state.sleeves[player]) state.sleeves[player] = { type: "og", color: "#6a3b20" };
       if (!state.deckOrigins[player]) state.deckOrigins[player] = {};
@@ -530,10 +577,13 @@
     document.documentElement.style.setProperty("--card-radius", `${Number(dev.cardRadius) || 7}px`);
     document.documentElement.style.setProperty("--alpha-card-radius", `${Number(dev.alphaCardRadius) || 11}px`);
     document.documentElement.style.setProperty("--sleeve-noise-opacity", String(Math.max(0, Math.min(1, (Number(dev.sleeveNoiseStrength) || 0) / 100))));
+    document.documentElement.style.setProperty("--die-select-width", `${Number(dev.dieSelectWidth) || 1}px`);
+    document.documentElement.style.setProperty("--die-select-color", dev.dieSelectColor || "#ffffff");
     renderPiles();
     renderCards();
     renderHands();
     renderDice();
+    renderStones();
     renderDragCard();
     renderHandDropZoneDebug();
     renderHandSafeZoneDebug();
@@ -694,7 +744,7 @@
       el.style.left = (cx - rect.left - CARD_W / 2) + "px";
       el.style.top = (cy - rect.top - CARD_H / 2) + "px";
       el.style.bottom = "auto";
-      el.style.transform = `rotate(${cardRotation(card)}deg)`;
+      el.style.transform = `rotate(0deg)`;
       el.style.zIndex = String(drag.handZ || drag.originalHandZ || 100);
       el.style.setProperty("--hand-z", String(drag.handZ || drag.originalHandZ || 100));
       el.style.setProperty("--hand-transform", el.style.transform);
@@ -919,6 +969,7 @@
           else selectedIds.add(card.id);
         } else {
           selectedIds = new Set([card.id]);
+          selectedDieIds.clear();
         }
         render();
       }
@@ -1020,6 +1071,69 @@
     push();
   }
 
+
+  function renderStones() {
+    if (!els.diceLayer) return;
+    ensureState();
+    state.stones.forEach(stone => {
+      const el = document.createElement("img");
+      el.className = "table-stone";
+      el.dataset.stoneId = stone.id;
+      el.src = stone.image || "kivi1.png";
+      el.alt = "";
+      el.draggable = false;
+      const n = Number(String(stone.id || "").match(/stone-(\d+)/)?.[1] || 1);
+      const scale = Number(dev["stone" + n + "Size"]) || 1.15;
+      el.style.setProperty("--stone-scale", String(scale));
+      el.style.left = (Number(stone.x) || 960) + "px";
+      el.style.top = (Number(stone.y) || 540) + "px";
+      el.style.zIndex = String(stone.z || 2400);
+      const baseRot = stone.owner === localPlayer ? 0 : 180;
+      el.style.transform = `translate(-50%, -50%) rotate(${baseRot + (Number(stone.rot) || 0)}deg)`;
+      el.addEventListener("pointerdown", e => onStonePointerDown(e, stone));
+      els.diceLayer.appendChild(el);
+    });
+  }
+
+  let stoneDrag = null;
+
+  function onStonePointerDown(e, stone) {
+    if (e.button !== 0 || !stone) return;
+    closeMenus();
+    const p = tablePoint(e.clientX, e.clientY, false);
+    stoneDrag = {
+      id: stone.id,
+      lastClientX: e.clientX,
+      offsetX: p.x - (Number(stone.x) || p.x),
+      offsetY: p.y - (Number(stone.y) || p.y)
+    };
+    stone.z = Math.max(2400, ...state.stones.map(s => Number(s.z) || 2400)) + 1;
+    e.preventDefault();
+    e.stopPropagation();
+    document.addEventListener("pointermove", onStoneDragMove);
+    document.addEventListener("pointerup", onStoneDragEnd, { once: true });
+  }
+
+  function onStoneDragMove(e) {
+    if (!stoneDrag) return;
+    const stone = state.stones.find(s => s.id === stoneDrag.id);
+    if (!stone) return;
+    const p = tablePoint(e.clientX, e.clientY);
+    stone.x = snap(p.x - stoneDrag.offsetX);
+    stone.y = snap(p.y - stoneDrag.offsetY);
+    const dx = e.clientX - (stoneDrag.lastClientX || e.clientX);
+    stone.rot = (Number(stone.rot) || 0) + Math.max(0.2, Math.min(2.4, Math.abs(dx) * 0.08));
+    stoneDrag.lastClientX = e.clientX;
+    render();
+  }
+
+  function onStoneDragEnd() {
+    document.removeEventListener("pointermove", onStoneDragMove);
+    if (!stoneDrag) return;
+    stoneDrag = null;
+    push();
+  }
+
   function renderDice() {
     els.diceLayer.innerHTML = "";
     ensureState();
@@ -1043,7 +1157,7 @@
 
   function createDieEl(d, x, y, rot) {
     const el = document.createElement("div");
-    el.className = "die" + (d.kind === "counter" ? " counter-die" : "");
+    el.className = "die" + (d.kind === "counter" ? " counter-die" : "") + (selectedDieIds.has(d.id) ? " selected" : "");
     el.dataset.dieId = d.id;
     el.style.left = x + "px";
     el.style.top = y + "px";
@@ -1072,7 +1186,19 @@
   function onDiePointerDown(e, die) {
     if (e.button !== 0) return;
     if (!die || die.owner !== localPlayer) return;
+    if (e.shiftKey) {
+      if (selectedDieIds.has(die.id)) selectedDieIds.delete(die.id);
+      else selectedDieIds.add(die.id);
+      renderDice();
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     closeMenus();
+    if (!selectedDieIds.has(die.id)) {
+      selectedDieIds = new Set([die.id]);
+      selectedIds.clear();
+    }
     const p = tablePoint(e.clientX, e.clientY, false);
     const startX = die.kind === "life" ? p.x : (die.x || p.x);
     const startY = die.kind === "life" ? p.y : (die.y || p.y);
@@ -1082,7 +1208,13 @@
       startClientX: e.clientX,
       startClientY: e.clientY,
       offsetX: p.x - startX,
-      offsetY: p.y - startY
+      offsetY: p.y - startY,
+      group: selectedDieIds.has(die.id) ? state.dice.filter(d => selectedDieIds.has(d.id)).map(d => ({
+        id: d.id,
+        x: d.kind === "life" ? startX : (d.x || startX),
+        y: d.kind === "life" ? startY : (d.y || startY),
+        kind: d.kind
+      })) : null
     };
     e.preventDefault();
     e.stopPropagation();
@@ -1092,13 +1224,25 @@
 
   function onDieDragMove(e) {
     if (!dieDrag) return;
-    const die = state.dice.find(d => d.id === dieDrag.id);
-    if (!die) return;
     const p = tablePoint(e.clientX, e.clientY);
-    die.x = snap(p.x - dieDrag.offsetX);
-    die.y = snap(p.y - dieDrag.offsetY);
-    die.kind = "counter";
-    die.z = 3000;
+    const mainDie = state.dice.find(d => d.id === dieDrag.id);
+    if (!mainDie) return;
+
+    const nextX = snap(p.x - dieDrag.offsetX);
+    const nextY = snap(p.y - dieDrag.offsetY);
+    const origin = dieDrag.group?.find(g => g.id === dieDrag.id) || { x: nextX, y: nextY };
+    const dx = nextX - origin.x;
+    const dy = nextY - origin.y;
+
+    const targets = dieDrag.group && dieDrag.group.length > 1 ? dieDrag.group : [{ id: dieDrag.id, x: origin.x, y: origin.y }];
+    targets.forEach(g => {
+      const d = state.dice.find(x => x.id === g.id);
+      if (!d) return;
+      d.x = snap((g.x || nextX) + dx);
+      d.y = snap((g.y || nextY) + dy);
+      d.kind = "counter";
+      d.z = 3000;
+    });
     renderDice();
   }
 
@@ -1139,7 +1283,10 @@
     const depth = fromHand ? (handDepth[card.owner] || 1) : 1;
     const handZ = fromHand ? (100 + (depth > 0 ? handIndex : handCount - handIndex)) : null;
 
-    if (!selectedIds.has(card.id)) selectedIds = new Set([card.id]);
+    if (!selectedIds.has(card.id)) {
+      selectedIds = new Set([card.id]);
+      selectedDieIds.clear();
+    }
 
     drag = {
       id: card.id,
@@ -1654,7 +1801,24 @@
       targets = state.cards.filter(c => selectedIds.has(c.id));
     }
 
-    if (!targets.length) return false;
+    if (!targets.length) {
+      let dieTargets = [];
+      const die = state.dice.find(d => d.id === hoveredDieId);
+      if (die) dieTargets = [die];
+      else if (selectedDieIds.size) dieTargets = state.dice.filter(d => selectedDieIds.has(d.id));
+
+      if (dieTargets.length && (action === "grave" || action === "exile")) {
+        const removeIds = new Set(dieTargets.filter(d => d.kind !== "life").map(d => d.id));
+        if (removeIds.size) {
+          state.dice = state.dice.filter(d => !removeIds.has(d.id));
+          hoveredDieId = null;
+          selectedDieIds.clear();
+          push();
+          return true;
+        }
+      }
+      return false;
+    }
 
     targets.forEach(card => {
       if (action === "grave") moveCardToZone(card, card.owner + "-grave");
@@ -2346,10 +2510,18 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
   }
   let boxSelectV33=null;
   function beginBoxSelectV33(e){
-    if(e.button!==0||!localPlayer)return;
+    if(e.button!==0||!localPlayer||!e.shiftKey)return;
     if(e.target.closest(".card,.die,.pile,.hand,.main-menu,.main-menu-btn,.modal,.context-menu,.inspector,.help-panel,.chat-panel,.dev-panel,.sylvan-panel"))return;
     boxSelectV33={x0:e.clientX,y0:e.clientY,x1:e.clientX,y1:e.clientY};
-    els.selectBox.classList.remove("hidden");updateBoxSelectV33(e);
+    if (!els.selectBox) {
+      els.selectBox = document.createElement("div");
+      els.selectBox.id = "selectBox";
+      els.selectBox.className = "select-box hidden";
+      document.body.appendChild(els.selectBox);
+    }
+    els.selectBox.classList.remove("hidden");
+    updateBoxSelectV33(e);
+    e.preventDefault();
     document.addEventListener("pointermove",updateBoxSelectV33);
     document.addEventListener("pointerup",finishBoxSelectV33,{once:true});
   }
@@ -2359,25 +2531,61 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
     const l=Math.min(boxSelectV33.x0,boxSelectV33.x1),t=Math.min(boxSelectV33.y0,boxSelectV33.y1),r=Math.max(boxSelectV33.x0,boxSelectV33.x1),b=Math.max(boxSelectV33.y0,boxSelectV33.y1);
     els.selectBox.style.left=l+"px";els.selectBox.style.top=t+"px";els.selectBox.style.width=(r-l)+"px";els.selectBox.style.height=(b-t)+"px";
   }
-  function finishBoxSelectV33(){
+  function finishBoxSelectV33(e){
     document.removeEventListener("pointermove",updateBoxSelectV33);
     if(!boxSelectV33)return;
-    const sel={left:Math.min(boxSelectV33.x0,boxSelectV33.x1),top:Math.min(boxSelectV33.y0,boxSelectV33.y1),right:Math.max(boxSelectV33.x0,boxSelectV33.x1),bottom:Math.max(boxSelectV33.y0,boxSelectV33.y1)};
-    els.selectBox.classList.add("hidden");
+    const sel={
+      left:Math.min(boxSelectV33.x0,boxSelectV33.x1),
+      top:Math.min(boxSelectV33.y0,boxSelectV33.y1),
+      right:Math.max(boxSelectV33.x0,boxSelectV33.x1),
+      bottom:Math.max(boxSelectV33.y0,boxSelectV33.y1)
+    };
+    if (els.selectBox) els.selectBox.classList.add("hidden");
+
     if((sel.right-sel.left)>5||(sel.bottom-sel.top)>5){
-      const ids=[];
-      document.querySelectorAll("#cardLayer .card").forEach(el=>{const id=el.dataset.cardId;if(!id)return;const r=el.getBoundingClientRect();if(!(r.right<sel.left||r.left>sel.right||r.bottom<sel.top||r.top>sel.bottom))ids.push(id);});
-      selectedIds=new Set(ids);render();
+      const cardIds=[];
+      document.querySelectorAll("#cardLayer .card").forEach(el=>{
+        const id=el.dataset.cardId;
+        if(!id)return;
+        const r=el.getBoundingClientRect();
+        if(!(r.right<sel.left||r.left>sel.right||r.bottom<sel.top||r.top>sel.bottom)) cardIds.push(id);
+      });
+
+      const dieIds=[];
+      document.querySelectorAll("#diceLayer .die").forEach(el=>{
+        const id=el.dataset.dieId;
+        if(!id)return;
+        const r=el.getBoundingClientRect();
+        if(!(r.right<sel.left||r.left>sel.right||r.bottom<sel.top||r.top>sel.bottom)) dieIds.push(id);
+      });
+
+      selectedIds=new Set(cardIds);
+      selectedDieIds=new Set(dieIds);
+      render();
     }
     boxSelectV33=null;
   }
-
   // UI bindings
   if(els.ogBackSleeveBtn)els.ogBackSleeveBtn.onclick=e=>{e.preventDefault();e.stopPropagation();setSleeveV33("og");};
   if(els.colorSleeveBtn)els.colorSleeveBtn.onclick=e=>{e.preventDefault();e.stopPropagation();setSleeveV33("color");};
   if(els.sleeveColorInput)els.sleeveColorInput.oninput=()=>{if(state.sleeves?.[localPlayer]?.type==="color")setSleeveV33("color");};
   updateSleeveButtonsV33();
   els.world.addEventListener("pointerdown",beginBoxSelectV33);
+  document.addEventListener("pointerdown", e => {
+    if (!localPlayer || boxSelectV33) return;
+    if (!e.shiftKey) {
+      const clickedSelectable = e.target.closest?.(".card,.die,.table-stone");
+      const clickedUi = e.target.closest?.(".main-menu,.main-menu-btn,.modal,.context-menu,.inspector,.help-panel,.chat-panel,.dev-panel,.sylvan-panel,button,input,textarea,select");
+      if (!clickedSelectable && !clickedUi && (selectedIds.size || selectedDieIds.size)) {
+        selectedIds.clear();
+        selectedDieIds.clear();
+        render();
+      }
+      return;
+    }
+    if (!e.target.closest?.("#world,#viewport")) return;
+    beginBoxSelectV33(e);
+  }, true);
 
 
   els.joinR1P1.onclick = () => join("room1", "p1");
@@ -2399,6 +2607,7 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
   if (els.sleevesMenuBtn) els.sleevesMenuBtn.onclick = () => toggleSection(els.sleevesMenu, els.sleevesMenuBtn);
   if (els.addTokenMenuBtn) els.addTokenMenuBtn.onclick = () => toggleSection(els.tokenMenu, els.addTokenMenuBtn);
   if (els.addDiceBtn) els.addDiceBtn.onclick = () => addCounterDie();
+  if (els.throwDiceBtn) els.throwDiceBtn.onclick = e => { e.preventDefault(); e.stopPropagation(); throwDiceAnimated(); };
   if (els.menuFlipOrbBtn) els.menuFlipOrbBtn.onclick = e => { e.preventDefault(); e.stopPropagation(); toggleSharedFlip("chaosfront.png"); };
   if (els.menuFlipStarBtn) els.menuFlipStarBtn.onclick = e => { e.preventDefault(); e.stopPropagation(); toggleSharedFlip("fallingstar.png"); };
   if (els.dieMenu) els.dieMenu.addEventListener("click", e => {
@@ -2676,7 +2885,7 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
     els.chatMessages.innerHTML = "";
     messages.forEach(msg => {
       const row = document.createElement("div");
-      row.className = "chat-message";
+      row.className = "chat-message " + (msg.player === "p2" ? "chat-p2" : "chat-p1");
 
       const name = document.createElement("span");
       name.className = "chat-name";
@@ -2709,6 +2918,146 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
     push();
     renderChatMessages();
   }
+
+
+  function makeThrowDieFace(value) {
+    const el = document.createElement("div");
+    el.className = "throw-die-visual throw-die-cube";
+    const faces = ["front","right","top"];
+    faces.forEach((faceName, idx) => {
+      const face = document.createElement("div");
+      face.className = "throw-die-face throw-die-" + faceName;
+      const faceValue = idx === 0 ? value : (1 + Math.floor(Math.random() * 6));
+      for (const p of PIPS[Math.max(1, Math.min(6, Number(faceValue) || 1))]) {
+        const pip = document.createElement("div");
+        pip.className = "throw-pip p" + p;
+        face.appendChild(pip);
+      }
+      el.appendChild(face);
+    });
+    return el;
+  }
+
+  function updateThrowDieFace(el, value) {
+    const front = el.querySelector(".throw-die-front") || el;
+    front.innerHTML = "";
+    for (const p of PIPS[Math.max(1, Math.min(6, Number(value) || 1))]) {
+      const pip = document.createElement("div");
+      pip.className = "throw-pip p" + p;
+      front.appendChild(pip);
+    }
+  }
+
+  function throwDiceAnimated() {
+    if (!localPlayer || !els.world) return;
+    const count = Math.max(1, Math.min(2, Number(els.throwDiceCount?.value || 1)));
+    const root = document.createElement("div");
+    root.className = "throw-dice-overlay";
+    document.body.appendChild(root);
+
+    const worldRect = els.world.getBoundingClientRect();
+    const tableCenterX = worldRect.left + worldRect.width * (localPlayer === "p2" ? 0.56 : 0.50);
+    const tableCenterY = worldRect.top + worldRect.height * (localPlayer === "p2" ? 0.42 : 0.58);
+    const side = Math.floor(Math.random() * 4);
+
+    const dice = Array.from({ length: count }, (_, i) => {
+      const value = 1 + Math.floor(Math.random() * 6);
+      const el = makeThrowDieFace(value);
+      root.appendChild(el);
+
+      let startX, startY;
+      if (side === 0) { startX = -80 - i * 40; startY = Math.random() * innerHeight; }
+      else if (side === 1) { startX = innerWidth + 80 + i * 40; startY = Math.random() * innerHeight; }
+      else if (side === 2) { startX = Math.random() * innerWidth; startY = -80 - i * 40; }
+      else { startX = Math.random() * innerWidth; startY = innerHeight + 80 + i * 40; }
+
+      const targetX = tableCenterX + (Math.random() - 0.5) * Math.min(360, worldRect.width * 0.35) + i * 42;
+      const targetY = tableCenterY + (Math.random() - 0.5) * Math.min(220, worldRect.height * 0.25) + i * 28;
+
+      return {
+        el,
+        value,
+        x: startX,
+        y: startY,
+        tx: targetX,
+        ty: targetY,
+        vx: (targetX - startX) / 64,
+        vy: (targetY - startY) / 64,
+        rotX: Math.random() * 360,
+        rotY: Math.random() * 360,
+        rotZ: Math.random() * 360,
+        spinX: 18 + Math.random() * 18,
+        spinY: 18 + Math.random() * 18,
+        spinZ: 12 + Math.random() * 20
+      };
+    });
+
+    const frames = 76;
+    let frame = 0;
+
+    function step() {
+      frame++;
+      const t = Math.min(1, frame / frames);
+      const ease = 1 - Math.pow(1 - t, 3);
+      const bounce = Math.sin(t * Math.PI) * 90;
+
+      if (dice.length === 2) {
+        const a = dice[0], b = dice[1];
+        const dx = a.x - b.x, dy = a.y - b.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 0 && dist < 58 && frame < 58) {
+          const nx = dx / dist, ny = dy / dist;
+          a.tx += nx * 24; a.ty += ny * 24;
+          b.tx -= nx * 24; b.ty -= ny * 24;
+          a.spinZ *= -0.92; b.spinZ *= -0.92;
+        }
+      }
+
+      dice.forEach((d, i) => {
+        d.x += (d.tx - d.x) * (0.055 + t * 0.035);
+        d.y += (d.ty - d.y) * (0.055 + t * 0.035);
+        d.rotX += d.spinX * (1 - t * 0.72);
+        d.rotY += d.spinY * (1 - t * 0.72);
+        d.rotZ += d.spinZ * (1 - t * 0.72);
+
+        if (frame % 6 === 0 && t < 0.82) updateThrowDieFace(d.el, 1 + Math.floor(Math.random() * 6));
+
+        const scale = 1.9 - ease * 0.9;
+        const lift = -bounce;
+        d.el.style.left = d.x + "px";
+        d.el.style.top = (d.y + lift) + "px";
+        d.el.style.transform =
+          `translate(-50%, -50%) perspective(520px) rotateX(${d.rotX}deg) rotateY(${d.rotY}deg) rotateZ(${d.rotZ}deg) scale(${scale})`;
+      });
+
+      if (frame < frames) {
+        requestAnimationFrame(step);
+        return;
+      }
+
+      dice.forEach(d => {
+        updateThrowDieFace(d.el, d.value);
+        const p = tablePoint(d.tx, d.ty, true);
+        state.dice.push({
+          id: uid(),
+          kind: "counter",
+          owner: localPlayer,
+          value: d.value,
+          color: "#eeeeee",
+          pipColor: "#111111",
+          x: p.x,
+          y: p.y,
+          z: 3000 + Math.floor(Math.random() * 1000)
+        });
+      });
+
+      root.remove();
+      push();
+    }
+
+    requestAnimationFrame(step);
+  }
+
 
   function bindChatPanel() {
     if (!els.chatBtn || !els.chatPanel || !els.chatHeader) return;
