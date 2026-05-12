@@ -8,6 +8,273 @@
   <link rel="stylesheet" href="orbflip.css">
 </head>
 <body>
-	sdfgidgsdfg
+  <div id="seatScreen" class="seat-screen">
+    <div class="seat-box">
+      <h1>Oldschool Table</h1>
+      <p>Choose room and seat.</p>
+      <div class="seat-grid">
+        <button id="joinR1P1">ROOM 1 / PLAYER 1</button>
+        <button id="joinR1P2">ROOM 1 / PLAYER 2</button>
+        <button id="joinR2P1">ROOM 2 / PLAYER 1</button>
+        <button id="joinR2P2">ROOM 2 / PLAYER 2</button>
+      </div>
+      <div class="seat-grid kick-grid">
+        <button id="kickRoom1" class="danger">KICK ROOM 1</button>
+        <button id="kickRoom2" class="danger">KICK ROOM 2</button>
+      </div>
+      <div id="seatStatus" class="status"></div>
+    </div>
+  </div>
+
+  <div id="game" class="game hidden">
+    <div id="viewport">
+      <div id="world">
+        <div id="p2Mat" class="playmat p2"></div>
+        <div id="p1Mat" class="playmat p1"></div>
+        <div id="centerLine"></div>
+
+        <div id="pileLayer"></div>
+        <div id="diceLayer"></div>
+        <div id="cardLayer"></div>
+        <div id="dragLayer"></div>
+
+        <div id="opponentHand" class="hand opponent-hand"></div>
+        <div id="myHand" class="hand my-hand"></div>
+      </div>
+    </div>
+
+    <button id="mainMenuBtn" class="main-menu-btn">MENU</button>
+    <div id="mainMenu" class="main-menu hidden">
+      <button id="playmatMenuBtn">PLAYMAT</button>
+      <div id="playmatMenu" class="menu-section hidden"></div>
+
+      <button id="sleevesMenuBtn">SLEEVES</button>
+      <div id="sleevesMenu" class="menu-section hidden">
+        <button id="ogBackSleeveBtn" type="button">OG BACK</button>
+        <button id="colorSleeveBtn" type="button">COLOR</button>
+        <input id="sleeveColorInput" type="color" value="#6a3b20">
+      </div>
+
+      <button id="addTokenMenuBtn">ADD TOKEN</button>
+      <div id="tokenMenu" class="menu-section hidden"></div>
+
+      <button id="menuFlipOrbBtn">FLIP ORB</button>
+      <button id="menuFlipStarBtn">FLIP FALLING STAR</button>
+      <button id="addDiceBtn">ADD DICE</button>
+      <button id="loadDeckBtn">LOAD DECK</button>
+      <button id="helpBtn">HELP</button>
+      <button id="devTuningBtn">DEV TUNING</button>
+      <button id="inspectorToggleBtn">INSPECTOR</button>
+      <button id="resetVoteBtn" class="danger">RESET GAME</button>
+      <button id="leaveBtn">LEAVE ROOM</button>
+      <div id="roomInfo"></div>
+    </div>
+  </div>
+
+  <div id="deckModal" class="modal hidden">
+    <div class="modal-box">
+      <h2>LOAD DECK</h2>
+      <textarea id="deckText">4 Lightning Bolt
+4 Counterspell
+4 Hypnotic Specter
+4 Dark Ritual
+4 Sinkhole
+4 Swords to Plowshares
+1 Sol Ring
+1 Demonic Tutor
+1 Regrowth
+1 Chaos Orb
+1 Strip Mine
+4 Mishra's Factory
+4 Underground Sea
+4 Badlands
+4 Scrubland
+4 City of Brass
+7 Swamp</textarea>
+      <div class="row core-row">
+        <label>CORE SET
+          <select id="coreSetSelect">
+            <option value="lea">ALPHA</option>
+            <option value="leb" selected>BETA</option>
+            <option value="2ed">UNLIMITED</option>
+          </select>
+        </label>
+      </div>
+      <div class="row">
+        <button id="doLoadDeck">LOAD</button>
+        <button id="closeDeckModal">CLOSE</button>
+      </div>
+      <div id="deckStatus" class="status"></div>
+    </div>
+  </div>
+
+  <div id="tutorModal" class="modal hidden">
+    <div class="modal-box tutor-box">
+      <h2>TUTOR</h2>
+      <div id="tutorGrid" class="card-grid"></div>
+      <div class="row">
+        <button id="tutorToHand">TO HAND</button>
+        <button id="tutorToTable">TO TABLE</button>
+        <button id="closeTutor">CLOSE</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="graveModal" class="modal hidden">
+    <div class="modal-box tutor-box">
+      <h2>OPPONENT GRAVE</h2>
+      <div id="graveGrid" class="card-grid"></div>
+      <div class="row"><button id="closeGrave">CLOSE</button></div>
+    </div>
+  </div>
+
+  <div id="exileModal" class="modal hidden">
+    <div class="modal-box tutor-box">
+      <h2>EXILE</h2>
+      <div id="exileGrid" class="card-grid"></div>
+      <div class="row"><button id="closeExile">CLOSE</button></div>
+    </div>
+  </div>
+
+  <div id="libraryMenu" class="context-menu hidden">
+    <button data-action="draw">DRAW 1</button>
+    <button data-action="shuffle">SHUFFLE</button>
+    <button data-action="tutor">TUTOR</button>
+    <button data-action="mulligan">MULLIGAN</button>
+    <button data-action="revealTop">REVEAL TOP</button>
+    <button data-action="revealHand">REVEAL HAND</button>
+    <button data-action="opponentGrave">OPPONENT GRAVE</button>
+    <div class="menu-subtitle">CARD SPECIFIC</div>
+    <button data-action="wheelOfFortune">WHEEL OF FORTUNE</button>
+    <button data-action="timetwister">TIMETWISTER</button>
+    <button data-action="windOfChange">WINDS OF CHANGE</button>
+    <button data-action="puzzleBox">TEFERI'S PUZZLE BOX</button>
+  </div>
+
+  <div id="cardMenu" class="context-menu hidden">
+    <button data-card-action="flip">FLIP CARD</button>
+    <button data-card-action="clone">CLONE</button>
+    <button data-card-action="hand">TO HAND</button>
+    <button data-card-action="grave">TO GRAVE</button>
+    <button data-card-action="exile">TO EXILE</button>
+    <button data-card-action="front">BRING TO FRONT</button>
+    <button data-card-action="back">SEND TO BACK</button>
+  </div>
+
+  <div id="handCardMenu" class="context-menu hidden">
+    <button data-hand-action="playFaceDown">PLAY FACE DOWN</button>
+  </div>
+
+  <div id="sylvanPanel" class="sylvan-panel hidden"><button id="sylvanOk">OK</button></div>
+
+  <div id="dieMenu" class="context-menu hidden">
+    <button data-die-value="1">1</button>
+    <button data-die-value="2">2</button>
+    <button data-die-value="3">3</button>
+    <button data-die-value="4">4</button>
+    <button data-die-value="5">5</button>
+    <button data-die-value="6">6</button>
+    <label class="die-color-row">DICE COLOR <input id="dieColorInput" type="color" value="#25aa3d"></label>
+    <label class="die-color-row">PIP COLOR <input id="diePipColorInput" type="color" value="#111111"></label>
+  </div>
+
+  <div id="resetPrompt" class="reset-prompt hidden">
+    <div class="modal-box">
+      <h2>RESET REQUEST</h2>
+      <p>Other player wants to reset. Are you sure?</p>
+      <button id="acceptReset">YES</button>
+      <button id="rejectReset">NO</button>
+    </div>
+  </div>
+  <div id="inspector" class="inspector hidden">
+    <div id="inspectorHeader" class="inspector-header">
+      <span>INSPECTOR</span>
+      <div class="inspector-buttons">
+        <button id="inspectorMinus">-</button>
+        <button id="inspectorPlus">+</button>
+      </div>
+    </div>
+    <div id="inspectorName"></div>
+    <div id="inspectorType"></div>
+    <div id="inspectorOracle">Hover a visible card.</div>
+  </div>
+
+  <div id="devPanel" class="dev-panel hidden">
+    <div id="devDragHandle" class="dev-title">DEV POSITION / STYLE</div>
+
+    <div class="dev-subtitle">PLAYER 1</div>
+    <label>P1 Library X <input id="devP1LibraryX" type="range" min="-420" max="420" value="0"><span id="devP1LibraryXVal">0</span></label>
+    <label>P1 Library Y <input id="devP1LibraryY" type="range" min="-420" max="420" value="0"><span id="devP1LibraryYVal">0</span></label>
+    <label>P1 Grave X <input id="devP1GraveX" type="range" min="-420" max="420" value="0"><span id="devP1GraveXVal">0</span></label>
+    <label>P1 Grave Y <input id="devP1GraveY" type="range" min="-420" max="420" value="0"><span id="devP1GraveYVal">0</span></label>
+    <label>P1 Exile X <input id="devP1ExileX" type="range" min="-420" max="420" value="0"><span id="devP1ExileXVal">0</span></label>
+    <label>P1 Exile Y <input id="devP1ExileY" type="range" min="-420" max="420" value="0"><span id="devP1ExileYVal">0</span></label>
+    <label>P1 Dice X <input id="devP1DiceX" type="range" min="-420" max="420" value="0"><span id="devP1DiceXVal">0</span></label>
+    <label>P1 Dice Y <input id="devP1DiceY" type="range" min="-420" max="420" value="0"><span id="devP1DiceYVal">0</span></label>
+
+    <div class="dev-subtitle">PLAYER 2</div>
+    <label>P2 Library X <input id="devP2LibraryX" type="range" min="-420" max="420" value="0"><span id="devP2LibraryXVal">0</span></label>
+    <label>P2 Library Y <input id="devP2LibraryY" type="range" min="-420" max="420" value="0"><span id="devP2LibraryYVal">0</span></label>
+    <label>P2 Grave X <input id="devP2GraveX" type="range" min="-420" max="420" value="0"><span id="devP2GraveXVal">0</span></label>
+    <label>P2 Grave Y <input id="devP2GraveY" type="range" min="-420" max="420" value="0"><span id="devP2GraveYVal">0</span></label>
+    <label>P2 Exile X <input id="devP2ExileX" type="range" min="-420" max="420" value="0"><span id="devP2ExileXVal">0</span></label>
+    <label>P2 Exile Y <input id="devP2ExileY" type="range" min="-420" max="420" value="0"><span id="devP2ExileYVal">0</span></label>
+    <label>P2 Dice X <input id="devP2DiceX" type="range" min="-420" max="420" value="0"><span id="devP2DiceXVal">0</span></label>
+    <label>P2 Dice Y <input id="devP2DiceY" type="range" min="-420" max="420" value="0"><span id="devP2DiceYVal">0</span></label>
+
+    <div class="dev-subtitle">SHARED</div>
+    <label>Hand art X <input id="devHandArtX" type="range" min="-900" max="900" value="0"><span id="devHandArtXVal">0</span></label>
+    <label>Hand art Y <input id="devHandArtY" type="range" min="-300" max="300" value="0"><span id="devHandArtYVal">0</span></label>
+    <label>Hand art size <input id="devHandArtSize" type="range" min="40" max="420" value="190"><span id="devHandArtSizeVal">190</span></label>
+    <label>Thumb min X <input id="devThumbMinX" type="range" min="-240" max="240" value="0"><span id="devThumbMinXVal">0</span></label>
+    <label>Thumb max X <input id="devThumbMaxX" type="range" min="-240" max="240" value="38"><span id="devThumbMaxXVal">38</span></label>
+    <label>Thumb min Y <input id="devThumbMinY" type="range" min="-180" max="180" value="0"><span id="devThumbMinYVal">0</span></label>
+    <label>Thumb max Y <input id="devThumbMaxY" type="range" min="-180" max="180" value="0"><span id="devThumbMaxYVal">0</span></label>
+
+    <label>Hand drop zone X <input id="devHandDropZoneX" type="range" min="-900" max="900" value="0"><span id="devHandDropZoneXVal">0</span></label>
+    <label>Hand drop zone Y <input id="devHandDropZoneY" type="range" min="-400" max="400" value="0"><span id="devHandDropZoneYVal">0</span></label>
+    <label>Hand drop zone W <input id="devHandDropZoneWidth" type="range" min="80" max="1400" value="236"><span id="devHandDropZoneWidthVal">236</span></label>
+    <label>Hand drop zone H <input id="devHandDropZoneHeight" type="range" min="60" max="360" value="190"><span id="devHandDropZoneHeightVal">190</span></label>
+
+    <label>Hand safe zone X <input id="devHandSafeZoneX" type="range" min="-900" max="900" value="0"><span id="devHandSafeZoneXVal">0</span></label>
+    <label>Hand safe zone Y <input id="devHandSafeZoneY" type="range" min="-400" max="400" value="0"><span id="devHandSafeZoneYVal">0</span></label>
+    <label>Hand safe zone W <input id="devHandSafeZoneWidth" type="range" min="80" max="1400" value="520"><span id="devHandSafeZoneWidthVal">520</span></label>
+    <label>Hand safe zone H <input id="devHandSafeZoneHeight" type="range" min="60" max="520" value="260"><span id="devHandSafeZoneHeightVal">260</span></label>
+
+    <label>Grave height <input id="devGraveHeight" type="range" min="120" max="520" value="260"><span id="devGraveHeightVal">260</span></label>
+    <label>Exile height <input id="devExileHeight" type="range" min="36" max="180" value="64"><span id="devExileHeightVal">64</span></label>
+    <label>Dice size <input id="devDieSize" type="range" min="18" max="64" value="30"><span id="devDieSizeVal">30</span></label>
+    <label>Dice gap <input id="devDieGap" type="range" min="0" max="36" value="8"><span id="devDieGapVal">8</span></label>
+    <label>Dice radius <input id="devDieRadius" type="range" min="0" max="18" value="8"><span id="devDieRadiusVal">8</span></label>
+    <label>Selection width <input id="devSelWidth" type="range" min="1" max="8" value="2"><span id="devSelWidthVal">2</span></label>
+    <label>Selection color <input id="devSelColor" type="color" value="#ffffff"><span id="devSelColorVal">#ffffff</span></label>
+    <label>Shuffle speed <input id="devShuffleSpeed" type="range" min="40" max="400" value="120"><span id="devShuffleSpeedVal">120</span></label>
+    <label>Shuffle length <input id="devShuffleLength" type="range" min="400" max="3500" value="2000"><span id="devShuffleLengthVal">2000</span></label>
+    <label>Shuffle spread <input id="devShuffleSpread" type="range" min="2" max="100" value="30"><span id="devShuffleSpreadVal">30</span></label>
+
+    <div class="dev-buttons">
+      <button id="devReset">RESET DEV</button>
+      <button id="devCopy">COPY VALUES</button>
+      <button id="devClose">CLOSE</button>
+    </div>
+    <textarea id="devOutput" readonly></textarea>
+  </div>
+
+  <script src="scryfall.js"></script>
+  <script type="module" src="firebase-sync.js"></script>
+  <script src="app.js"></script>
+  <script src="orbflip.js"></script>
+  <div id="handDropZoneDebug" class="hand-drop-zone-debug hidden"></div>
+  <div id="handSafeZoneDebug" class="hand-safe-zone-debug hidden"></div>
+  <div id="helpOverlayV33" class="help-overlay-v33 hidden"><div class="help-box-v33"><pre>D/TAB/1 = draw one
+7 = draw seven
+G = grave hovered card
+E = exile hovered card
+H = hand hovered card
+T = tap hovered card
+Shift-click = multi-select
+Drag empty table area = box-select cards
+Double-click card = tap/untap</pre></div></div>
+  <div id="selectBox" class="select-box hidden"></div>
 </body>
 </html>

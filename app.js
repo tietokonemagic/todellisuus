@@ -13,7 +13,7 @@
   [
     "seatScreen","seatStatus","joinR1P1","joinR1P2","joinR2P1","joinR2P2","kickRoom1","kickRoom2",
     "game","viewport","world","pileLayer","cardLayer","dragLayer","diceLayer","myHand","opponentHand",
-    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","helpBtn","devTuningBtn","resetVoteBtn","leaveBtn","roomInfo",
+    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","helpOverlayV33","helpBtn","devTuningBtn","resetVoteBtn","leaveBtn","roomInfo",
     "deckModal","deckText","coreSetSelect","doLoadDeck","closeDeckModal","deckStatus",
     "tutorModal","tutorGrid","tutorToHand","tutorToTable","closeTutor",
     "graveModal","graveGrid","closeGrave","exileModal","exileGrid","closeExile","helpModal","closeHelp",
@@ -680,16 +680,19 @@
 
 
   function sleeveBackElement(owner, card = null) {
-    const back=document.createElement("div");
-    back.className="back";
-    if(card && card.isToken){
-      back.style.background='#050505 url("token/aieback.png") center / cover no-repeat';
+    const back = document.createElement("div");
+    back.className = "back";
+    if (card && card.isToken) {
+      back.style.backgroundImage = 'url("token/aieback.png")';
+      back.style.backgroundColor = "#050505";
+      back.style.backgroundSize = "cover";
+      back.style.backgroundPosition = "center";
       return back;
     }
-    const sleeve=state.sleeves?.[owner] || {type:"og",color:"#6a3b20"};
-    if(sleeve.type==="color"){
-      back.style.backgroundImage="none";
-      back.style.background=sleeve.color || "#6a3b20";
+    const sleeve = state.sleeves?.[owner] || { type: "og", color: "#6a3b20" };
+    if (sleeve.type === "color") {
+      back.style.backgroundImage = "none";
+      back.style.backgroundColor = sleeve.color || "#6a3b20";
     }
     return back;
   }
@@ -1625,25 +1628,17 @@
     push();
   }
 
-  function updateSleeveButtonsV32(){
-    if(!localPlayer || !state.sleeves) return;
-    const s=state.sleeves[localPlayer] || {type:"og",color:"#6a3b20"};
-    if(els.ogBackSleeveBtn) els.ogBackSleeveBtn.classList.toggle("active", s.type==="og");
-    if(els.colorSleeveBtn) els.colorSleeveBtn.classList.toggle("active", s.type==="color");
-    if(els.sleeveColorInput && s.color) els.sleeveColorInput.value=s.color;
-  }
-
   function updateMenuActiveStates() {
     const flip = state.flipOverlay || {};
     if (els.inspectorToggleBtn) els.inspectorToggleBtn.classList.toggle("active", inspectorEnabled);
     if (els.menuFlipOrbBtn) els.menuFlipOrbBtn.classList.toggle("active", !!flip.active && flip.front === "chaosfront.png");
     if (els.menuFlipStarBtn) els.menuFlipStarBtn.classList.toggle("active", !!flip.active && flip.front === "fallingstar.png");
-    if (els.helpBtn) els.helpBtn.classList.toggle("active", !els.helpModal.classList.contains("hidden"));
+    if (els.helpBtn) els.helpBtn.classList.toggle("active", !els.helpOverlayV33.classList.contains("hidden"));
     if (els.devTuningBtn) els.devTuningBtn.classList.toggle("active", !els.devPanel.classList.contains("hidden"));
     if (els.playmatMenuBtn) els.playmatMenuBtn.classList.toggle("active", !els.playmatMenu.classList.contains("hidden"));
     if (els.sleevesMenuBtn) els.sleevesMenuBtn.classList.toggle("active", !els.sleevesMenu.classList.contains("hidden"));
     if (els.addTokenMenuBtn) els.addTokenMenuBtn.classList.toggle("active", !els.tokenMenu.classList.contains("hidden"));
-    updateSleeveButtonsV32();
+    updateSleeveButtonsV33();
   }
 
   function screenRectForCard(card) {
@@ -1720,84 +1715,61 @@
 
     boxSelect = null;
   }
-
-
-  function beginBoxSelectV31(e) {
-    if (e.button !== 0 || !localPlayer) return;
-    if (e.target.closest(".card,.die,.pile,.hand,.main-menu,.main-menu-btn,.modal,.context-menu,.inspector,.dev-panel,.sylvan-panel")) return;
-    boxSelect = { x0:e.clientX, y0:e.clientY, x1:e.clientX, y1:e.clientY };
-    els.selectBox.classList.remove("hidden");
-    updateBoxSelectV31(e);
-    document.addEventListener("pointermove", updateBoxSelectV31);
-    document.addEventListener("pointerup", finishBoxSelectV31, { once:true });
-  }
-  function updateBoxSelectV31(e) {
-    if (!boxSelect) return;
-    boxSelect.x1 = e.clientX; boxSelect.y1 = e.clientY;
-    const l=Math.min(boxSelect.x0,boxSelect.x1), t=Math.min(boxSelect.y0,boxSelect.y1);
-    const r=Math.max(boxSelect.x0,boxSelect.x1), b=Math.max(boxSelect.y0,boxSelect.y1);
-    els.selectBox.style.left=l+"px"; els.selectBox.style.top=t+"px";
-    els.selectBox.style.width=(r-l)+"px"; els.selectBox.style.height=(b-t)+"px";
-  }
   function rectsOverlapV31(a,b){ return !(a.right<b.left || a.left>b.right || a.bottom<b.top || a.top>b.bottom); }
-  function finishBoxSelectV31() {
-    document.removeEventListener("pointermove", updateBoxSelectV31);
-    if (!boxSelect) return;
-    const sel={left:Math.min(boxSelect.x0,boxSelect.x1),top:Math.min(boxSelect.y0,boxSelect.y1),right:Math.max(boxSelect.x0,boxSelect.x1),bottom:Math.max(boxSelect.y0,boxSelect.y1)};
-    els.selectBox.classList.add("hidden");
-    if ((sel.right-sel.left)>6 || (sel.bottom-sel.top)>6) {
-      const hits=[];
-      document.querySelectorAll("#cardLayer .card, #dragLayer .card").forEach(el => {
-        const id=el.dataset.cardId; if(!id) return;
-        if (rectsOverlapV31(sel, el.getBoundingClientRect())) hits.push(id);
-      });
-      selectedIds = new Set(hits);
-      render();
-    }
-    boxSelect=null;
-  }
 
-  function toggleHelpV32(e=null){
-    if(e){e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();}
-    els.helpModal.classList.toggle("hidden");
-    updateMenuActiveStates();
-  }
 
-  function beginBoxSelectV32(e){
-    if(e.button!==0||!localPlayer) return;
-    if(e.target.closest(".card,.die,.pile,.hand,.main-menu,.main-menu-btn,.modal,.context-menu,.inspector,.dev-panel,.sylvan-panel")) return;
-    boxSelect={x0:e.clientX,y0:e.clientY,x1:e.clientX,y1:e.clientY};
-    els.selectBox.classList.remove("hidden");
-    updateBoxSelectV32(e);
-    document.addEventListener("pointermove",updateBoxSelectV32);
-    document.addEventListener("pointerup",finishBoxSelectV32,{once:true});
+  function setHelpOpenV33(open){els.helpOverlayV33.classList.toggle("hidden",!open);updateMenuActiveStates();}
+  function toggleHelpV33(e=null){if(e){e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();}setHelpOpenV33(els.helpOverlayV33.classList.contains("hidden"));}
+  function updateSleeveButtonsV33(){
+    if(!localPlayer||!state.sleeves)return;
+    const s=state.sleeves[localPlayer]||{type:"og",color:"#6a3b20"};
+    if(els.ogBackSleeveBtn)els.ogBackSleeveBtn.classList.toggle("active",s.type==="og");
+    if(els.colorSleeveBtn)els.colorSleeveBtn.classList.toggle("active",s.type==="color");
+    if(els.sleeveColorInput&&s.color)els.sleeveColorInput.value=s.color;
   }
-  function updateBoxSelectV32(e){
-    if(!boxSelect) return;
-    boxSelect.x1=e.clientX; boxSelect.y1=e.clientY;
-    const l=Math.min(boxSelect.x0,boxSelect.x1),t=Math.min(boxSelect.y0,boxSelect.y1),r=Math.max(boxSelect.x0,boxSelect.x1),b=Math.max(boxSelect.y0,boxSelect.y1);
-    els.selectBox.style.left=l+"px"; els.selectBox.style.top=t+"px"; els.selectBox.style.width=(r-l)+"px"; els.selectBox.style.height=(b-t)+"px";
+  function setSleeveV33(type){
+    if(!state.sleeves)state.sleeves={p1:{type:"og",color:"#6a3b20"},p2:{type:"og",color:"#6a3b20"}};
+    state.sleeves[localPlayer]=type==="color"?{type:"color",color:els.sleeveColorInput.value}:{type:"og",color:"#6a3b20"};
+    updateSleeveButtonsV33();push();
   }
-  function finishBoxSelectV32(){
-    document.removeEventListener("pointermove",updateBoxSelectV32);
-    if(!boxSelect) return;
-    const sel={left:Math.min(boxSelect.x0,boxSelect.x1),top:Math.min(boxSelect.y0,boxSelect.y1),right:Math.max(boxSelect.x0,boxSelect.x1),bottom:Math.max(boxSelect.y0,boxSelect.y1)};
+  let boxSelectV33=null;
+  function beginBoxSelectV33(e){
+    if(e.button!==0||!localPlayer)return;
+    if(e.target.closest(".card,.die,.pile,.hand,.main-menu,.main-menu-btn,.modal,.context-menu,.inspector,.dev-panel,.sylvan-panel,.help-overlay-v33"))return;
+    boxSelectV33={x0:e.clientX,y0:e.clientY,x1:e.clientX,y1:e.clientY};
+    els.selectBox.classList.remove("hidden");updateBoxSelectV33(e);
+    document.addEventListener("pointermove",updateBoxSelectV33);
+    document.addEventListener("pointerup",finishBoxSelectV33,{once:true});
+  }
+  function updateBoxSelectV33(e){
+    if(!boxSelectV33)return;
+    boxSelectV33.x1=e.clientX;boxSelectV33.y1=e.clientY;
+    const l=Math.min(boxSelectV33.x0,boxSelectV33.x1),t=Math.min(boxSelectV33.y0,boxSelectV33.y1),r=Math.max(boxSelectV33.x0,boxSelectV33.x1),b=Math.max(boxSelectV33.y0,boxSelectV33.y1);
+    els.selectBox.style.left=l+"px";els.selectBox.style.top=t+"px";els.selectBox.style.width=(r-l)+"px";els.selectBox.style.height=(b-t)+"px";
+  }
+  function finishBoxSelectV33(){
+    document.removeEventListener("pointermove",updateBoxSelectV33);
+    if(!boxSelectV33)return;
+    const sel={left:Math.min(boxSelectV33.x0,boxSelectV33.x1),top:Math.min(boxSelectV33.y0,boxSelectV33.y1),right:Math.max(boxSelectV33.x0,boxSelectV33.x1),bottom:Math.max(boxSelectV33.y0,boxSelectV33.y1)};
     els.selectBox.classList.add("hidden");
-    if((sel.right-sel.left)>6||(sel.bottom-sel.top)>6){
-      const hits=[];
-      document.querySelectorAll("#cardLayer .card").forEach(el=>{
-        const id=el.dataset.cardId;if(!id)return;
-        const r=el.getBoundingClientRect();
-        if(!(r.right<sel.left||r.left>sel.right||r.bottom<sel.top||r.top>sel.bottom)) hits.push(id);
-      });
-      selectedIds=new Set(hits); render();
+    if((sel.right-sel.left)>5||(sel.bottom-sel.top)>5){
+      const ids=[];
+      document.querySelectorAll("#cardLayer .card").forEach(el=>{const id=el.dataset.cardId;if(!id)return;const r=el.getBoundingClientRect();if(!(r.right<sel.left||r.left>sel.right||r.bottom<sel.top||r.top>sel.bottom))ids.push(id);});
+      selectedIds=new Set(ids);render();
     }
-    boxSelect=null;
+    boxSelectV33=null;
   }
 
   // UI bindings
+  els.helpBtn.onclick=toggleHelpV33;
+  els.helpBtn.addEventListener("click",toggleHelpV33,true);
+  els.helpOverlayV33.addEventListener("click",e=>{if(e.target===els.helpOverlayV33)setHelpOpenV33(false);});
+  if(els.ogBackSleeveBtn)els.ogBackSleeveBtn.onclick=e=>{e.preventDefault();e.stopPropagation();setSleeveV33("og");};
+  if(els.colorSleeveBtn)els.colorSleeveBtn.onclick=e=>{e.preventDefault();e.stopPropagation();setSleeveV33("color");};
+  if(els.sleeveColorInput)els.sleeveColorInput.oninput=()=>{if(state.sleeves?.[localPlayer]?.type==="color")setSleeveV33("color");};
+  updateSleeveButtonsV33();
+  els.world.addEventListener("pointerdown",beginBoxSelectV33);
 
-  els.world.addEventListener("pointerdown", beginBoxSelectV32);
 
   els.joinR1P1.onclick = () => join("room1", "p1");
   els.joinR1P2.onclick = () => join("room1", "p2");
@@ -1811,28 +1783,6 @@
   if (els.playmatMenuBtn) els.playmatMenuBtn.onclick = () => toggleSection(els.playmatMenu, els.playmatMenuBtn);
   if (els.sleevesMenuBtn) els.sleevesMenuBtn.onclick = () => toggleSection(els.sleevesMenu, els.sleevesMenuBtn);
   if (els.addTokenMenuBtn) els.addTokenMenuBtn.onclick = () => toggleSection(els.tokenMenu, els.addTokenMenuBtn);
-  if (els.ogBackSleeveBtn) els.ogBackSleeveBtn.onclick = e => {
-    e.preventDefault(); e.stopPropagation();
-    state.sleeves[localPlayer] = { type:"og", color:"#6a3b20" };
-    updateSleeveButtonsV32();
-    push();
-  };
-
-  if (els.colorSleeveBtn) els.colorSleeveBtn.onclick = e => {
-    e.preventDefault(); e.stopPropagation();
-    state.sleeves[localPlayer] = { type:"color", color:els.sleeveColorInput.value };
-    updateSleeveButtonsV32();
-    push();
-  };
-
-  if (els.sleeveColorInput) els.sleeveColorInput.oninput = () => {
-    if (state.sleeves[localPlayer]?.type === "color") {
-      state.sleeves[localPlayer] = { type:"color", color:els.sleeveColorInput.value };
-      updateSleeveButtonsV32();
-      push();
-    }
-  };
-
   if (els.addDiceBtn) els.addDiceBtn.onclick = () => addCounterDie();
   if (els.menuFlipOrbBtn) els.menuFlipOrbBtn.onclick = e => { e.preventDefault(); e.stopPropagation(); toggleSharedFlip("chaosfront.png"); };
   if (els.menuFlipStarBtn) els.menuFlipStarBtn.onclick = e => { e.preventDefault(); e.stopPropagation(); toggleSharedFlip("fallingstar.png"); };
@@ -1864,8 +1814,6 @@
   els.loadDeckBtn.onclick = () => els.deckModal.classList.remove("hidden");
   els.closeDeckModal.onclick = () => els.deckModal.classList.add("hidden");
   els.doLoadDeck.onclick = loadDeck;
-  els.helpBtn.onclick = toggleHelpV32;
-  els.helpBtn.addEventListener("click", toggleHelpV32, true); // helpBtnV32Capture updateMenuActiveStates(); };
   els.devTuningBtn.onclick = () => { els.devPanel.classList.toggle("hidden"); renderHandDropZoneDebug(); renderHandSafeZoneDebug(); updateMenuActiveStates(); };
   els.devClose.onclick = () => { els.devPanel.classList.add("hidden"); updateMenuActiveStates(); };
   els.devReset.onclick = () => { dev = { ...devDefaults }; saveDev(); bindDev(); render(); };
