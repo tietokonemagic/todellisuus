@@ -50,8 +50,9 @@
 
       <button id="sleevesMenuBtn">SLEEVES</button>
       <div id="sleevesMenu" class="menu-section hidden">
-        <button id="ogBackSleeveBtn">OG BACK</button>
-        <label class="color-row"><button id="colorSleeveBtn" type="button">COLOR</button><input id="sleeveColorInput" type="color" value="#6a3b20"></label>
+        <button id="ogBackSleeveBtn" type="button">OG BACK</button>
+        <button id="colorSleeveBtn" type="button">COLOR</button>
+        <input id="sleeveColorInput" type="color" value="#6a3b20">
       </div>
 
       <button id="addTokenMenuBtn">ADD TOKEN</button>
@@ -134,42 +135,17 @@
       <div class="row"><button id="closeExile">CLOSE</button></div>
     </div>
   </div>
-
   <div id="helpModal" class="modal hidden">
     <div class="modal-box help-box">
-<pre>D = draw a card
-TAB = draw a card
-Double click library = draw a card
-
-Right click library:
-  Draw 1
-  Shuffle
-  Tutor
-  Mulligan
-  Reveal top
-  Reveal hand
-  Opponent grave
-
-Mouse hover over card + G = put to grave
-Mouse hover over card + E = put to exile
-Mouse hover over card + H = put to hand
-Mouse hover over card + T = tap
-
-Double click battlefield card = tap/untap
-
-Right click battlefield card:
-  Flip card
-
-Right click own hand card:
-  Play face down
-
-Arrow left/right = move selected hand card. Wraps around.
-Arrow up/down over life dice = life +1 / -1.
-
-Trackpad scroll up/down over own hand = fan open/close.
-Trackpad scroll left/right over own hand = rotate selected card through hand.
-
-Click opponent hand card to mark it.</pre>
+<pre>D / TAB / 1 = draw one
+7 = draw seven
+G = grave hovered card
+E = exile hovered card
+H = hand hovered card
+T = tap hovered card
+Shift-click = multi-select
+Drag empty table area = box-select
+Double-click battlefield card = tap/untap</pre>
     </div>
   </div>
 
@@ -202,12 +178,7 @@ Click opponent hand card to mark it.</pre>
     <button data-hand-action="playFaceDown">PLAY FACE DOWN</button>
   </div>
 
-  <div id="sylvanPanel" class="sylvan-panel hidden">
-    <button id="sylvanMinus">▵</button>
-    <span id="sylvanCount">3</span>
-    <button id="sylvanPlus">▿</button>
-    <button id="sylvanOk">OK</button>
-  </div>
+  <div id="sylvanPanel" class="sylvan-panel hidden"><button id="sylvanOk">OK</button></div>
 
   <div id="dieMenu" class="context-menu hidden">
     <button data-die-value="1">1</button>

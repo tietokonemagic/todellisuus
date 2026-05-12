@@ -679,15 +679,14 @@
   function sleeveBackElement(owner, card = null) {
     const back = document.createElement("div");
     back.className = "back";
-
     if (card && card.isToken) {
       back.style.background = '#050505 url("token/aieback.png") center / cover no-repeat';
       return back;
     }
-
     const sleeve = state.sleeves?.[owner] || { type: "og", color: "#6a3b20" };
     if (sleeve.type === "color") {
-      back.style.background = sleeve.color || "#6a3b20";
+      back.style.backgroundImage = "none";
+      back.style.backgroundColor = sleeve.color || "#6a3b20";
     }
     return back;
   }
@@ -933,6 +932,14 @@
 
   function onCardPointerDown(e, card) {
     if (e.button !== 0) return;
+    if (e.shiftKey && (card.zone === "battlefield" || card.zone.endsWith("-hand"))) {
+      if (selectedIds.has(card.id)) selectedIds.delete(card.id);
+      else selectedIds.add(card.id);
+      render();
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     if (card.zone === otherPlayer() + "-hand") return;
     closeMenus();
 
@@ -1702,8 +1709,44 @@
     boxSelect = null;
   }
 
+
+  function beginBoxSelectV31(e) {
+    if (e.button !== 0 || !localPlayer) return;
+    if (e.target.closest(".card,.die,.pile,.hand,.main-menu,.main-menu-btn,.modal,.context-menu,.inspector,.dev-panel,.sylvan-panel")) return;
+    boxSelect = { x0:e.clientX, y0:e.clientY, x1:e.clientX, y1:e.clientY };
+    els.selectBox.classList.remove("hidden");
+    updateBoxSelectV31(e);
+    document.addEventListener("pointermove", updateBoxSelectV31);
+    document.addEventListener("pointerup", finishBoxSelectV31, { once:true });
+  }
+  function updateBoxSelectV31(e) {
+    if (!boxSelect) return;
+    boxSelect.x1 = e.clientX; boxSelect.y1 = e.clientY;
+    const l=Math.min(boxSelect.x0,boxSelect.x1), t=Math.min(boxSelect.y0,boxSelect.y1);
+    const r=Math.max(boxSelect.x0,boxSelect.x1), b=Math.max(boxSelect.y0,boxSelect.y1);
+    els.selectBox.style.left=l+"px"; els.selectBox.style.top=t+"px";
+    els.selectBox.style.width=(r-l)+"px"; els.selectBox.style.height=(b-t)+"px";
+  }
+  function rectsOverlapV31(a,b){ return !(a.right<b.left || a.left>b.right || a.bottom<b.top || a.top>b.bottom); }
+  function finishBoxSelectV31() {
+    document.removeEventListener("pointermove", updateBoxSelectV31);
+    if (!boxSelect) return;
+    const sel={left:Math.min(boxSelect.x0,boxSelect.x1),top:Math.min(boxSelect.y0,boxSelect.y1),right:Math.max(boxSelect.x0,boxSelect.x1),bottom:Math.max(boxSelect.y0,boxSelect.y1)};
+    els.selectBox.classList.add("hidden");
+    if ((sel.right-sel.left)>6 || (sel.bottom-sel.top)>6) {
+      const hits=[];
+      document.querySelectorAll("#cardLayer .card, #dragLayer .card").forEach(el => {
+        const id=el.dataset.cardId; if(!id) return;
+        if (rectsOverlapV31(sel, el.getBoundingClientRect())) hits.push(id);
+      });
+      selectedIds = new Set(hits);
+      render();
+    }
+    boxSelect=null;
+  }
+
   // UI bindings
-  els.viewport.addEventListener("pointerdown", beginBoxSelect);
+    els.viewport.addEventListener("pointerdown", beginBoxSelectV31);
 
   els.joinR1P1.onclick = () => join("room1", "p1");
   els.joinR1P2.onclick = () => join("room1", "p2");
@@ -1764,22 +1807,12 @@
     push();
   };
 
-
-  els.sylvanMinus.onclick = () => {
-    sylvanCount = Math.max(1, sylvanCount - 1);
-    els.sylvanCount.textContent = String(sylvanCount);
-  };
-  els.sylvanPlus.onclick = () => {
-    sylvanCount = Math.min(9, sylvanCount + 1);
-    els.sylvanCount.textContent = String(sylvanCount);
-  };
   els.sylvanOk.onclick = () => finishSylvanLibrary();
 
   els.loadDeckBtn.onclick = () => els.deckModal.classList.remove("hidden");
   els.closeDeckModal.onclick = () => els.deckModal.classList.add("hidden");
   els.doLoadDeck.onclick = loadDeck;
   els.helpBtn.onclick = () => { els.helpModal.classList.toggle("hidden"); updateMenuActiveStates(); };
-  if (els.closeHelp) els.closeHelp.onclick = () => { els.helpModal.classList.add("hidden"); updateMenuActiveStates(); };
   els.devTuningBtn.onclick = () => { els.devPanel.classList.toggle("hidden"); renderHandDropZoneDebug(); renderHandSafeZoneDebug(); updateMenuActiveStates(); };
   els.devClose.onclick = () => { els.devPanel.classList.add("hidden"); updateMenuActiveStates(); };
   els.devReset.onclick = () => { dev = { ...devDefaults }; saveDev(); bindDev(); render(); };
@@ -1883,10 +1916,9 @@
     const pile = pileScreenEl(player, "library");
     if (!pile || !els.sylvanPanel) return;
     const r = pile.getBoundingClientRect();
-    els.sylvanPanel.style.left = (r.left + r.width / 2 - 58) + "px";
-    els.sylvanPanel.style.top = (r.top - 38) + "px";
+    els.sylvanPanel.style.left = (r.left + r.width / 2) + "px";
+    els.sylvanPanel.style.top = (r.top + r.height / 2) + "px";
     els.sylvanPanel.classList.remove("hidden");
-    els.sylvanCount.textContent = String(sylvanCount);
   }
 
   els.libraryMenu.addEventListener("click", e => {
