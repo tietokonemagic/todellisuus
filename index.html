@@ -14,7 +14,8 @@
     <div class="seat-box">
       <h1>Oldschool Table</h1>
       <p>Choose room and seat.</p>
-      <div id="appVersionLabel" class="app-version-label">v2026.05.12-013</div>
+      <div id="appVersionLabel" class="app-version-label">v2026.05.12-014</div>
+      <label class="nickname-row">NICKNAME <input id="nicknameInput" type="text" maxlength="24" placeholder="Player"></label>
       <div class="seat-grid">
         <button id="joinR1P1">ROOM 1 / PLAYER 1</button>
         <button id="joinR1P2">ROOM 1 / PLAYER 2</button>
@@ -66,6 +67,7 @@
       <button id="addDiceBtn">ADD DICE</button>
       <button id="loadDeckBtn">LOAD DECK</button>
       <button id="sideboardBtn">SIDEBOARD</button>
+      <button id="chatBtn">CHAT</button>
       <button id="helpBtn">HELP</button>
       <button id="devTuningBtn">DEV TUNING</button>
       <button id="inspectorToggleBtn">INSPECTOR</button>
@@ -251,6 +253,22 @@ SIDEBOARD:
       </div>
     </div>
     <div id="helpBody">lollotiloo</div>
+  </div>
+
+
+  <div id="chatPanel" class="inspector chat-panel hidden">
+    <div id="chatHeader" class="inspector-header">
+      <span>CHAT</span>
+      <div class="inspector-buttons">
+        <button id="chatMinus">-</button>
+        <button id="chatPlus">+</button>
+      </div>
+    </div>
+    <div id="chatMessages" class="chat-messages"></div>
+    <div class="chat-compose">
+      <input id="chatText" type="text" maxlength="240" placeholder="message">
+      <button id="chatSend" type="button">SEND</button>
+    </div>
   </div>
 
   <div id="devPanel" class="dev-panel hidden">

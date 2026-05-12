@@ -569,7 +569,7 @@
 .sideboard-columns {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) 430px;
   gap: 10px;
   padding: 10px;
 }
@@ -602,8 +602,8 @@
 }
 .sideboard-editor-card {
   position: absolute;
-  width: 94px;
-  height: 131px;
+  width: 118px;
+  height: 165px;
   cursor: grab;
   user-select: none;
   background: transparent;
@@ -626,4 +626,103 @@
 }
 .sideboard-over-limit {
   color: #ff7777;
+}
+
+
+/* v014: nickname and chat panel */
+.nickname-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 10px 0 12px 0;
+  font-size: 13px;
+  color: #ccc;
+}
+
+.nickname-row input {
+  flex: 1;
+  min-width: 0;
+  background: #080808;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 0 !important;
+  padding: 5px 7px;
+  text-transform: none;
+  font-style: normal;
+}
+
+.chat-panel {
+  left: 1280px;
+  top: 42px;
+  width: 360px;
+  height: 360px;
+  resize: both !important;
+  overflow: hidden !important;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.chat-panel.hidden {
+  display: none !important;
+}
+
+.chat-messages {
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 2px;
+  border-top: 1px solid #333;
+  border-bottom: 1px solid #333;
+  text-transform: none;
+  font-style: normal;
+}
+
+.chat-message {
+  margin: 0 0 5px 0;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.chat-name {
+  font-weight: 700;
+  color: #ddd;
+}
+
+.chat-text {
+  color: #eee;
+}
+
+.chat-compose {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  padding-top: 8px;
+}
+
+.chat-compose input {
+  min-width: 0;
+  background: #080808;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 0 !important;
+  padding: 5px 7px;
+  text-transform: none;
+  font-style: normal;
+}
+
+.chat-compose button {
+  border-radius: 0 !important;
+  padding: 5px 9px;
+}
+
+/* v014: sideboard editor cards use same card corner radiuses */
+.sideboard-editor-card,
+.sideboard-editor-card img,
+.sideboard-editor-card .back {
+  border-radius: var(--card-radius, 7px) !important;
+}
+
+.sideboard-editor-card.alpha-card,
+.sideboard-editor-card.alpha-card img,
+.sideboard-editor-card.alpha-card .back {
+  border-radius: var(--alpha-card-radius, 10px) !important;
 }

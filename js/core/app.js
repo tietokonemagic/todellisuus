@@ -11,9 +11,9 @@
 
   const els = {};
   [
-    "seatScreen","seatStatus","appVersionLabel","joinR1P1","joinR1P2","joinR2P1","joinR2P2","kickRoom1","kickRoom2",
+    "seatScreen","seatStatus","appVersionLabel","nicknameInput","joinR1P1","joinR1P2","joinR2P1","joinR2P2","kickRoom1","kickRoom2",
     "game","viewport","world","pileLayer","cardLayer","dragLayer","diceLayer","myHand","opponentHand",
-    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","sideboardBtn","sideboardModal","sideboardWindow","closeSideboardEditor","resetOriginalSideboard","mainboardScroll","mainboardBoard","sideboardScroll","sideboardBoard","mainboardCount","sideboardCount","helpBtn","helpPanel","helpHeader","helpMinus","helpPlus","helpBody","devTuningBtn","inspectorToggleBtn","resetVoteBtn","leaveBtn","roomInfo",
+    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","sideboardBtn","sideboardModal","sideboardWindow","closeSideboardEditor","resetOriginalSideboard","mainboardScroll","mainboardBoard","sideboardScroll","sideboardBoard","mainboardCount","sideboardCount","chatBtn","chatPanel","chatHeader","chatMinus","chatPlus","chatMessages","chatText","chatSend","helpBtn","helpPanel","helpHeader","helpMinus","helpPlus","helpBody","devTuningBtn","inspectorToggleBtn","resetVoteBtn","leaveBtn","roomInfo",
     "deckModal","deckText","coreSetSelect","doLoadDeck","closeDeckModal","deckStatus",
     "tutorModal","tutorGrid","tutorToHand","tutorToTable","closeTutor",
     "graveModal","graveGrid","closeGrave","exileModal","exileGrid","closeExile",
@@ -22,9 +22,11 @@
     "selectBox","devPanel","devDragHandle","devReset","devCopy","devClose","devOutput"
   ].forEach(id => els[id] = document.getElementById(id));
 
-  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-013";
+  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-014";
+  if (els.nicknameInput) els.nicknameInput.value = localNickname;
   let localRoom = null;
   let localPlayer = null;
+  let localNickname = localStorage.getItem("oldschoolNicknameV1") || "Player";
   let selectedIds = new Set();
   let hoveredCardId = null;
   let hoveredDieId = null;
@@ -85,6 +87,9 @@
     "helpPanelY": 409,
     "inspectorPanelX": 1653,
     "inspectorPanelY": 42,
+    "chatPanelX": 1280,
+    "chatPanelY": 42,
+    "chatFontSize": 14,
     "handDropZoneX": 0,
     "handDropZoneY": 82,
     "handDropZoneWidth": 690,
@@ -124,6 +129,7 @@
       flipOverlay: { active: false, front: "", nonce: 0 },
       sleeves: { p1: { type: "og", color: "#6a3b20" }, p2: { type: "og", color: "#6a3b20" } },
       deckOrigins: { p1: {}, p2: {} },
+      chat: [],
       updated: Date.now()
     };
   }
@@ -137,6 +143,7 @@
     if (!state.revealHand) state.revealHand = { p1:false, p2:false };
     if (!state.sleeves) state.sleeves = { p1: { type: "og", color: "#6a3b20" }, p2: { type: "og", color: "#6a3b20" } };
     if (!state.deckOrigins) state.deckOrigins = { p1: {}, p2: {} };
+    if (!Array.isArray(state.chat)) state.chat = [];
     for (const player of ["p1", "p2"]) {
       if (!state.sleeves[player]) state.sleeves[player] = { type: "og", color: "#6a3b20" };
       if (!state.deckOrigins[player]) state.deckOrigins[player] = {};
@@ -507,6 +514,7 @@
     renderHandDropZoneDebug();
     renderHandSafeZoneDebug();
     syncSharedFlipOverlay();
+    renderChatMessages();
     updateMenuActiveStates();
   }
 
@@ -1657,6 +1665,8 @@
   }
 
   async function join(room, player) {
+    localNickname = (els.nicknameInput?.value || "").trim().slice(0, 24) || player.toUpperCase();
+    localStorage.setItem("oldschoolNicknameV1", localNickname);
     els.seatStatus.textContent = "Joining...";
     try {
       if (!window.FirebaseCleanSync && location.protocol === "file:") {
@@ -1815,8 +1825,8 @@
 
   function ensureSideboardPositions(cards, pane) {
     const cols = sideboardGridColumns(cards.length, pane);
-    const gapX = 106;
-    const gapY = 148;
+    const gapX = 132;
+    const gapY = 184;
     const margin = 18;
 
     cards.forEach((card, i) => {
@@ -1946,8 +1956,8 @@
   }
 
   function resizeSideboardBoard(board, cards) {
-    const maxX = Math.max(0, ...cards.map(c => Number(c.sideEditX || 0) + 145));
-    const maxY = Math.max(0, ...cards.map(c => Number(c.sideEditY || 0) + 180));
+    const maxX = Math.max(0, ...cards.map(c => Number(c.sideEditX || 0) + 156));
+    const maxY = Math.max(0, ...cards.map(c => Number(c.sideEditY || 0) + 205));
     board.style.width = Math.max(board.parentElement?.clientWidth || 0, maxX) + "px";
     board.style.height = Math.max(board.parentElement?.clientHeight || 0, maxY) + "px";
   }
@@ -2063,6 +2073,7 @@
   function updateMenuActiveStates() {
     const flip = state.flipOverlay || {};
     if (els.inspectorToggleBtn) els.inspectorToggleBtn.classList.toggle("active", inspectorEnabled);
+    if (els.chatBtn && els.chatPanel) els.chatBtn.classList.toggle("active", !els.chatPanel.classList.contains("hidden"));
     if (els.helpBtn && els.helpPanel) els.helpBtn.classList.toggle("active", !els.helpPanel.classList.contains("hidden"));
     if (els.menuFlipOrbBtn) els.menuFlipOrbBtn.classList.toggle("active", !!flip.active && flip.front === "chaosfront.png");
     if (els.menuFlipStarBtn) els.menuFlipStarBtn.classList.toggle("active", !!flip.active && flip.front === "fallingstar.png");
@@ -2106,7 +2117,7 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
 
   function beginBoxSelect(e) {
     if (e.button !== 0) return;
-    if (e.target.closest(".card,.die,.pile,.hand,.main-menu,.main-menu-btn,.modal,.context-menu,.inspector,.help-panel,.dev-panel")) return;
+    if (e.target.closest(".card,.die,.pile,.hand,.main-menu,.main-menu-btn,.modal,.context-menu,.inspector,.help-panel,.chat-panel,.dev-panel")) return;
     boxSelect = { x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY };
     els.selectBox.classList.remove("hidden");
     updateBoxSelect(e);
@@ -2290,7 +2301,7 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
   let boxSelectV33=null;
   function beginBoxSelectV33(e){
     if(e.button!==0||!localPlayer)return;
-    if(e.target.closest(".card,.die,.pile,.hand,.main-menu,.main-menu-btn,.modal,.context-menu,.inspector,.help-panel,.dev-panel,.sylvan-panel"))return;
+    if(e.target.closest(".card,.die,.pile,.hand,.main-menu,.main-menu-btn,.modal,.context-menu,.inspector,.help-panel,.chat-panel,.dev-panel,.sylvan-panel"))return;
     boxSelectV33={x0:e.clientX,y0:e.clientY,x1:e.clientX,y1:e.clientY};
     els.selectBox.classList.remove("hidden");updateBoxSelectV33(e);
     document.addEventListener("pointermove",updateBoxSelectV33);
@@ -2590,6 +2601,141 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
     renderHands();
   }, { passive: false });
 
+
+  function renderChatMessages() {
+    if (!els.chatMessages) return;
+    ensureState();
+    const messages = Array.isArray(state.chat) ? state.chat.slice(-120) : [];
+    const atBottom = els.chatMessages.scrollTop + els.chatMessages.clientHeight >= els.chatMessages.scrollHeight - 24;
+    els.chatMessages.innerHTML = "";
+    messages.forEach(msg => {
+      const row = document.createElement("div");
+      row.className = "chat-message";
+
+      const name = document.createElement("span");
+      name.className = "chat-name";
+      name.textContent = (msg.name || "Player") + ": ";
+
+      const text = document.createElement("span");
+      text.className = "chat-text";
+      text.textContent = msg.text || "";
+
+      row.appendChild(name);
+      row.appendChild(text);
+      els.chatMessages.appendChild(row);
+    });
+    if (atBottom) els.chatMessages.scrollTop = els.chatMessages.scrollHeight;
+  }
+
+  function sendChatMessage() {
+    if (!els.chatText) return;
+    const text = String(els.chatText.value || "").trim();
+    if (!text) return;
+    ensureState();
+    state.chat = (Array.isArray(state.chat) ? state.chat : []).concat({
+      id: uid(),
+      player: localPlayer || "",
+      name: localNickname || localPlayer || "Player",
+      text: text.slice(0, 240),
+      time: Date.now()
+    }).slice(-200);
+    els.chatText.value = "";
+    push();
+    renderChatMessages();
+  }
+
+  function bindChatPanel() {
+    if (!els.chatBtn || !els.chatPanel || !els.chatHeader) return;
+
+    let chatFont = Number(localStorage.getItem("oldschoolChatFontV1") || dev.chatFontSize || 14);
+    const saved = (() => {
+      try { return JSON.parse(localStorage.getItem("oldschoolChatPanelV1") || "{}"); }
+      catch { return {}; }
+    })();
+
+    els.chatPanel.style.fontSize = chatFont + "px";
+    if (saved.left != null) els.chatPanel.style.left = saved.left + "px";
+    else els.chatPanel.style.left = (Number(dev.chatPanelX) || 1280) + "px";
+    if (saved.top != null) els.chatPanel.style.top = saved.top + "px";
+    else els.chatPanel.style.top = (Number(dev.chatPanelY) || 42) + "px";
+    if (saved.width != null) els.chatPanel.style.width = saved.width + "px";
+    if (saved.height != null) els.chatPanel.style.height = saved.height + "px";
+
+    function saveChatPanel() {
+      const r = els.chatPanel.getBoundingClientRect();
+      localStorage.setItem("oldschoolChatPanelV1", JSON.stringify({
+        left: Math.round(r.left),
+        top: Math.round(r.top),
+        width: Math.round(r.width),
+        height: Math.round(r.height)
+      }));
+    }
+
+    els.chatBtn.onclick = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      els.chatPanel.classList.toggle("hidden");
+      renderChatMessages();
+      updateMenuActiveStates();
+    };
+
+    if (els.chatSend) els.chatSend.onclick = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      sendChatMessage();
+    };
+
+    if (els.chatText) els.chatText.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendChatMessage();
+      }
+    });
+
+    if (els.chatMinus) els.chatMinus.onclick = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      chatFont = Math.max(9, chatFont - 1);
+      els.chatPanel.style.fontSize = chatFont + "px";
+      localStorage.setItem("oldschoolChatFontV1", String(chatFont));
+    };
+
+    if (els.chatPlus) els.chatPlus.onclick = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      chatFont = Math.min(28, chatFont + 1);
+      els.chatPanel.style.fontSize = chatFont + "px";
+      localStorage.setItem("oldschoolChatFontV1", String(chatFont));
+    };
+
+    let dragChat = null;
+    els.chatHeader.addEventListener("pointerdown", e => {
+      const r = els.chatPanel.getBoundingClientRect();
+      dragChat = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    document.addEventListener("pointermove", e => {
+      if (!dragChat) return;
+      const left = Math.max(0, Math.min(window.innerWidth - 80, e.clientX - dragChat.dx));
+      const top = Math.max(0, Math.min(window.innerHeight - 40, e.clientY - dragChat.dy));
+      els.chatPanel.style.left = left + "px";
+      els.chatPanel.style.top = top + "px";
+      els.chatPanel.style.right = "auto";
+      els.chatPanel.style.bottom = "auto";
+      e.preventDefault();
+    });
+
+    document.addEventListener("pointerup", () => {
+      if (!dragChat) return;
+      dragChat = null;
+      saveChatPanel();
+    });
+
+    if (window.ResizeObserver) new ResizeObserver(() => saveChatPanel()).observe(els.chatPanel);
+  }
+
   function bindHelpPanel() {
     if (!els.helpBtn || !els.helpPanel || !els.helpHeader) return;
 
@@ -2763,6 +2909,7 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
   }, true); // v27FlipCapture
 
   bindInspectorPanel();
+  bindChatPanel();
   bindHelpPanel();
 
   document.addEventListener("click", e => {
