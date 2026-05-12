@@ -83,7 +83,10 @@
     "handSafeZoneX": 0,
     "handSafeZoneY": 58,
     "handSafeZoneWidth": 510,
-    "handSafeZoneHeight": 260
+    "handSafeZoneHeight": 260,
+    "handScrollSensitivity": 1,
+    "handScrollSpeed": 1,
+    "handFanMaxSpread": 70
 };
   let dev = loadDev();
 
@@ -677,16 +680,16 @@
 
 
   function sleeveBackElement(owner, card = null) {
-    const back = document.createElement("div");
-    back.className = "back";
-    if (card && card.isToken) {
-      back.style.background = '#050505 url("token/aieback.png") center / cover no-repeat';
+    const back=document.createElement("div");
+    back.className="back";
+    if(card && card.isToken){
+      back.style.background='#050505 url("token/aieback.png") center / cover no-repeat';
       return back;
     }
-    const sleeve = state.sleeves?.[owner] || { type: "og", color: "#6a3b20" };
-    if (sleeve.type === "color") {
-      back.style.backgroundImage = "none";
-      back.style.backgroundColor = sleeve.color || "#6a3b20";
+    const sleeve=state.sleeves?.[owner] || {type:"og",color:"#6a3b20"};
+    if(sleeve.type==="color"){
+      back.style.backgroundImage="none";
+      back.style.background=sleeve.color || "#6a3b20";
     }
     return back;
   }
@@ -804,7 +807,7 @@
     [
       ["keep", "keep"],
       ["top", "top"],
-      ["second", "2nd from top"]
+      ["second", "2nd"]
     ].forEach(([value, label]) => {
       const b = document.createElement("button");
       b.type = "button";
@@ -1622,6 +1625,14 @@
     push();
   }
 
+  function updateSleeveButtonsV32(){
+    if(!localPlayer || !state.sleeves) return;
+    const s=state.sleeves[localPlayer] || {type:"og",color:"#6a3b20"};
+    if(els.ogBackSleeveBtn) els.ogBackSleeveBtn.classList.toggle("active", s.type==="og");
+    if(els.colorSleeveBtn) els.colorSleeveBtn.classList.toggle("active", s.type==="color");
+    if(els.sleeveColorInput && s.color) els.sleeveColorInput.value=s.color;
+  }
+
   function updateMenuActiveStates() {
     const flip = state.flipOverlay || {};
     if (els.inspectorToggleBtn) els.inspectorToggleBtn.classList.toggle("active", inspectorEnabled);
@@ -1632,6 +1643,7 @@
     if (els.playmatMenuBtn) els.playmatMenuBtn.classList.toggle("active", !els.playmatMenu.classList.contains("hidden"));
     if (els.sleevesMenuBtn) els.sleevesMenuBtn.classList.toggle("active", !els.sleevesMenu.classList.contains("hidden"));
     if (els.addTokenMenuBtn) els.addTokenMenuBtn.classList.toggle("active", !els.tokenMenu.classList.contains("hidden"));
+    updateSleeveButtonsV32();
   }
 
   function screenRectForCard(card) {
@@ -1745,8 +1757,47 @@
     boxSelect=null;
   }
 
+  function toggleHelpV32(e=null){
+    if(e){e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();}
+    els.helpModal.classList.toggle("hidden");
+    updateMenuActiveStates();
+  }
+
+  function beginBoxSelectV32(e){
+    if(e.button!==0||!localPlayer) return;
+    if(e.target.closest(".card,.die,.pile,.hand,.main-menu,.main-menu-btn,.modal,.context-menu,.inspector,.dev-panel,.sylvan-panel")) return;
+    boxSelect={x0:e.clientX,y0:e.clientY,x1:e.clientX,y1:e.clientY};
+    els.selectBox.classList.remove("hidden");
+    updateBoxSelectV32(e);
+    document.addEventListener("pointermove",updateBoxSelectV32);
+    document.addEventListener("pointerup",finishBoxSelectV32,{once:true});
+  }
+  function updateBoxSelectV32(e){
+    if(!boxSelect) return;
+    boxSelect.x1=e.clientX; boxSelect.y1=e.clientY;
+    const l=Math.min(boxSelect.x0,boxSelect.x1),t=Math.min(boxSelect.y0,boxSelect.y1),r=Math.max(boxSelect.x0,boxSelect.x1),b=Math.max(boxSelect.y0,boxSelect.y1);
+    els.selectBox.style.left=l+"px"; els.selectBox.style.top=t+"px"; els.selectBox.style.width=(r-l)+"px"; els.selectBox.style.height=(b-t)+"px";
+  }
+  function finishBoxSelectV32(){
+    document.removeEventListener("pointermove",updateBoxSelectV32);
+    if(!boxSelect) return;
+    const sel={left:Math.min(boxSelect.x0,boxSelect.x1),top:Math.min(boxSelect.y0,boxSelect.y1),right:Math.max(boxSelect.x0,boxSelect.x1),bottom:Math.max(boxSelect.y0,boxSelect.y1)};
+    els.selectBox.classList.add("hidden");
+    if((sel.right-sel.left)>6||(sel.bottom-sel.top)>6){
+      const hits=[];
+      document.querySelectorAll("#cardLayer .card").forEach(el=>{
+        const id=el.dataset.cardId;if(!id)return;
+        const r=el.getBoundingClientRect();
+        if(!(r.right<sel.left||r.left>sel.right||r.bottom<sel.top||r.top>sel.bottom)) hits.push(id);
+      });
+      selectedIds=new Set(hits); render();
+    }
+    boxSelect=null;
+  }
+
   // UI bindings
-    els.viewport.addEventListener("pointerdown", beginBoxSelectV31);
+
+  els.world.addEventListener("pointerdown", beginBoxSelectV32);
 
   els.joinR1P1.onclick = () => join("room1", "p1");
   els.joinR1P2.onclick = () => join("room1", "p2");
@@ -1760,23 +1811,24 @@
   if (els.playmatMenuBtn) els.playmatMenuBtn.onclick = () => toggleSection(els.playmatMenu, els.playmatMenuBtn);
   if (els.sleevesMenuBtn) els.sleevesMenuBtn.onclick = () => toggleSection(els.sleevesMenu, els.sleevesMenuBtn);
   if (els.addTokenMenuBtn) els.addTokenMenuBtn.onclick = () => toggleSection(els.tokenMenu, els.addTokenMenuBtn);
-  if (els.ogBackSleeveBtn) els.ogBackSleeveBtn.onclick = () => {
-    state.sleeves[localPlayer] = { type: "og", color: "#6a3b20" };
-    els.ogBackSleeveBtn.classList.add("active");
-    if (els.colorSleeveBtn) els.colorSleeveBtn.classList.remove("active");
+  if (els.ogBackSleeveBtn) els.ogBackSleeveBtn.onclick = e => {
+    e.preventDefault(); e.stopPropagation();
+    state.sleeves[localPlayer] = { type:"og", color:"#6a3b20" };
+    updateSleeveButtonsV32();
     push();
   };
 
-  if (els.colorSleeveBtn) els.colorSleeveBtn.onclick = () => {
-    state.sleeves[localPlayer] = { type: "color", color: els.sleeveColorInput.value };
-    els.colorSleeveBtn.classList.add("active");
-    if (els.ogBackSleeveBtn) els.ogBackSleeveBtn.classList.remove("active");
+  if (els.colorSleeveBtn) els.colorSleeveBtn.onclick = e => {
+    e.preventDefault(); e.stopPropagation();
+    state.sleeves[localPlayer] = { type:"color", color:els.sleeveColorInput.value };
+    updateSleeveButtonsV32();
     push();
   };
 
   if (els.sleeveColorInput) els.sleeveColorInput.oninput = () => {
     if (state.sleeves[localPlayer]?.type === "color") {
-      state.sleeves[localPlayer] = { type: "color", color: els.sleeveColorInput.value };
+      state.sleeves[localPlayer] = { type:"color", color:els.sleeveColorInput.value };
+      updateSleeveButtonsV32();
       push();
     }
   };
@@ -1812,7 +1864,8 @@
   els.loadDeckBtn.onclick = () => els.deckModal.classList.remove("hidden");
   els.closeDeckModal.onclick = () => els.deckModal.classList.add("hidden");
   els.doLoadDeck.onclick = loadDeck;
-  els.helpBtn.onclick = () => { els.helpModal.classList.toggle("hidden"); updateMenuActiveStates(); };
+  els.helpBtn.onclick = toggleHelpV32;
+  els.helpBtn.addEventListener("click", toggleHelpV32, true); // helpBtnV32Capture updateMenuActiveStates(); };
   els.devTuningBtn.onclick = () => { els.devPanel.classList.toggle("hidden"); renderHandDropZoneDebug(); renderHandSafeZoneDebug(); updateMenuActiveStates(); };
   els.devClose.onclick = () => { els.devPanel.classList.add("hidden"); updateMenuActiveStates(); };
   els.devReset.onclick = () => { dev = { ...devDefaults }; saveDev(); bindDev(); render(); };
@@ -1883,6 +1936,7 @@
       card.marked = false;
       card.sylvanChoice = "keep";
       drawn.push(card);
+      state.cards=state.cards.filter(c=>c.id!==card.id).concat(card);
       bringToFront(card);
     }
     positionSylvanPanel(player);
@@ -2022,20 +2076,15 @@
   let lastSideWheel = 0;
   els.myHand.addEventListener("wheel", e => {
     e.preventDefault();
-    if (!localPlayer) return;
-
-    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-      const now = performance.now();
-      if (Math.abs(e.deltaX) > 8 && now - lastSideWheel > 120) {
-        lastSideWheel = now;
-        handDepth[localPlayer] = (handDepth[localPlayer] || 1) * -1;
-        renderHands();
-      }
-    } else {
-      handFan[localPlayer] = (handFan[localPlayer] || 0) + (e.deltaY < 0 ? 12 : -12);
-      handFan[localPlayer] = Math.max(-100, Math.min(100, handFan[localPlayer]));
-      renderHands();
+    const sens=Number(dev.handScrollSensitivity||1);
+    const speed=Number(dev.handScrollSpeed||1);
+    const maxSpread=Number(dev.handFanMaxSpread||70);
+    if(Math.abs(e.deltaX)>Math.abs(e.deltaY)){
+      if(Math.abs(e.deltaX)>2) handDepth[localPlayer]=e.deltaX>0?1:-1;
+    }else{
+      handFan[localPlayer]=Math.max(-100,Math.min(maxSpread,(handFan[localPlayer]||0)-e.deltaY*0.16*sens*speed));
     }
+    renderHands();
   }, { passive: false });
 
   function bindInspectorPanel() {
