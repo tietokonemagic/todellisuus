@@ -4,8 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Oldschool Clean Shared Table</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="orbflip.css">
+  <link rel="stylesheet" href="css/base-table.css">
+  <link rel="stylesheet" href="css/components-and-fixes.css">
+  <link rel="stylesheet" href="css/legacy-overrides.css">
+  <link rel="stylesheet" href="css/orbflip.css">
 </head>
 <body>
   <div id="seatScreen" class="seat-screen">
@@ -260,10 +262,21 @@
     <textarea id="devOutput" readonly></textarea>
   </div>
 
-  <script src="scryfall.js"></script>
-  <script type="module" src="firebase-sync.js"></script>
-  <script src="app.js"></script>
-  <script src="orbflip.js"></script>
+  <script src="js/services/scryfall.js"></script>
+  <script type="module" src="js/services/firebase-sync.js"></script>
+
+  <!-- Core game scripts. Keep this order: later files depend on earlier files. -->
+  <script src="js/core/00-state-and-utils.js"></script>
+  <script src="js/core/10-state-actions.js"></script>
+  <script src="js/core/20-render-table.js"></script>
+  <script src="js/core/30-card-rendering-and-hands.js"></script>
+  <script src="js/core/40-dice-and-drag.js"></script>
+  <script src="js/core/50-game-actions-and-menus.js"></script>
+  <script src="js/core/60-dev-tools.js"></script>
+  <script src="js/core/70-selection-help-sleeves.js"></script>
+  <script src="js/core/80-event-bindings-inspector-export.js"></script>
+
+  <script src="js/effects/orbflip.js"></script>
   <div id="handDropZoneDebug" class="hand-drop-zone-debug hidden"></div>
   <div id="handSafeZoneDebug" class="hand-safe-zone-debug hidden"></div>
   <div id="helpOverlayV33" class="help-overlay-v33 hidden"><div class="help-box-v33"><pre>D/TAB/1 = draw one

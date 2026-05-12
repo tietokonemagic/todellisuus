@@ -1,0 +1,424 @@
+/* v14 */
+.hand-card,.hand-card:hover,.hand-card:focus,.hand-card:active,.hand-card:hover img,.hand-card:hover .back{filter:none!important;transform:var(--hand-transform,none)!important;scale:1!important;translate:0 0!important;outline:none!important}
+.hand-card:hover{z-index:var(--hand-z,inherit)!important;box-shadow:0 3px 8px rgba(0,0,0,.75)!important}
+.menu-subtitle{padding:8px 10px 4px;color:#aaa;font-size:11px;border-top:1px solid rgba(255,255,255,.18)}
+.shuffle-card,.fly-card{width:var(--anim-card-w,142px)!important;height:var(--anim-card-h,198px)!important}
+
+
+/* v15: hand hover cannot affect visual order or position */
+.hand-card:hover,
+.hand-card:hover img,
+.hand-card:hover .back,
+.hand-card:focus,
+.hand-card:active {
+  filter: none !important;
+  transform: var(--hand-transform, none) !important;
+  z-index: var(--hand-z, 100) !important;
+  scale: 1 !important;
+  translate: 0 0 !important;
+  outline: none !important;
+}
+
+/* v15 inspector: persistent, movable, resizable panel */
+.inspector {
+  resize: both !important;
+  overflow: auto !important;
+  min-width: 180px !important;
+  min-height: 130px !important;
+  max-width: 80vw !important;
+  max-height: 80vh !important;
+  cursor: default;
+}
+
+.inspector.visible-empty {
+  display: block !important;
+}
+
+.inspector.dragging-inspector {
+  user-select: none;
+}
+
+#inspectorName {
+  cursor: move;
+  min-height: 18px;
+}
+
+
+/* v16: final hand hover fix.
+   The hand-card keeps its fan transform. Its child image/back must NOT receive that transform again. */
+.hand-card:hover {
+  transform: var(--hand-transform, none) !important;
+  z-index: var(--hand-z, 100) !important;
+  filter: none !important;
+  scale: 1 !important;
+  translate: 0 0 !important;
+  outline: none !important;
+}
+
+.hand-card:hover img,
+.hand-card:hover .back,
+.hand-card:hover .card-face,
+.hand-card:hover .card-back {
+  transform: none !important;
+  filter: none !important;
+  scale: 1 !important;
+  translate: 0 0 !important;
+}
+
+/* v17: visible empty slot while dragging a card out of hand */
+.hand-gap {
+  position: absolute;
+  width: 118px;
+  height: 165px;
+  border-radius: 7px;
+  pointer-events: none;
+  opacity: .18;
+  outline: 1px dashed rgba(255,255,255,.35);
+  background: rgba(255,255,255,.04);
+}
+
+/* v18 layer rules: piles below battlefield, hand above battlefield, dragged table card above hand */
+#pileLayer { z-index: 20 !important; }
+#cardLayer { z-index: 30 !important; }
+#diceLayer { z-index: 40 !important; }
+.hand { z-index: 50 !important; }
+#dragLayer { position: absolute; inset: 0; z-index: 80; pointer-events: none; }
+#dragLayer .card { pointer-events: none; }
+
+/* v19: dragged hand card keeps the z-order it had in hand until released. */
+.card.dragging-from-hand { pointer-events: none !important; }
+.card.dragging-from-table { pointer-events: none !important; }
+
+
+/* v20: hand art layers. hand.png under cards, thumb.png above cards. */
+.hand-art {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: var(--hand-art-size, 190px);
+  height: auto;
+  transform-origin: 50% 100%;
+  pointer-events: none;
+  user-select: none;
+}
+
+.hand-art-base {
+  z-index: 10;
+}
+
+.hand-art-thumb {
+  z-index: 10000;
+}
+
+.hand .card,
+.hand .hand-gap {
+  z-index: 100;
+}
+
+
+/* v21 green menu and extra dice */
+.menu-section { display:grid; gap:6px; padding:6px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); border-radius:8px; max-height:220px; overflow:auto; }
+.menu-section button { text-align:left; font-size:12px; padding:6px 8px; }
+.color-row,.die-color-row { display:grid; grid-template-columns:1fr 54px; gap:8px; align-items:center; font-size:12px; padding:6px 8px; color:#eee; }
+.color-row input,.die-color-row input { width:54px; height:26px; border:0; padding:0; background:transparent; }
+.die.counter-die { background:var(--die-color,#25aa3d); cursor:pointer; }
+
+
+/* v22 requested fixes */
+.menu-toggle-active {
+  background: #157a38 !important;
+}
+.inspector {
+  z-index: 2147482000 !important;
+  pointer-events: auto !important;
+}
+#inspectorName {
+  cursor: move !important;
+  background: rgba(255,255,255,.06);
+  padding: 4px 6px;
+  border-radius: 5px;
+}
+.grave-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-radius: 8px;
+  scrollbar-width: thin;
+}
+.grave-scroll-card {
+  position: relative !important;
+  left: 12px !important;
+  top: auto !important;
+  margin-bottom: -125px;
+  transform: none !important;
+}
+.pile.grave .grave-drop {
+  position: absolute;
+  inset: 0;
+}
+.pip {
+  background: var(--pip-color, #111) !important;
+}
+.die.dragging-die {
+  z-index: 2147481500 !important;
+  pointer-events: none !important;
+}
+.exile-grid-card {
+  cursor: grab;
+}
+
+
+/* v25 hand drag/drop zone */
+#dragLayer {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 80 !important;
+  pointer-events: none !important;
+}
+
+#dragLayer .card {
+  pointer-events: none !important;
+}
+
+.drag-hand-visual {
+  position: absolute !important;
+  pointer-events: none !important;
+}
+
+.hand-preview-gap {
+  position: absolute;
+  width: 118px;
+  height: 165px;
+  border-radius: 7px;
+  pointer-events: none;
+  opacity: .28;
+  outline: 1px dashed rgba(255,255,255,.55);
+  background: rgba(255,255,255,.08);
+}
+
+.hand-drop-zone-debug {
+  position: fixed;
+  z-index: 250000;
+  border: 2px dashed rgba(120, 255, 160, .85);
+  background: rgba(120, 255, 160, .07);
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+
+/* v26 inspector rebuild + hand safe zone */
+.inspector {
+  position: fixed !important;
+  left: 24px;
+  top: 24px;
+  right: auto !important;
+  bottom: auto !important;
+  width: 330px;
+  height: 220px;
+  min-width: 180px !important;
+  min-height: 120px !important;
+  max-width: 90vw !important;
+  max-height: 90vh !important;
+  z-index: 2147479000 !important;
+  background: rgba(8,8,8,.96);
+  border: 1px solid #666;
+  border-radius: 10px;
+  padding: 0;
+  resize: both !important;
+  overflow: auto !important;
+  font-family: "Times New Roman", Times, serif;
+  font-style: normal;
+  text-transform: none;
+  line-height: 1.25;
+  box-shadow: 0 12px 40px rgba(0,0,0,.7);
+}
+
+.inspector-header {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 6px 4px 10px;
+  border-bottom: 1px solid rgba(255,255,255,.18);
+  cursor: move;
+  user-select: none;
+  font-family: "Arial Narrow", Arial, sans-serif;
+  font-style: italic;
+  text-transform: uppercase;
+}
+
+.inspector-buttons { display: flex; gap: 4px; }
+.inspector-buttons button { padding: 2px 8px; border-radius: 6px; }
+#inspectorName, #inspectorType, #inspectorOracle { padding-left: 10px; padding-right: 10px; }
+#inspectorName { padding-top: 8px; font-weight: 700; }
+#inspectorType { color: #bbb; margin-top: 4px; margin-bottom: 8px; }
+#inspectorOracle { padding-bottom: 10px; white-space: pre-wrap; }
+
+.hand-safe-zone-debug {
+  position: fixed;
+  z-index: 249999;
+  border: 2px dashed rgba(255, 220, 80, .85);
+  background: rgba(255, 220, 80, .08);
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+
+/* v27 playmat fill */
+.playmat {
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+  background-position: center center !important;
+}
+
+/* v27 active green menu buttons */
+.main-menu button.active,
+#inspectorToggleBtn.active,
+#menuFlipOrbBtn.active,
+#menuFlipStarBtn.active,
+#helpBtn.active,
+#devTuningBtn.active,
+#playmatMenuBtn.active,
+#sleevesMenuBtn.active,
+#addTokenMenuBtn.active {
+  background: #157a38 !important;
+}
+
+/* v27 Sylvan Library markers and buttons */
+.card.sylvan-mark {
+  box-shadow: 0 0 0 3px #21bf46, 0 3px 8px rgba(0,0,0,.75) !important;
+}
+
+.card.sylvan-keep {
+  box-shadow: 0 0 0 3px #d7c438, 0 3px 8px rgba(0,0,0,.75) !important;
+}
+
+.sylvan-actions {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 104px;
+  transform: translate(-50%, -50%);
+  z-index: 12000;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+  pointer-events: auto;
+}
+
+.sylvan-actions button {
+  padding: 2px 3px;
+  border-radius: 4px;
+  font-size: 8px;
+  line-height: 1.05;
+  text-transform: lowercase;
+  background: rgba(20,20,20,.86);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 1px 3px rgba(0,0,0,.65);
+}
+
+.sylvan-actions button.pressed {
+  background: #157a38 !important;
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,.7);
+}
+
+.sylvan-panel {
+  position: fixed;
+  z-index: 15000;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  background: rgba(6,6,6,.94);
+  border: 1px solid #666;
+  border-radius: 8px;
+  padding: 5px;
+  color: #eee;
+}
+
+.sylvan-panel button {
+  padding: 3px 7px;
+  border-radius: 5px;
+  font-size: 11px;
+}
+
+#sylvanCount {
+  min-width: 18px;
+  text-align: center;
+  font-size: 12px;
+}
+
+
+/* v29 Sylvan card controls and token clone label */
+.sylvan-card-panel {
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 3px;
+  z-index: 15000;
+  pointer-events: auto;
+}
+
+.sylvan-card-panel button,
+.sylvan-card-panel span {
+  font-size: 8px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: rgba(10,10,10,.88);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.25);
+  min-width: 16px;
+  text-align: center;
+}
+
+.sylvan-card-panel button:active {
+  transform: translateY(1px);
+  background: #157a38;
+}
+
+.card.sylvan-keep {
+  box-shadow: 0 0 0 3px #21bf46, 0 3px 8px rgba(0,0,0,.75) !important;
+}
+
+.card.sylvan-mark {
+  box-shadow: 0 0 0 3px #d7c438, 0 3px 8px rgba(0,0,0,.75) !important;
+}
+
+.token-label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 5px;
+  text-align: center;
+  font-size: 7px;
+  line-height: 1;
+  color: rgba(255,255,255,.72);
+  text-shadow: 0 1px 2px #000;
+  pointer-events: none;
+  text-transform: lowercase;
+  font-style: normal;
+}
+
+.core-row label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.core-row select {
+  background: #111;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 6px;
+  padding: 5px 8px;
+}
+
+.color-row button.active,
+#ogBackSleeveBtn.active {
+  background: #157a38 !important;
+}
