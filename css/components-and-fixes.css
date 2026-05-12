@@ -502,3 +502,35 @@
 .help-controls-v34 button {
   min-width: 28px;
 }
+
+
+/* v2026.05.12-011 card corners + sleeve noise overlay from sleevenoise.png */
+.card,
+.card img,
+.card .back {
+  border-radius: var(--card-radius, 7px) !important;
+}
+
+.card.alpha-card,
+.card.alpha-card img,
+.card.alpha-card .back {
+  border-radius: var(--alpha-card-radius, 11px) !important;
+}
+
+.card,
+.card .back {
+  overflow: hidden;
+}
+
+.card .back {
+  position: relative;
+}
+
+.sleeve-noise-overlay {
+  position: absolute;
+  inset: 0;
+  background: url("../sleevenoise.png") center / cover no-repeat;
+  mix-blend-mode: multiply;
+  opacity: var(--sleeve-noise-opacity, 0.16);
+  pointer-events: none;
+}

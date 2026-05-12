@@ -125,3 +125,93 @@
 
 /* v2026.05.12-006: square UI everywhere */
 *, *::before, *::after { border-radius: 0 !important; }
+
+
+/* v2026.05.12-007: square UI, but keep dice and pips readable */
+* {
+  border-radius: 0 !important;
+}
+
+.die {
+  border-radius: var(--die-radius, 4px) !important;
+}
+
+.pip {
+  border-radius: 50% !important;
+}
+
+.main-menu,
+.main-menu button,
+.menu-section,
+.modal-box,
+.inspector,
+.help-panel,
+.context-menu,
+.context-menu button,
+.seat-box,
+.card,
+.card img,
+.card .back,
+.pile-card,
+.grave-drop,
+.exile-box,
+.grid-card,
+.grid-card img {
+  border-radius: 0 !important;
+}
+
+.help-panel {
+  right: 360px;
+  bottom: 18px;
+  width: 320px;
+  max-height: 430px;
+}
+
+#helpBody {
+  min-height: 80px;
+  white-space: pre-wrap;
+}
+
+.inspector-header {
+  cursor: move;
+  min-height: 22px;
+}
+
+
+/* v2026.05.12-008: keep sharp UI, but restore real MTG card corner rounding.
+   This prevents transparent Alpha/Beta card corners from showing white/gray triangles. */
+.card,
+.card img,
+.card .back,
+.grid-card,
+.grid-card img,
+.pile-card,
+.shuffle-card,
+.fly-card {
+  border-radius: 7px !important;
+  overflow: hidden;
+}
+
+/* v2026.05.12-010: single-color sleeves use adjustable subtle multiply-style noise overlay. */
+.card .back.noise-sleeve-back,
+.grid-sleeve-back.noise-sleeve-back {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--sleeve-color, #6a3b20) !important;
+  background-image: none !important;
+  background-blend-mode: normal !important;
+  image-rendering: auto;
+}
+
+.card .back.noise-sleeve-back::after,
+.grid-sleeve-back.noise-sleeve-back::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  mix-blend-mode: multiply;
+  opacity: var(--sleeve-noise-strength, .16);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='3' seed='9'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='table' tableValues='.72 1'/%3E%3CfeFuncG type='table' tableValues='.72 1'/%3E%3CfeFuncB type='table' tableValues='.72 1'/%3E%3CfeFuncA type='table' tableValues='.55 .95'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='96' height='96' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 96px 96px;
+}

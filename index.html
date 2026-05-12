@@ -14,7 +14,7 @@
     <div class="seat-box">
       <h1>Oldschool Table</h1>
       <p>Choose room and seat.</p>
-      <div id="appVersionLabel" class="app-version-label">v2026.05.12-006</div>
+      <div id="appVersionLabel" class="app-version-label">v2026.05.12-011</div>
       <div class="seat-grid">
         <button id="joinR1P1">ROOM 1 / PLAYER 1</button>
         <button id="joinR1P2">ROOM 1 / PLAYER 2</button>
@@ -65,6 +65,7 @@
       <button id="menuFlipStarBtn">FLIP FALLING STAR</button>
       <button id="addDiceBtn">ADD DICE</button>
       <button id="loadDeckBtn">LOAD DECK</button>
+      <button id="helpBtn">HELP</button>
       <button id="devTuningBtn">DEV TUNING</button>
       <button id="inspectorToggleBtn">INSPECTOR</button>
       <button id="resetVoteBtn" class="danger">RESET GAME</button>
@@ -191,7 +192,7 @@
   </div>
   <div id="inspector" class="inspector hidden">
     <div id="inspectorHeader" class="inspector-header">
-      <span>INSPECTOR</span>
+      <span></span>
       <div class="inspector-buttons">
         <button id="inspectorMinus">-</button>
         <button id="inspectorPlus">+</button>
@@ -199,7 +200,18 @@
     </div>
     <div id="inspectorName"></div>
     <div id="inspectorType"></div>
-    <div id="inspectorOracle">Hover a visible card.</div>
+    <div id="inspectorOracle"></div>
+  </div>
+
+  <div id="helpPanel" class="inspector help-panel hidden">
+    <div id="helpHeader" class="inspector-header">
+      <span></span>
+      <div class="inspector-buttons">
+        <button id="helpMinus">-</button>
+        <button id="helpPlus">+</button>
+      </div>
+    </div>
+    <div id="helpBody">lollotiloo</div>
   </div>
 
   <div id="devPanel" class="dev-panel hidden">
@@ -233,6 +245,14 @@
     <label>Thumb max X <input id="devThumbMaxX" type="range" min="-240" max="240" value="38"><span id="devThumbMaxXVal">38</span></label>
     <label>Thumb min Y <input id="devThumbMinY" type="range" min="-180" max="180" value="0"><span id="devThumbMinYVal">0</span></label>
     <label>Thumb max Y <input id="devThumbMaxY" type="range" min="-180" max="180" value="0"><span id="devThumbMaxYVal">0</span></label>
+    <label>Thumb min rotation <input id="devThumbMinRot" type="range" min="-45" max="45" value="0"><span id="devThumbMinRotVal">0</span></label>
+    <label>Thumb max rotation <input id="devThumbMaxRot" type="range" min="-45" max="45" value="12"><span id="devThumbMaxRotVal">12</span></label>
+    <label>Card radius <input id="devCardRadius" type="range" min="0" max="18" value="7"><span id="devCardRadiusVal">7</span></label>
+    <label>Alpha card radius <input id="devAlphaCardRadius" type="range" min="0" max="24" value="11"><span id="devAlphaCardRadiusVal">11</span></label>
+    <label>Help panel X <input id="devHelpPanelX" type="range" min="0" max="1900" value="40"><span id="devHelpPanelXVal">40</span></label>
+    <label>Help panel Y <input id="devHelpPanelY" type="range" min="0" max="1000" value="120"><span id="devHelpPanelYVal">120</span></label>
+    <label>Inspector panel X <input id="devInspectorPanelX" type="range" min="0" max="1900" value="1550"><span id="devInspectorPanelXVal">1550</span></label>
+    <label>Inspector panel Y <input id="devInspectorPanelY" type="range" min="0" max="1000" value="600"><span id="devInspectorPanelYVal">600</span></label>
 
     <label>Hand drop zone X <input id="devHandDropZoneX" type="range" min="-900" max="900" value="0"><span id="devHandDropZoneXVal">0</span></label>
     <label>Hand drop zone Y <input id="devHandDropZoneY" type="range" min="-400" max="400" value="0"><span id="devHandDropZoneYVal">0</span></label>
@@ -262,6 +282,7 @@
     <label>Menu button X padding <input id="devMenuButtonPaddingX" type="range" min="4" max="18" value="7"><span id="devMenuButtonPaddingXVal">7</span></label>
     <label>Menu gap <input id="devMenuGap" type="range" min="2" max="14" value="5"><span id="devMenuGapVal">5</span></label>
     <label>Menu width <input id="devMenuWidth" type="range" min="160" max="300" value="196"><span id="devMenuWidthVal">196</span></label>
+    <label>Sleeve noise <input id="devSleeveNoiseStrength" type="range" min="0" max="100" value="16"><span id="devSleeveNoiseStrengthVal">16</span></label>
 
     <div class="dev-buttons">
       <button id="devReset">RESET DEV</button>
@@ -272,6 +293,7 @@
   </div>  <script src="js/services/scryfall.js"></script>
   <script src="js/core/app.js"></script>
   <script src="js/effects/orbflip.js"></script>
+  <script src="js/services/offline-sync.js"></script>
   <script type="module" src="js/services/firebase-sync.js"></script>
   <div id="handDropZoneDebug" class="hand-drop-zone-debug hidden"></div>
   <div id="handSafeZoneDebug" class="hand-safe-zone-debug hidden"></div>
