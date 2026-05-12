@@ -22,7 +22,7 @@
     "selectBox","devPanel","devDragHandle","devReset","devCopy","devClose","devOutput"
   ].forEach(id => els[id] = document.getElementById(id));
 
-  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-014";
+  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-016";
   if (els.nicknameInput) els.nicknameInput.value = localNickname;
   let localRoom = null;
   let localPlayer = null;
@@ -1664,26 +1664,48 @@
     }
   }
 
+  function installEmergencyOfflineSync() {
+    if (window.FirebaseCleanSync) return;
+    window.FirebaseCleanSync = {
+      offline: true,
+      joinRoom: async (r, p) => {
+        setLocalSeat((r || "room1") + " / OFFLINE", p || "p1");
+        applyRemoteState(initialState());
+      },
+      pushState: async () => {},
+      voteReset: async () => {},
+      clearResetVote: async () => {},
+      leaveRoom: async () => location.reload(),
+      kickRoom: async () => {}
+    };
+  }
+
+  function waitForSyncModule(timeoutMs = 6000) {
+    if (window.FirebaseCleanSync) return Promise.resolve(window.FirebaseCleanSync);
+    if (location.protocol === "file:") {
+      installEmergencyOfflineSync();
+      return Promise.resolve(window.FirebaseCleanSync);
+    }
+
+    return new Promise(resolve => {
+      const started = Date.now();
+      const tick = () => {
+        if (window.FirebaseCleanSync) return resolve(window.FirebaseCleanSync);
+        if (Date.now() - started >= timeoutMs) return resolve(null);
+        setTimeout(tick, 80);
+      };
+      tick();
+    });
+  }
+
   async function join(room, player) {
     localNickname = (els.nicknameInput?.value || "").trim().slice(0, 24) || player.toUpperCase();
     localStorage.setItem("oldschoolNicknameV1", localNickname);
     els.seatStatus.textContent = "Joining...";
     try {
-      if (!window.FirebaseCleanSync && location.protocol === "file:") {
-        window.FirebaseCleanSync = {
-          joinRoom: async (r, p) => {
-            setLocalSeat((r || "room1") + " / OFFLINE", p || "p1");
-            applyRemoteState(initialState());
-          },
-          pushState: async () => {},
-          voteReset: async () => {},
-          clearResetVote: async () => {},
-          leaveRoom: async () => location.reload(),
-          kickRoom: async () => {}
-        };
-      }
-      if (!window.FirebaseCleanSync) throw new Error("Firebase sync module not loaded.");
-      await window.FirebaseCleanSync.joinRoom(room, player);
+      const sync = await waitForSyncModule();
+      if (!sync) throw new Error("Firebase sync module not loaded. Refresh once or check that js/services/firebase-sync.js is uploaded.");
+      await sync.joinRoom(room, player);
     } catch (err) {
       els.seatStatus.textContent = err?.message || String(err);
       console.error(err);
@@ -2338,8 +2360,14 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
   els.joinR1P2.onclick = () => join("room1", "p2");
   els.joinR2P1.onclick = () => join("room2", "p1");
   els.joinR2P2.onclick = () => join("room2", "p2");
-  els.kickRoom1.onclick = () => window.FirebaseCleanSync?.kickRoom("room1");
-  els.kickRoom2.onclick = () => window.FirebaseCleanSync?.kickRoom("room2");
+  els.kickRoom1.onclick = async () => {
+    const sync = await waitForSyncModule(2500);
+    if (sync?.kickRoom) sync.kickRoom("room1");
+  };
+  els.kickRoom2.onclick = async () => {
+    const sync = await waitForSyncModule(2500);
+    if (sync?.kickRoom) sync.kickRoom("room2");
+  };
 
   els.mainMenuBtn.onclick = () => els.mainMenu.classList.toggle("hidden");
   populateGreenMenuLists();

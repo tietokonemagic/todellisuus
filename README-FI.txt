@@ -1,4 +1,4 @@
-Online Magic v2026.05.12-009
+Online Magic v2026.05.12-016
 
 Korjaukset:
 - HELP poistettu kokonaan käytöstä ja käyttöliittymästä.
@@ -15,18 +15,18 @@ Deploy:
 Lataa tämän kansion sisältö nettiin. Älä lataa _original_reference/docs kansioita.
 
 
-v2026.05.12-009
+v2026.05.12-016
 - Korttien border-radius palautettu 7px, UI pysyy teräväkulmaisena.
 - Yksivärisiin sleeveihin lisätty karhea/texturoitu pinta.
 
 
-v2026.05.12-010
+v2026.05.12-016
 - Sleeve noise voimakkuus lisätty dev paneeliin (dev.sleeveNoiseStrength, 0-40).
 - Noise overlay käyttää CSS-muuttujaa --sleeve-noise-strength.
 - Tarkistettu että zip sisältää koko deploy-rakenteen.
 
 
-v2026.05.12-011:
+v2026.05.12-016:
 - Offline-testauksen tuki säilytetty.
 - Thumb.png kääntyy nyt viuhkan scrollauksen mukana; min/max rotation säädöt dev-paneelissa.
 - Help- ja inspector-ruutujen oletuspaikoille lisätty dev-paneelin X/Y-säädöt.
@@ -34,8 +34,14 @@ v2026.05.12-011:
 - Alpha-korteille oma isompi corner radius; normaaleille korteille oma radius. Molemmille säädöt dev-paneelissa.
 
 
-v2026.05.12-013
+v2026.05.12-016
 - Sideboard-editorin kortit 20% isommiksi.
 - SIDEBOARD-nappi päättää nykyisen pelin: kortit kerätään takaisin kirjastoihin/sideboardeihin, tokenit poistuvat ja life palautuu 20.
 - DONE tallentaa nykyisen mainboardin, shuffleaa sen libraryksi ja aloittaa seuraavan pelin.
 - RESET TO ORIGINAL palauttaa alkuperäisen load deck -hetken main/side-jaon.
+
+
+v2026.05.12-016: Improved Scryfall fallback and cache bust for missing oldschool/core prints.
+
+
+v2026.05.12-016: Nickname/join korjattu. Join odottaa Firebase-moduulia eikä nickname-kenttä estä huoneeseen menoa.
