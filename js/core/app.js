@@ -22,11 +22,11 @@
     "selectBox","devPanel","devDragHandle","devReset","devCopy","devClose","devOutput"
   ].forEach(id => els[id] = document.getElementById(id));
 
-  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-016";
-  if (els.nicknameInput) els.nicknameInput.value = localNickname;
+  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-017";
   let localRoom = null;
   let localPlayer = null;
   let localNickname = localStorage.getItem("oldschoolNicknameV1") || "Player";
+  if (els.nicknameInput) els.nicknameInput.value = localNickname;
   let selectedIds = new Set();
   let hoveredCardId = null;
   let hoveredDieId = null;
