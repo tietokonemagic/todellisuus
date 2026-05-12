@@ -121,3 +121,7 @@
 #colorSleeveBtn.active {
   background: #157a38 !important;
 }
+
+
+/* v2026.05.12-006: square UI everywhere */
+*, *::before, *::after { border-radius: 0 !important; }

@@ -14,7 +14,7 @@
     <div class="seat-box">
       <h1>Oldschool Table</h1>
       <p>Choose room and seat.</p>
-      <div id="appVersionLabel" class="app-version-label">v2026.05.12-004</div>
+      <div id="appVersionLabel" class="app-version-label">v2026.05.12-006</div>
       <div class="seat-grid">
         <button id="joinR1P1">ROOM 1 / PLAYER 1</button>
         <button id="joinR1P2">ROOM 1 / PLAYER 2</button>
@@ -65,7 +65,6 @@
       <button id="menuFlipStarBtn">FLIP FALLING STAR</button>
       <button id="addDiceBtn">ADD DICE</button>
       <button id="loadDeckBtn">LOAD DECK</button>
-      <button id="helpBtn">HELP</button>
       <button id="devTuningBtn">DEV TUNING</button>
       <button id="inspectorToggleBtn">INSPECTOR</button>
       <button id="resetVoteBtn" class="danger">RESET GAME</button>
@@ -276,35 +275,6 @@
   <script type="module" src="js/services/firebase-sync.js"></script>
   <div id="handDropZoneDebug" class="hand-drop-zone-debug hidden"></div>
   <div id="handSafeZoneDebug" class="hand-safe-zone-debug hidden"></div>
-  <div id="helpOverlayV33" class="help-panel-v34 hidden">
-    <div id="helpHeader" class="help-header-v34">
-      <strong>HELP</strong>
-      <div class="help-controls-v34">
-        <button id="helpMinus" type="button" title="Smaller text">−</button>
-        <button id="helpPlus" type="button" title="Bigger text">+</button>
-      </div>
-    </div>
-    <pre id="helpContent">D / TAB / 1 = draw one
-7 = draw seven
-G = grave hovered card
-E = exile hovered card
-H = hand hovered card
-T = tap hovered card
-Shift-click = multi-select
-Drag empty table area = box-select cards
-Double-click card = tap/untap
-
-Library right-click:
-DRAW 1, SHUFFLE, TUTOR, MULLIGAN, REVEAL TOP, REVEAL HAND
-
-Card right-click:
-FLIP, CLONE, TO HAND, TO GRAVE, TO EXILE, BRING TO FRONT, SEND TO BACK
-
-Menu:
-HELP opens/closes this floating window.
-INSPECTOR opens/closes the card text inspector.
-SLEEVES changes only your own card backs.</pre>
-  </div>
-  <div id="selectBox" class="select-box hidden"></div>
+<div id="selectBox" class="select-box hidden"></div>
 </body>
 </html>

@@ -13,16 +13,16 @@
   [
     "seatScreen","seatStatus","appVersionLabel","joinR1P1","joinR1P2","joinR2P1","joinR2P2","kickRoom1","kickRoom2",
     "game","viewport","world","pileLayer","cardLayer","dragLayer","diceLayer","myHand","opponentHand",
-    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","helpOverlayV33","helpHeader","helpMinus","helpPlus","helpClose","helpContent","helpBtn","devTuningBtn","inspectorToggleBtn","resetVoteBtn","leaveBtn","roomInfo",
+    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","helpClose","devTuningBtn","inspectorToggleBtn","resetVoteBtn","leaveBtn","roomInfo",
     "deckModal","deckText","coreSetSelect","doLoadDeck","closeDeckModal","deckStatus",
     "tutorModal","tutorGrid","tutorToHand","tutorToTable","closeTutor",
-    "graveModal","graveGrid","closeGrave","exileModal","exileGrid","closeExile","helpModal","closeHelp",
+    "graveModal","graveGrid","closeGrave","exileModal","exileGrid","closeExile",
     "libraryMenu","cardMenu","handCardMenu","resetPrompt","acceptReset","rejectReset",
     "inspector","inspectorHeader","inspectorMinus","inspectorPlus","inspectorName","inspectorType","inspectorOracle",
     "selectBox","devPanel","devDragHandle","devReset","devCopy","devClose","devOutput"
   ].forEach(id => els[id] = document.getElementById(id));
 
-  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-004";
+  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-006";
   let localRoom = null;
   let localPlayer = null;
   let selectedIds = new Set();
@@ -39,7 +39,6 @@
   let inspectorEnabled = true;
   let currentInspectorCardId = null;
   let inspectorFont = 15;
-  let helpFont = 15;
   let sylvanCount = 3;
   let localFlipOverlaySignature = null;
   let boxSelect = null;
@@ -89,11 +88,11 @@
     "handScrollSensitivity": 1,
     "handScrollSpeed": 1,
     "handFanMaxSpread": 70,
-    "menuFontSize": 11,
-    "menuButtonPaddingY": 4,
-    "menuButtonPaddingX": 7,
+    "menuFontSize": 12,
+    "menuButtonPaddingY": 2,
+    "menuButtonPaddingX": 15,
     "menuGap": 5,
-    "menuWidth": 196
+    "menuWidth": 160
 };
   let dev = loadDev();
 
@@ -405,11 +404,11 @@
 
   function applyMenuDevStylesV36() {
     const root = document.documentElement;
-    root.style.setProperty("--menu-font-size", `${Number(dev.menuFontSize) || 11}px`);
-    root.style.setProperty("--menu-button-padding-y", `${Number(dev.menuButtonPaddingY) || 4}px`);
-    root.style.setProperty("--menu-button-padding-x", `${Number(dev.menuButtonPaddingX) || 7}px`);
+    root.style.setProperty("--menu-font-size", `${Number(dev.menuFontSize) || 12}px`);
+    root.style.setProperty("--menu-button-padding-y", `${Number(dev.menuButtonPaddingY) || 2}px`);
+    root.style.setProperty("--menu-button-padding-x", `${Number(dev.menuButtonPaddingX) || 15}px`);
     root.style.setProperty("--menu-gap", `${Number(dev.menuGap) || 5}px`);
-    root.style.setProperty("--menu-width", `${Number(dev.menuWidth) || 196}px`);
+    root.style.setProperty("--menu-width", `${Number(dev.menuWidth) || 160}px`);
   }
 
   function render() {
@@ -1702,8 +1701,7 @@
     if (els.inspectorToggleBtn) els.inspectorToggleBtn.classList.toggle("active", inspectorEnabled);
     if (els.menuFlipOrbBtn) els.menuFlipOrbBtn.classList.toggle("active", !!flip.active && flip.front === "chaosfront.png");
     if (els.menuFlipStarBtn) els.menuFlipStarBtn.classList.toggle("active", !!flip.active && flip.front === "fallingstar.png");
-    if (els.helpBtn && els.helpOverlayV33) els.helpBtn.classList.toggle("active", !els.helpOverlayV33.classList.contains("hidden"));
-    if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active", !els.devPanel.classList.contains("hidden"));
+if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active", !els.devPanel.classList.contains("hidden"));
     if (els.loadDeckBtn && els.deckModal) els.loadDeckBtn.classList.toggle("active", !els.deckModal.classList.contains("hidden"));
     if (els.playmatMenuBtn && els.playmatMenu) els.playmatMenuBtn.classList.toggle("active", !els.playmatMenu.classList.contains("hidden"));
     if (els.sleevesMenuBtn && els.sleevesMenu) els.sleevesMenuBtn.classList.toggle("active", !els.sleevesMenu.classList.contains("hidden"));
@@ -1926,7 +1924,7 @@
   let boxSelectV33=null;
   function beginBoxSelectV33(e){
     if(e.button!==0||!localPlayer)return;
-    if(e.target.closest(".card,.die,.pile,.hand,.main-menu,.main-menu-btn,.modal,.context-menu,.inspector,.dev-panel,.sylvan-panel,.help-overlay-v33,.help-panel-v34"))return;
+    if(e.target.closest(".card,.die,.pile,.hand,.main-menu,.main-menu-btn,.modal,.context-menu,.inspector,.dev-panel,.sylvan-panel"))return;
     boxSelectV33={x0:e.clientX,y0:e.clientY,x1:e.clientX,y1:e.clientY};
     els.selectBox.classList.remove("hidden");updateBoxSelectV33(e);
     document.addEventListener("pointermove",updateBoxSelectV33);
@@ -1952,8 +1950,6 @@
   }
 
   // UI bindings
-  if(els.helpBtn){els.helpBtn.onclick=toggleHelpV33;}
-  bindHelpPanelV34();
   if(els.ogBackSleeveBtn)els.ogBackSleeveBtn.onclick=e=>{e.preventDefault();e.stopPropagation();setSleeveV33("og");};
   if(els.colorSleeveBtn)els.colorSleeveBtn.onclick=e=>{e.preventDefault();e.stopPropagation();setSleeveV33("color");};
   if(els.sleeveColorInput)els.sleeveColorInput.oninput=()=>{if(state.sleeves?.[localPlayer]?.type==="color")setSleeveV33("color");};
