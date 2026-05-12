@@ -78,6 +78,8 @@
   let dragCard = null;
   let dragHand = null;
   let dragPanel = null;
+  let remoteControlled = false;
+  let lastPublish = 0;
 
   const st = {
     x: 0,
@@ -292,6 +294,67 @@
     bindOverlay();
   }
 
+
+  function snapshot() {
+    return {
+      t: Date.now(),
+      x: st.x, y: st.y, h: st.h,
+      vx: st.vx, vy: st.vy, vh: st.vh,
+      driftVX: st.driftVX, driftVY: st.driftVY,
+      yaw: st.yaw, roll: st.roll, pitch: st.pitch,
+      wRoll: st.wRoll, wPitch: st.wPitch, wYaw: st.wYaw,
+      phase: st.phase,
+      settling: st.settling,
+      landingFrames: st.landingFrames,
+      dropFrames: st.dropFrames,
+      targetRoll: st.targetRoll,
+      targetPitch: st.targetPitch,
+      fingerWorldX: TUNE.fingerWorldX,
+      fingerWorldY: TUNE.fingerWorldY,
+      fingerY: TUNE.fingerY
+    };
+  }
+
+  function applySnapshot(data, owner) {
+    if (!data) return;
+    flipOwner = owner || flipOwner;
+    remoteControlled = true;
+    Object.assign(st, {
+      x: Number(data.x) || 0,
+      y: Number(data.y) || 0,
+      h: Number(data.h) || 0,
+      vx: Number(data.vx) || 0,
+      vy: Number(data.vy) || 0,
+      vh: Number(data.vh) || 0,
+      driftVX: Number(data.driftVX) || 0,
+      driftVY: Number(data.driftVY) || 0,
+      yaw: Number(data.yaw) || 0,
+      roll: Number(data.roll) || 0,
+      pitch: Number(data.pitch) || 0,
+      wRoll: Number(data.wRoll) || 0,
+      wPitch: Number(data.wPitch) || 0,
+      wYaw: Number(data.wYaw) || 0,
+      phase: data.phase || "idle",
+      settling: !!data.settling,
+      landingFrames: Number(data.landingFrames) || 0,
+      dropFrames: Number(data.dropFrames) || 0,
+      targetRoll: Number(data.targetRoll) || 0,
+      targetPitch: Number(data.targetPitch) || 0
+    });
+    if (typeof data.fingerWorldX === "number") TUNE.fingerWorldX = data.fingerWorldX;
+    if (typeof data.fingerWorldY === "number") TUNE.fingerWorldY = data.fingerWorldY;
+    if (typeof data.fingerY === "number") TUNE.fingerY = data.fingerY;
+    apply();
+  }
+
+  function publishSnapshot(force = false) {
+    if (remoteControlled) return;
+    const now = performance.now();
+    if (!force && now - lastPublish < 90) return;
+    lastPublish = now;
+    if (window.CleanTablePublishOrbPhysics) window.CleanTablePublishOrbPhysics(snapshot());
+  }
+
   function apply() {
     st.x = clamp(st.x, -W * 0.4, innerWidth - W * 0.6);
     st.y = clamp(st.y, -H * 0.4, innerHeight - H * 0.6);
@@ -386,8 +449,10 @@
   function open(front, owner) {
     ensureOverlay();
     flipOwner = owner || currentActivePlayer();
+    remoteControlled = !!(window.CleanTable && window.FirebaseCleanSync && window.FirebaseCleanSync.playerId && flipOwner !== window.FirebaseCleanSync.playerId);
     root.classList.remove("hidden");
     reset(front);
+    publishSnapshot(true);
   }
 
   function close() {
@@ -457,6 +522,7 @@
     st.settling = false;
     st.landingFrames = 0;
     animate();
+    publishSnapshot(true);
   }
 
   function stageFingerTip() {
@@ -754,6 +820,7 @@
       }
 
       apply();
+      publishSnapshot();
       st.anim = requestAnimationFrame(step);
     }
 
@@ -762,6 +829,7 @@
 
   function bindOverlay() {
     card.addEventListener("pointerdown", e => {
+      if (remoteControlled) { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); return; }
       if (st.phase === "flipping") return;
 
       const r = card.getBoundingClientRect();
@@ -794,6 +862,7 @@
     }, true);
 
     hand.addEventListener("pointerdown", e => {
+      if (remoteControlled) { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); return; }
       const r = hand.getBoundingClientRect();
       dragHand = {
         dx: e.clientX - r.left,
@@ -963,6 +1032,8 @@
   window.OrbFlipExternal = {
     open,
     close,
+    applyRemoteState: applySnapshot,
+    getState: snapshot,
     isOpen() {
       return !!root && !root.classList.contains("hidden");
     }

@@ -14,17 +14,33 @@
     <div class="seat-box">
       <h1>Oldschool Table</h1>
       <p>Choose room and seat.</p>
-      <div id="appVersionLabel" class="app-version-label">v2026.05.12-027</div>
+      <div id="appVersionLabel" class="app-version-label">v2026.05.12-028</div>
       <label class="nickname-row">NICKNAME <input id="nicknameInput" type="text" maxlength="24" placeholder="Player"></label>
-      <div class="seat-grid">
-        <button id="joinR1P1">ROOM 1 / PLAYER 1</button>
-        <button id="joinR1P2">ROOM 1 / PLAYER 2</button>
-        <button id="joinR2P1">ROOM 2 / PLAYER 1</button>
-        <button id="joinR2P2">ROOM 2 / PLAYER 2</button>
+      <div class="seat-grid seat-grid-detailed">
+        <div class="seat-choice">
+          <button id="joinR1P1">ROOM 1 / PLAYER 1</button>
+          <div id="seatR1P1Name" class="seat-name">EMPTY</div>
+          <button id="kickR1P1" class="danger seat-kick">KICK P1</button>
+        </div>
+        <div class="seat-choice">
+          <button id="joinR1P2">ROOM 1 / PLAYER 2</button>
+          <div id="seatR1P2Name" class="seat-name">EMPTY</div>
+          <button id="kickR1P2" class="danger seat-kick">KICK P2</button>
+        </div>
+        <div class="seat-choice">
+          <button id="joinR2P1">ROOM 2 / PLAYER 1</button>
+          <div id="seatR2P1Name" class="seat-name">EMPTY</div>
+          <button id="kickR2P1" class="danger seat-kick">KICK P1</button>
+        </div>
+        <div class="seat-choice">
+          <button id="joinR2P2">ROOM 2 / PLAYER 2</button>
+          <div id="seatR2P2Name" class="seat-name">EMPTY</div>
+          <button id="kickR2P2" class="danger seat-kick">KICK P2</button>
+        </div>
       </div>
       <div class="seat-grid kick-grid">
-        <button id="kickRoom1" class="danger">KICK ROOM 1</button>
-        <button id="kickRoom2" class="danger">KICK ROOM 2</button>
+        <button id="kickRoom1" class="danger">KICK ROOM 1 ALL</button>
+        <button id="kickRoom2" class="danger">KICK ROOM 2 ALL</button>
       </div>
       <div id="seatStatus" class="status"></div>
     </div>

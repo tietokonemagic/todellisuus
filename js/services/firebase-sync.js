@@ -58,7 +58,7 @@ async function joinRoom(nextRoom, nextPlayer) {
     throw new Error(playerId.toUpperCase() + " is occupied.");
   }
 
-  await set(seatRef, { clientId, updated: Date.now() });
+  await set(seatRef, { clientId, updated: Date.now(), nickname: (window.CleanTableNickname ? window.CleanTableNickname() : "") });
   onDisconnect(seatRef).remove();
 
   const stateRef = ref(db, path("state"));
@@ -118,6 +118,25 @@ async function kickRoom(r) {
   if (current) await update(stateRef, { chat: [] });
 }
 
+
+let unsubSeats = null;
+function watchSeats(cb) {
+  if (typeof cb !== "function") return;
+  if (unsubSeats) unsubSeats();
+  unsubSeats = onValue(ref(db, "cleanRoomsV13"), snap => {
+    const root = snap.val() || {};
+    const out = {};
+    for (const room of ["room1", "room2"]) {
+      out[room] = root[room]?.seats || {};
+    }
+    cb(out);
+  });
+}
+
+async function kickSeat(r, p) {
+  await remove(ref(db, "cleanRoomsV13/" + r + "/seats/" + p));
+}
+
 window.FirebaseCleanSync = {
   joinRoom,
   pushState,
@@ -125,6 +144,8 @@ window.FirebaseCleanSync = {
   clearResetVote,
   leaveRoom,
   kickRoom,
+  kickSeat,
+  watchSeats,
   get roomId() { return roomId; },
   get playerId() { return playerId; }
 };

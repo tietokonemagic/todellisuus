@@ -53,6 +53,8 @@
     clearResetVote,
     leaveRoom,
     kickRoom,
+    kickSeat: async () => {},
+    watchSeats: cb => { if (typeof cb === "function") cb({}); },
     get roomId() { return roomId; },
     get playerId() { return playerId; }
   };

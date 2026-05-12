@@ -11,7 +11,7 @@
 
   const els = {};
   [
-    "seatScreen","seatStatus","appVersionLabel","nicknameInput","joinR1P1","joinR1P2","joinR2P1","joinR2P2","kickRoom1","kickRoom2",
+    "seatScreen","seatStatus","appVersionLabel","nicknameInput","joinR1P1","joinR1P2","joinR2P1","joinR2P2","seatR1P1Name","seatR1P2Name","seatR2P1Name","seatR2P2Name","kickR1P1","kickR1P2","kickR2P1","kickR2P2","kickRoom1","kickRoom2",
     "game","viewport","world","pileLayer","cardLayer","dragLayer","diceLayer","myHand","opponentHand",
     "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","throwDiceCount","throwDiceBtn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","sideboardBtn","sideboardModal","sideboardWindow","closeSideboardEditor","resetOriginalSideboard","mainboardScroll","mainboardBoard","sideboardScroll","sideboardBoard","mainboardCount","sideboardCount","chatBtn","chatPanel","chatHeader","chatMinus","chatPlus","chatMessages","chatText","chatSend","helpBtn","helpPanel","helpHeader","helpMinus","helpPlus","helpBody","devTuningBtn","inspectorToggleBtn","resetVoteBtn","leaveBtn","roomInfo",
     "deckModal","deckText","coreSetSelect","doLoadDeck","closeDeckModal","deckStatus",
@@ -29,10 +29,11 @@
     document.body.appendChild(els.selectBox);
   }
 
-  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-027";
+  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-028";
   let localRoom = null;
   let localPlayer = null;
   let localNickname = localStorage.getItem("oldschoolNicknameV1") || "Player";
+  let lobbySeats = {};
   if (els.nicknameInput) els.nicknameInput.value = localNickname;
   let selectedIds = new Set();
   let selectedDieIds = new Set();
@@ -268,6 +269,7 @@
       sleeves: { p1: { type: "og", color: "#6a3b20" }, p2: { type: "og", color: "#6a3b20" } },
       deckOrigins: { p1: {}, p2: {} },
       chat: [],
+      playerNames: {},
       stones: makeDefaultStones(),
       nextStoneWanderAt: Date.now() + (70 * 1000),
       updated: Date.now()
@@ -284,6 +286,7 @@
     if (!state.sleeves) state.sleeves = { p1: { type: "og", color: "#6a3b20" }, p2: { type: "og", color: "#6a3b20" } };
     if (!state.deckOrigins) state.deckOrigins = { p1: {}, p2: {} };
     if (!Array.isArray(state.chat)) state.chat = [];
+    if (!state.playerNames) state.playerNames = {};
     if (!isSharedStoneSet(state.stones)) {
       state.stones = makeDefaultStones();
       state.nextStoneWanderAt = Date.now() + (Math.max(10, Number(dev.stoneWanderEvery) || 70) * 1000);
@@ -326,6 +329,9 @@
     localRoom = room;
     localPlayer = player;
     document.body.dataset.player = player;
+    if (!state.playerNames) state.playerNames = {};
+    state.playerNames[player] = localNickname || player.toUpperCase();
+    if (window.FirebaseCleanSync) window.FirebaseCleanSync.pushState(clone(state));
     els.seatScreen.classList.add("hidden");
     els.game.classList.remove("hidden");
     els.roomInfo.textContent = room.toUpperCase() + " / " + player.toUpperCase();
@@ -748,13 +754,17 @@
           box.className = "exile-box";
           box.textContent = `EXILE ${ownerCards(player, "exile").length}`;
           pile.appendChild(box);
+          const nameLabel = document.createElement("div");
+          nameLabel.className = "player-name-label";
+          nameLabel.textContent = (state.playerNames && state.playerNames[player]) ? state.playerNames[player] : player.toUpperCase();
+          pile.appendChild(nameLabel);
           pile.addEventListener("dblclick", () => openExile(player));
         }
 
         const count = kind === "library" ? ownerCards(player, "library").length : kind === "grave" ? ownerCards(player, "grave").length : ownerCards(player, "exile").length;
         const label = document.createElement("div");
         label.className = "pile-label";
-        label.textContent = `${kind.toUpperCase()} ${count}`;
+        label.textContent = kind === "exile" ? "" : `${kind.toUpperCase()} ${count}`;
         pile.appendChild(label);
         els.pileLayer.appendChild(pile);
       }
@@ -1965,7 +1975,9 @@
       voteReset: async () => {},
       clearResetVote: async () => {},
       leaveRoom: async () => location.reload(),
-      kickRoom: async () => {}
+      kickRoom: async () => {},
+      kickSeat: async () => {},
+      watchSeats: cb => { if (typeof cb === "function") cb({}); }
     };
   }
 
@@ -1985,6 +1997,33 @@
       };
       tick();
     });
+  }
+
+
+  function updateLobbySeats(seats = {}) {
+    lobbySeats = seats || {};
+    const map = {
+      room1: { p1: els.seatR1P1Name, p2: els.seatR1P2Name },
+      room2: { p1: els.seatR2P1Name, p2: els.seatR2P2Name }
+    };
+    for (const room of ["room1", "room2"]) {
+      for (const player of ["p1", "p2"]) {
+        const el = map[room]?.[player];
+        if (!el) continue;
+        const seat = lobbySeats?.[room]?.[player];
+        const active = seat && Date.now() - (Number(seat.updated) || 0) < 30000;
+        el.textContent = active ? (seat.nickname || player.toUpperCase()) : "EMPTY";
+        el.classList.toggle("occupied", !!active);
+      }
+    }
+  }
+
+  function startLobbySeatWatch() {
+    if (window.FirebaseCleanSync && typeof window.FirebaseCleanSync.watchSeats === "function") {
+      window.FirebaseCleanSync.watchSeats(updateLobbySeats);
+    } else {
+      updateLobbySeats({});
+    }
   }
 
   async function join(room, player) {
@@ -2091,37 +2130,49 @@
   }
 
   function syncSharedFlipOverlay() {
-    if (!state.flipOverlay) state.flipOverlay = { active: false, front: "", nonce: 0, owner: "" };
+    if (!state.flipOverlay) state.flipOverlay = { active: false, front: "", nonce: 0, owner: "", physics: null };
     const flip = state.flipOverlay;
+    const physicsStamp = flip.physics ? (flip.physics.t || 0) : 0;
     const sig = flip.active ? `${flip.front}:${flip.nonce}:${flip.owner || ""}` : "off";
 
-    if (sig === localFlipOverlaySignature) return;
-    localFlipOverlaySignature = sig;
-
-    if (flip.active) {
-      if (window.OrbFlipExternal && typeof window.OrbFlipExternal.open === "function") {
-        window.OrbFlipExternal.open(flip.front, flip.owner || localPlayer || "p1");
+    if (sig !== localFlipOverlaySignature) {
+      localFlipOverlaySignature = sig;
+      if (flip.active) {
+        if (window.OrbFlipExternal && typeof window.OrbFlipExternal.open === "function") {
+          window.OrbFlipExternal.open(flip.front, flip.owner || localPlayer || "p1");
+        } else {
+          setTimeout(() => syncSharedFlipOverlay(), 80);
+        }
       } else {
-        setTimeout(() => syncSharedFlipOverlay(), 80);
+        if (window.OrbFlipExternal && typeof window.OrbFlipExternal.close === "function") {
+          window.OrbFlipExternal.close();
+        }
       }
-    } else {
-      if (window.OrbFlipExternal && typeof window.OrbFlipExternal.close === "function") {
-        window.OrbFlipExternal.close();
-      } else {
-        const close = document.querySelector("#orbflipExternal .orbflip-close");
-        if (close) close.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    }
+
+    if (flip.active && flip.owner && flip.owner !== localPlayer && flip.physics && window.OrbFlipExternal?.applyRemoteState) {
+      if (physicsStamp !== syncSharedFlipOverlay.lastPhysicsStamp) {
+        syncSharedFlipOverlay.lastPhysicsStamp = physicsStamp;
+        window.OrbFlipExternal.applyRemoteState(flip.physics, flip.owner);
       }
     }
 
     updateMenuActiveStates();
   }
 
+  function publishOrbPhysics(physics) {
+    if (!localPlayer || !state?.flipOverlay?.active || state.flipOverlay.owner !== localPlayer) return;
+    state.flipOverlay.physics = physics;
+    state.updated = Date.now();
+    if (window.FirebaseCleanSync) window.FirebaseCleanSync.pushState(clone(state));
+  }
+
   function toggleSharedFlip(front) {
-    if (!state.flipOverlay) state.flipOverlay = { active: false, front: "", nonce: 0, owner: "" };
+    if (!state.flipOverlay) state.flipOverlay = { active: false, front: "", nonce: 0, owner: "", physics: null };
     if (state.flipOverlay.active && state.flipOverlay.front === front) {
-      state.flipOverlay = { active: false, front: "", nonce: Date.now(), owner: localPlayer || "" };
+      state.flipOverlay = { active: false, front: "", nonce: Date.now(), owner: localPlayer || "", physics: null };
     } else {
-      state.flipOverlay = { active: true, front, nonce: Date.now(), owner: localPlayer || "p1" };
+      state.flipOverlay = { active: true, front, nonce: Date.now(), owner: localPlayer || "p1", physics: null };
     }
     localFlipOverlaySignature = null;
     push();
@@ -2703,6 +2754,10 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
   els.joinR1P2.onclick = () => join("room1", "p2");
   els.joinR2P1.onclick = () => join("room2", "p1");
   els.joinR2P2.onclick = () => join("room2", "p2");
+  if (els.kickR1P1) els.kickR1P1.onclick = async () => { const sync = await waitForSyncModule(2500); if (sync?.kickSeat) sync.kickSeat("room1", "p1"); };
+  if (els.kickR1P2) els.kickR1P2.onclick = async () => { const sync = await waitForSyncModule(2500); if (sync?.kickSeat) sync.kickSeat("room1", "p2"); };
+  if (els.kickR2P1) els.kickR2P1.onclick = async () => { const sync = await waitForSyncModule(2500); if (sync?.kickSeat) sync.kickSeat("room2", "p1"); };
+  if (els.kickR2P2) els.kickR2P2.onclick = async () => { const sync = await waitForSyncModule(2500); if (sync?.kickSeat) sync.kickSeat("room2", "p2"); };
   els.kickRoom1.onclick = async () => {
     const sync = await waitForSyncModule(2500);
     if (sync?.kickRoom) sync.kickRoom("room1");
@@ -3546,6 +3601,10 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
     const hasAnimatingStone = Array.isArray(state.stones) && state.stones.some(s => s.anim);
     if (!hasAnimatingStone) push();
   }, 15000);
+
+  startLobbySeatWatch();
+  window.CleanTablePublishOrbPhysics = publishOrbPhysics;
+  window.CleanTableNickname = () => localNickname || "";
 
   window.CleanTable = {
     initialState,

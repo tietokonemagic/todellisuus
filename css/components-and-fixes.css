@@ -873,3 +873,10 @@
   z-index: 3500 !important;
   visibility: visible !important;
 }
+
+.seat-choice { display: grid; gap: 4px; border: 1px solid rgba(255,255,255,.16); padding: 6px; }
+.seat-name { min-height: 18px; font-size: 12px; color: #cfcfcf; text-align: center; text-transform: none; font-style: normal; }
+.seat-name.occupied { color: #f0d95a; }
+.seat-kick { padding: 3px 7px; font-size: 11px; }
+.player-name-label { position: absolute; left: 0; top: -22px; width: 142px; text-align: center; font-size: 13px; color: #f0d95a; text-transform: none; font-style: normal; pointer-events: none; }
+body[data-player="p2"] .player-name-label { color: #63e6e2; }
