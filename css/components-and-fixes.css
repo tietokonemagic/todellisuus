@@ -534,3 +534,96 @@
   opacity: var(--sleeve-noise-opacity, 0.16);
   pointer-events: none;
 }
+
+
+/* v2026.05.12-013 sideboard editor */
+.sideboard-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 15000;
+  background: rgba(0,0,0,.42);
+  display: grid;
+  place-items: center;
+}
+.sideboard-window {
+  width: min(1780px, calc(100vw - 28px));
+  height: min(980px, calc(100vh - 28px));
+  background: rgba(12,12,12,.97);
+  border: 1px solid #555;
+  color: #eee;
+  border-radius: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  box-shadow: 0 18px 60px rgba(0,0,0,.75);
+}
+.sideboard-topbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid #444;
+}
+.sideboard-title { font-weight: 700; letter-spacing: .04em; }
+.sideboard-hint { color: #aaa; font-size: 12px; text-transform: none; font-style: normal; }
+.sideboard-columns {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 10px;
+  padding: 10px;
+}
+.sideboard-section {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  border: 1px solid #444;
+  background: #151515;
+}
+.sideboard-section-head {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-bottom: 1px solid #3c3c3c;
+  font-size: 13px;
+}
+.sideboard-scroll {
+  position: relative;
+  overflow: auto;
+  background:
+    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size: 96px 134px;
+}
+.sideboard-board {
+  position: relative;
+  min-height: 100%;
+  width: 100%;
+}
+.sideboard-editor-card {
+  position: absolute;
+  width: 94px;
+  height: 131px;
+  cursor: grab;
+  user-select: none;
+  background: transparent;
+  border-radius: var(--card-radius, 7px);
+  filter: drop-shadow(0 3px 5px rgba(0,0,0,.7));
+  z-index: 1;
+}
+.sideboard-editor-card.alpha-card { border-radius: var(--alpha-card-radius, 10px); }
+.sideboard-editor-card.dragging { cursor: grabbing; z-index: 9999; opacity: .9; }
+.sideboard-editor-card img,
+.sideboard-editor-card .back {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.sideboard-editor-card .back {
+  background: #050505 url("../lapi2.png") center / cover no-repeat;
+}
+.sideboard-over-limit {
+  color: #ff7777;
+}

@@ -32,3 +32,10 @@ v2026.05.12-011:
 - Help- ja inspector-ruutujen oletuspaikoille lisätty dev-paneelin X/Y-säädöt.
 - Sleeve noise käyttää nyt tiedostoa sleevenoise.png projektin juuressa. Lisää tämä kuva samaan kansioon index.html:n kanssa.
 - Alpha-korteille oma isompi corner radius; normaaleille korteille oma radius. Molemmille säädöt dev-paneelissa.
+
+
+v2026.05.12-013
+- Sideboard-editorin kortit 20% isommiksi.
+- SIDEBOARD-nappi päättää nykyisen pelin: kortit kerätään takaisin kirjastoihin/sideboardeihin, tokenit poistuvat ja life palautuu 20.
+- DONE tallentaa nykyisen mainboardin, shuffleaa sen libraryksi ja aloittaa seuraavan pelin.
+- RESET TO ORIGINAL palauttaa alkuperäisen load deck -hetken main/side-jaon.

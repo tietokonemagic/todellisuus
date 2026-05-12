@@ -14,7 +14,7 @@
     <div class="seat-box">
       <h1>Oldschool Table</h1>
       <p>Choose room and seat.</p>
-      <div id="appVersionLabel" class="app-version-label">v2026.05.12-011</div>
+      <div id="appVersionLabel" class="app-version-label">v2026.05.12-013</div>
       <div class="seat-grid">
         <button id="joinR1P1">ROOM 1 / PLAYER 1</button>
         <button id="joinR1P2">ROOM 1 / PLAYER 2</button>
@@ -65,6 +65,7 @@
       <button id="menuFlipStarBtn">FLIP FALLING STAR</button>
       <button id="addDiceBtn">ADD DICE</button>
       <button id="loadDeckBtn">LOAD DECK</button>
+      <button id="sideboardBtn">SIDEBOARD</button>
       <button id="helpBtn">HELP</button>
       <button id="devTuningBtn">DEV TUNING</button>
       <button id="inspectorToggleBtn">INSPECTOR</button>
@@ -93,7 +94,13 @@
 4 Badlands
 4 Scrubland
 4 City of Brass
-7 Swamp</textarea>
+7 Swamp
+
+SIDEBOARD:
+2 Red Elemental Blast
+2 Blue Elemental Blast
+2 Disenchant
+1 Shatter</textarea>
       <div class="row core-row">
         <label>CORE SET
           <select id="coreSetSelect">
@@ -109,6 +116,38 @@
         <button id="doLoadDeck">LOAD</button>
       </div>
       <div id="deckStatus" class="status"></div>
+    </div>
+  </div>
+
+
+  <div id="sideboardModal" class="sideboard-modal hidden">
+    <div class="sideboard-window">
+      <div class="sideboard-topbar">
+        <div class="sideboard-title">SIDEBOARD EDITOR</div>
+        <div class="sideboard-hint">Drag cards freely between mainboard and sideboard. Sideboard max 30.</div>
+        <button id="resetOriginalSideboard" type="button">RESET TO ORIGINAL</button>
+        <button id="closeSideboardEditor" type="button">DONE</button>
+      </div>
+      <div class="sideboard-columns">
+        <section class="sideboard-section main-section">
+          <div class="sideboard-section-head">
+            <span>MAINBOARD</span>
+            <span id="mainboardCount">0</span>
+          </div>
+          <div id="mainboardScroll" class="sideboard-scroll">
+            <div id="mainboardBoard" class="sideboard-board"></div>
+          </div>
+        </section>
+        <section class="sideboard-section side-section">
+          <div class="sideboard-section-head">
+            <span>SIDEBOARD</span>
+            <span id="sideboardCount">0 / 30</span>
+          </div>
+          <div id="sideboardScroll" class="sideboard-scroll">
+            <div id="sideboardBoard" class="sideboard-board"></div>
+          </div>
+        </section>
+      </div>
     </div>
   </div>
 
@@ -246,13 +285,13 @@
     <label>Thumb min Y <input id="devThumbMinY" type="range" min="-180" max="180" value="0"><span id="devThumbMinYVal">0</span></label>
     <label>Thumb max Y <input id="devThumbMaxY" type="range" min="-180" max="180" value="0"><span id="devThumbMaxYVal">0</span></label>
     <label>Thumb min rotation <input id="devThumbMinRot" type="range" min="-45" max="45" value="0"><span id="devThumbMinRotVal">0</span></label>
-    <label>Thumb max rotation <input id="devThumbMaxRot" type="range" min="-45" max="45" value="12"><span id="devThumbMaxRotVal">12</span></label>
+    <label>Thumb max rotation <input id="devThumbMaxRot" type="range" min="-45" max="45" value="25"><span id="devThumbMaxRotVal">25</span></label>
     <label>Card radius <input id="devCardRadius" type="range" min="0" max="18" value="7"><span id="devCardRadiusVal">7</span></label>
-    <label>Alpha card radius <input id="devAlphaCardRadius" type="range" min="0" max="24" value="11"><span id="devAlphaCardRadiusVal">11</span></label>
-    <label>Help panel X <input id="devHelpPanelX" type="range" min="0" max="1900" value="40"><span id="devHelpPanelXVal">40</span></label>
-    <label>Help panel Y <input id="devHelpPanelY" type="range" min="0" max="1000" value="120"><span id="devHelpPanelYVal">120</span></label>
-    <label>Inspector panel X <input id="devInspectorPanelX" type="range" min="0" max="1900" value="1550"><span id="devInspectorPanelXVal">1550</span></label>
-    <label>Inspector panel Y <input id="devInspectorPanelY" type="range" min="0" max="1000" value="600"><span id="devInspectorPanelYVal">600</span></label>
+    <label>Alpha card radius <input id="devAlphaCardRadius" type="range" min="0" max="24" value="10"><span id="devAlphaCardRadiusVal">10</span></label>
+    <label>Help panel X <input id="devHelpPanelX" type="range" min="0" max="1900" value="669"><span id="devHelpPanelXVal">669</span></label>
+    <label>Help panel Y <input id="devHelpPanelY" type="range" min="0" max="1000" value="409"><span id="devHelpPanelYVal">409</span></label>
+    <label>Inspector panel X <input id="devInspectorPanelX" type="range" min="0" max="1900" value="1653"><span id="devInspectorPanelXVal">1653</span></label>
+    <label>Inspector panel Y <input id="devInspectorPanelY" type="range" min="0" max="1000" value="42"><span id="devInspectorPanelYVal">42</span></label>
 
     <label>Hand drop zone X <input id="devHandDropZoneX" type="range" min="-900" max="900" value="0"><span id="devHandDropZoneXVal">0</span></label>
     <label>Hand drop zone Y <input id="devHandDropZoneY" type="range" min="-400" max="400" value="0"><span id="devHandDropZoneYVal">0</span></label>

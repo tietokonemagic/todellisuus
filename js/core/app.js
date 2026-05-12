@@ -13,7 +13,7 @@
   [
     "seatScreen","seatStatus","appVersionLabel","joinR1P1","joinR1P2","joinR2P1","joinR2P2","kickRoom1","kickRoom2",
     "game","viewport","world","pileLayer","cardLayer","dragLayer","diceLayer","myHand","opponentHand",
-    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","helpBtn","helpPanel","helpHeader","helpMinus","helpPlus","helpBody","devTuningBtn","inspectorToggleBtn","resetVoteBtn","leaveBtn","roomInfo",
+    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","sideboardBtn","sideboardModal","sideboardWindow","closeSideboardEditor","resetOriginalSideboard","mainboardScroll","mainboardBoard","sideboardScroll","sideboardBoard","mainboardCount","sideboardCount","helpBtn","helpPanel","helpHeader","helpMinus","helpPlus","helpBody","devTuningBtn","inspectorToggleBtn","resetVoteBtn","leaveBtn","roomInfo",
     "deckModal","deckText","coreSetSelect","doLoadDeck","closeDeckModal","deckStatus",
     "tutorModal","tutorGrid","tutorToHand","tutorToTable","closeTutor",
     "graveModal","graveGrid","closeGrave","exileModal","exileGrid","closeExile",
@@ -22,7 +22,7 @@
     "selectBox","devPanel","devDragHandle","devReset","devCopy","devClose","devOutput"
   ].forEach(id => els[id] = document.getElementById(id));
 
-  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-011";
+  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-013";
   let localRoom = null;
   let localPlayer = null;
   let selectedIds = new Set();
@@ -78,13 +78,13 @@
     "thumbMinY": 0,
     "thumbMaxY": 0,
     "thumbMinRot": 0,
-    "thumbMaxRot": 12,
+    "thumbMaxRot": 25,
     "cardRadius": 7,
-    "alphaCardRadius": 11,
-    "helpPanelX": 40,
-    "helpPanelY": 120,
-    "inspectorPanelX": 1550,
-    "inspectorPanelY": 600,
+    "alphaCardRadius": 10,
+    "helpPanelX": 669,
+    "helpPanelY": 409,
+    "inspectorPanelX": 1653,
+    "inspectorPanelY": 42,
     "handDropZoneX": 0,
     "handDropZoneY": 82,
     "handDropZoneWidth": 690,
@@ -123,6 +123,7 @@
       playmats: { p1: "default-green", p2: "default-blue" },
       flipOverlay: { active: false, front: "", nonce: 0 },
       sleeves: { p1: { type: "og", color: "#6a3b20" }, p2: { type: "og", color: "#6a3b20" } },
+      deckOrigins: { p1: {}, p2: {} },
       updated: Date.now()
     };
   }
@@ -135,8 +136,10 @@
     if (!state.revealTop) state.revealTop = { p1:false, p2:false };
     if (!state.revealHand) state.revealHand = { p1:false, p2:false };
     if (!state.sleeves) state.sleeves = { p1: { type: "og", color: "#6a3b20" }, p2: { type: "og", color: "#6a3b20" } };
+    if (!state.deckOrigins) state.deckOrigins = { p1: {}, p2: {} };
     for (const player of ["p1", "p2"]) {
       if (!state.sleeves[player]) state.sleeves[player] = { type: "og", color: "#6a3b20" };
+      if (!state.deckOrigins[player]) state.deckOrigins[player] = {};
       if (!["og", "color"].includes(state.sleeves[player].type)) state.sleeves[player].type = "og";
       if (!state.sleeves[player].color) state.sleeves[player].color = "#6a3b20";
     }
@@ -212,55 +215,102 @@
   function battlefieldCards() { return state.cards.filter(c => c.zone === "battlefield"); }
 
   function parseDeckList(text) {
-    return String(text || "").split(/\r?\n/).map(l => l.trim()).filter(Boolean).flatMap(line => {
-      if (line.startsWith("//") || line.startsWith("#")) return [];
-      const cleaned = line.replace(/^SB:\s*/i, "").replace(/\s+\([^)]+\)$/g, "").trim();
+    const result = { main: [], side: [] };
+    let target = "main";
+
+    String(text || "").split(/\r?\n/).forEach(rawLine => {
+      const line = rawLine.trim();
+      if (!line) return;
+      if (line.startsWith("//") || line.startsWith("#")) return;
+
+      if (/^sideboard\s*:?\s*$/i.test(line)) {
+        target = "side";
+        return;
+      }
+
+      let cleaned = line.replace(/\s+\([^)]+\)$/g, "").trim();
+      if (/^SB:\s*/i.test(cleaned)) {
+        target = "side";
+        cleaned = cleaned.replace(/^SB:\s*/i, "").trim();
+      }
+
       const m = cleaned.match(/^(\d+)\s+(.+)$/);
-      if (!m) return [];
-      return [{ count: Number(m[1]), name: m[2].replace(/\s+\*.*$/, "").trim() }];
+      if (!m) return;
+
+      result[target].push({
+        count: Number(m[1]),
+        name: m[2].replace(/\s+\*.*$/, "").trim()
+      });
     });
+
+    return result;
   }
 
   async function loadDeck() {
     ensureState();
-    const entries = parseDeckList(els.deckText.value);
-    if (!entries.length) {
-      els.deckStatus.textContent = "No valid deck lines.";
+    const parsed = parseDeckList(els.deckText.value);
+    const mainEntries = parsed.main || [];
+    const sideEntries = parsed.side || [];
+    const entries = mainEntries.concat(sideEntries);
+
+    if (!mainEntries.length) {
+      els.deckStatus.textContent = "No valid mainboard lines.";
       return;
     }
+
     const player = localPlayer || "p1";
     const unique = [...new Set(entries.map(e => e.name))];
     const map = new Map();
+
     for (let i = 0; i < unique.length; i++) {
       els.deckStatus.textContent = `Loading ${i + 1}/${unique.length}: ${unique[i]}`;
       const chosenCore = els.coreSetSelect ? els.coreSetSelect.value : "leb";
       const fixedCore = chosenCore === "lea" && /^(volcanic island|circle of protection:\s*black)$/i.test(unique[i]) ? "leb" : chosenCore;
       map.set(unique[i], await fetchPreferredCard(unique[i], fixedCore));
     }
+
     state.cards = state.cards.filter(c => c.owner !== player);
     const deck = [];
-    for (const entry of entries) {
-      const data = map.get(entry.name);
-      for (let i = 0; i < entry.count; i++) {
-        deck.push({
-          id: uid(),
-          owner: player,
-          zone: playerZone(player, "library"),
-          x: 960,
-          y: player === "p1" ? 760 : 320,
-          z: i + 1,
-          tapped: false,
-          faceDown: false,
-          marked: false,
-          ...data
-        });
+    let z = 1;
+
+    function addEntries(list, zone, originalPane) {
+      for (const entry of list) {
+        const data = map.get(entry.name);
+        for (let i = 0; i < entry.count; i++) {
+          deck.push({
+            id: uid(),
+            owner: player,
+            zone,
+            x: 960,
+            y: player === "p1" ? 760 : 320,
+            z: z++,
+            tapped: false,
+            faceDown: false,
+            marked: false,
+            sideEditPane: originalPane,
+            originalPane,
+            originalOrder: z,
+            ...data
+          });
+        }
       }
     }
-    shuffleInPlace(deck);
-    state.cards = state.cards.concat(deck);
+
+    addEntries(mainEntries, playerZone(player, "library"), "main");
+    addEntries(sideEntries, playerZone(player, "sideboard"), "side");
+    state.deckOrigins[player] = {
+      main: mainEntries.map(e => ({ count: e.count, name: e.name })),
+      side: sideEntries.map(e => ({ count: e.count, name: e.name }))
+    };
+
+    const mainDeck = deck.filter(c => c.zone === playerZone(player, "library"));
+    const sideDeck = deck.filter(c => c.zone === playerZone(player, "sideboard"));
+    shuffleInPlace(mainDeck);
+    state.cards = state.cards.concat(mainDeck, sideDeck);
+
     els.deckModal.classList.add("hidden");
     updateMenuActiveStates();
-    els.deckStatus.textContent = "";
+    els.deckStatus.textContent = sideEntries.length ? `Loaded ${mainDeck.length} main / ${sideDeck.length} side.` : "";
     push();
   }
 
@@ -1746,6 +1796,270 @@
     push();
   }
 
+
+  function cardsForSideboardPane(player, pane) {
+    ensureState();
+    return state.cards.filter(c => {
+      if (!c || c.owner !== player) return false;
+      const inSide = c.zone === playerZone(player, "sideboard");
+      return pane === "side" ? inSide : !inSide;
+    });
+  }
+
+  function sideboardGridColumns(count, pane) {
+    if (pane === "side") return 3;
+    if (count > 70) return 6;
+    if (count > 60) return 7;
+    return 6;
+  }
+
+  function ensureSideboardPositions(cards, pane) {
+    const cols = sideboardGridColumns(cards.length, pane);
+    const gapX = 106;
+    const gapY = 148;
+    const margin = 18;
+
+    cards.forEach((card, i) => {
+      if (card.sideEditPane !== pane || typeof card.sideEditX !== "number" || typeof card.sideEditY !== "number") {
+        card.sideEditPane = pane;
+        card.sideEditX = margin + (i % cols) * gapX;
+        card.sideEditY = margin + Math.floor(i / cols) * gapY;
+      }
+    });
+  }
+
+
+  function resetTableForSideboarding() {
+    ensureState();
+    selectedIds.clear();
+    drag = null;
+    handDropPreview = null;
+    state.life = { p1: 20, p2: 20 };
+    state.dice = makeAllLifeDice(state.life);
+    state.revealTop = { p1: false, p2: false };
+    state.revealHand = { p1: false, p2: false };
+
+    state.cards = state.cards.filter(card => {
+      if (!card || card.isToken) return false;
+      const owner = card.owner === "p2" ? "p2" : "p1";
+      const isSide = card.zone === playerZone(owner, "sideboard") || card.sideEditPane === "side";
+      card.zone = isSide ? playerZone(owner, "sideboard") : playerZone(owner, "library");
+      card.sideEditPane = isSide ? "side" : "main";
+      card.tapped = false;
+      card.faceDown = false;
+      card.marked = false;
+      card.sylvanChoice = "";
+      card.x = 960;
+      card.y = owner === "p1" ? 760 : 320;
+      return true;
+    });
+  }
+
+  function finalizeSideboardEditor() {
+    if (!localPlayer) return;
+    ensureState();
+
+    const side = cardsForSideboardPane(localPlayer, "side");
+    if (side.length > 30) {
+      alert("Sideboard max is 30 cards.");
+      return;
+    }
+
+    for (const card of state.cards) {
+      if (!card || card.owner !== localPlayer || card.isToken) continue;
+      const pane = card.sideEditPane === "side" || card.zone === playerZone(localPlayer, "sideboard") ? "side" : "main";
+      card.zone = pane === "side" ? playerZone(localPlayer, "sideboard") : playerZone(localPlayer, "library");
+      card.sideEditPane = pane;
+      card.tapped = false;
+      card.faceDown = false;
+      card.marked = false;
+      card.sylvanChoice = "";
+      card.x = 960;
+      card.y = localPlayer === "p1" ? 760 : 320;
+      bringToFront(card);
+    }
+
+    shuffleInPlace(ownerCards(localPlayer, "library"));
+    state.revealTop[localPlayer] = false;
+    state.revealHand[localPlayer] = false;
+    els.sideboardModal.classList.add("hidden");
+    updateMenuActiveStates();
+    push();
+  }
+
+  function resetSideboardToOriginal() {
+    if (!localPlayer) return;
+    ensureState();
+
+    for (const card of state.cards) {
+      if (!card || card.owner !== localPlayer || card.isToken) continue;
+      const pane = card.originalPane === "side" ? "side" : "main";
+      card.sideEditPane = pane;
+      card.zone = pane === "side" ? playerZone(localPlayer, "sideboard") : playerZone(localPlayer, "library");
+      card.tapped = false;
+      card.faceDown = false;
+      card.marked = false;
+      card.sylvanChoice = "";
+      card.sideEditX = undefined;
+      card.sideEditY = undefined;
+    }
+
+    renderSideboardEditor();
+  }
+
+  function openSideboardEditor() {
+    if (!els.sideboardModal) return;
+    resetTableForSideboarding();
+    renderSideboardEditor();
+    els.sideboardModal.classList.remove("hidden");
+    updateMenuActiveStates();
+    push();
+  }
+
+  function closeSideboardEditor() {
+    finalizeSideboardEditor();
+  }
+
+  function renderSideboardEditor() {
+    if (!localPlayer || !els.mainboardBoard || !els.sideboardBoard) return;
+
+    const main = cardsForSideboardPane(localPlayer, "main");
+    const side = cardsForSideboardPane(localPlayer, "side");
+
+    ensureSideboardPositions(main, "main");
+    ensureSideboardPositions(side, "side");
+
+    els.mainboardBoard.innerHTML = "";
+    els.sideboardBoard.innerHTML = "";
+
+    if (els.mainboardCount) els.mainboardCount.textContent = String(main.length);
+    if (els.sideboardCount) {
+      els.sideboardCount.textContent = `${side.length} / 30`;
+      els.sideboardCount.classList.toggle("sideboard-over-limit", side.length > 30);
+    }
+
+    drawSideboardPane(main, "main", els.mainboardBoard);
+    drawSideboardPane(side, "side", els.sideboardBoard);
+
+    resizeSideboardBoard(els.mainboardBoard, main);
+    resizeSideboardBoard(els.sideboardBoard, side);
+  }
+
+  function resizeSideboardBoard(board, cards) {
+    const maxX = Math.max(0, ...cards.map(c => Number(c.sideEditX || 0) + 145));
+    const maxY = Math.max(0, ...cards.map(c => Number(c.sideEditY || 0) + 180));
+    board.style.width = Math.max(board.parentElement?.clientWidth || 0, maxX) + "px";
+    board.style.height = Math.max(board.parentElement?.clientHeight || 0, maxY) + "px";
+  }
+
+  function drawSideboardPane(cards, pane, board) {
+    cards
+      .slice()
+      .sort((a,b) => (a.sideEditY || 0) - (b.sideEditY || 0) || (a.sideEditX || 0) - (b.sideEditX || 0))
+      .forEach(card => {
+        const el = document.createElement("div");
+        el.className = "sideboard-editor-card" + (String(card.set || "").toLowerCase() === "lea" ? " alpha-card" : "");
+        el.dataset.cardId = card.id;
+        el.style.left = (Number(card.sideEditX) || 0) + "px";
+        el.style.top = (Number(card.sideEditY) || 0) + "px";
+        el.style.zIndex = String(card.z || 1);
+
+        if (card.image) {
+          const img = document.createElement("img");
+          img.src = card.image;
+          img.alt = card.name || "";
+          img.draggable = false;
+          el.appendChild(img);
+        } else {
+          const back = sleeveBackElement(card.owner, card);
+          back.textContent = card.name || "";
+          el.appendChild(back);
+        }
+
+        el.addEventListener("mouseenter", () => showInspector(card));
+        el.addEventListener("mouseleave", () => hideInspector());
+        el.addEventListener("pointerdown", e => startSideboardDrag(e, card, pane, el));
+        board.appendChild(el);
+      });
+  }
+
+  function sideboardDropPane(clientX, clientY) {
+    const sideRect = els.sideboardScroll?.getBoundingClientRect();
+    const mainRect = els.mainboardScroll?.getBoundingClientRect();
+
+    if (sideRect && clientX >= sideRect.left && clientX <= sideRect.right && clientY >= sideRect.top && clientY <= sideRect.bottom) return "side";
+    if (mainRect && clientX >= mainRect.left && clientX <= mainRect.right && clientY >= mainRect.top && clientY <= mainRect.bottom) return "main";
+    return null;
+  }
+
+  function sideboardPanePosition(pane, clientX, clientY, dx, dy) {
+    const scroll = pane === "side" ? els.sideboardScroll : els.mainboardScroll;
+    const rect = scroll.getBoundingClientRect();
+    return {
+      x: Math.max(0, clientX - rect.left + scroll.scrollLeft - dx),
+      y: Math.max(0, clientY - rect.top + scroll.scrollTop - dy)
+    };
+  }
+
+  function startSideboardDrag(e, card, pane, el) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const r = el.getBoundingClientRect();
+    const dx = e.clientX - r.left;
+    const dy = e.clientY - r.top;
+    el.classList.add("dragging");
+    el.setPointerCapture?.(e.pointerId);
+
+    const onMove = ev => {
+      const currentPane = sideboardDropPane(ev.clientX, ev.clientY) || pane;
+      const pos = sideboardPanePosition(currentPane, ev.clientX, ev.clientY, dx, dy);
+
+      if (currentPane !== card.sideEditPane) {
+        card.sideEditPane = currentPane;
+        if (currentPane === "side") {
+          const sideCount = cardsForSideboardPane(localPlayer, "side").filter(c => c.id !== card.id).length;
+          if (sideCount >= 30) {
+            card.sideEditPane = "main";
+          } else {
+            card.zone = playerZone(localPlayer, "sideboard");
+          }
+        } else {
+          card.zone = playerZone(localPlayer, "library");
+          card.tapped = false;
+          card.faceDown = false;
+          card.marked = false;
+        }
+        renderSideboardEditor();
+        const next = document.querySelector(`.sideboard-editor-card[data-card-id="${card.id}"]`);
+        if (next) {
+          el = next;
+          el.classList.add("dragging");
+          el.setPointerCapture?.(e.pointerId);
+        }
+      }
+
+      card.sideEditX = pos.x;
+      card.sideEditY = pos.y;
+      if (el) {
+        el.style.left = card.sideEditX + "px";
+        el.style.top = card.sideEditY + "px";
+      }
+    };
+
+    const onUp = ev => {
+      document.removeEventListener("pointermove", onMove, true);
+      document.removeEventListener("pointerup", onUp, true);
+      if (el) el.classList.remove("dragging");
+      bringToFront(card);
+      renderSideboardEditor();
+    };
+
+    document.addEventListener("pointermove", onMove, true);
+    document.addEventListener("pointerup", onUp, true);
+  }
+
   function updateMenuActiveStates() {
     const flip = state.flipOverlay || {};
     if (els.inspectorToggleBtn) els.inspectorToggleBtn.classList.toggle("active", inspectorEnabled);
@@ -1754,6 +2068,7 @@
     if (els.menuFlipStarBtn) els.menuFlipStarBtn.classList.toggle("active", !!flip.active && flip.front === "fallingstar.png");
 if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active", !els.devPanel.classList.contains("hidden"));
     if (els.loadDeckBtn && els.deckModal) els.loadDeckBtn.classList.toggle("active", !els.deckModal.classList.contains("hidden"));
+    if (els.sideboardBtn && els.sideboardModal) els.sideboardBtn.classList.toggle("active", !els.sideboardModal.classList.contains("hidden"));
     if (els.playmatMenuBtn && els.playmatMenu) els.playmatMenuBtn.classList.toggle("active", !els.playmatMenu.classList.contains("hidden"));
     if (els.sleevesMenuBtn && els.sleevesMenu) els.sleevesMenuBtn.classList.toggle("active", !els.sleevesMenu.classList.contains("hidden"));
     if (els.addTokenMenuBtn && els.tokenMenu) els.addTokenMenuBtn.classList.toggle("active", !els.tokenMenu.classList.contains("hidden"));
@@ -2049,6 +2364,9 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
   els.sylvanOk.onclick = () => finishSylvanLibrary();
 
   els.loadDeckBtn.onclick = () => { els.deckModal.classList.toggle("hidden"); updateMenuActiveStates(); };
+  if (els.sideboardBtn) els.sideboardBtn.onclick = () => { if (els.sideboardModal.classList.contains("hidden")) openSideboardEditor(); else closeSideboardEditor(); };
+  if (els.closeSideboardEditor) els.closeSideboardEditor.onclick = finalizeSideboardEditor;
+  if (els.resetOriginalSideboard) els.resetOriginalSideboard.onclick = resetSideboardToOriginal;
   if (els.closeDeckModal) els.closeDeckModal.onclick = () => { els.deckModal.classList.add("hidden"); updateMenuActiveStates(); };
   els.doLoadDeck.onclick = loadDeck;
   els.devTuningBtn.onclick = () => { els.devPanel.classList.toggle("hidden"); renderHandDropZoneDebug(); renderHandSafeZoneDebug(); updateMenuActiveStates(); };
