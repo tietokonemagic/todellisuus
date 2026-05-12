@@ -29,7 +29,7 @@
     document.body.appendChild(els.selectBox);
   }
 
-  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-022";
+  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-026";
   let localRoom = null;
   let localPlayer = null;
   let localNickname = localStorage.getItem("oldschoolNicknameV1") || "Player";
@@ -119,9 +119,14 @@
     "dieSelectColor": "#ffffff",
     "stone1Size": 1.15,
     "stone2Size": 1.15,
-    "stone3Size": 1.15,
-    "stone4Size": 1.15,
-    "stone5Size": 1.15
+    "stone1X": 929,
+    "stone1Y": 540,
+    "stone2X": 991,
+    "stone2Y": 540,
+    "stoneWanderEvery": 70,
+    "stoneWanderDistance": 22,
+    "stoneWanderRotation": 32,
+    "stoneWanderDuration": 2600
 };
   let dev = loadDev();
 
@@ -132,23 +137,114 @@
   function otherPlayer() { return localPlayer === "p1" ? "p2" : "p1"; }
   function snap(v) { return Math.round(v / GRID) * GRID; }
 
-  function makeDefaultStones() {
-    const list = [];
-    for (const player of ["p1", "p2"]) {
-      const lib = pileBaseStatic(player, "library");
-      for (let i = 1; i <= 5; i++) {
-        list.push({
-          id: `${player}-stone-${i}`,
-          owner: player,
-          image: `kivi${i}.png`,
-          x: lib.x + 18 + (i - 1) * 42,
-          y: lib.y + 214,
-          z: 2400 + i,
-          rot: 0
-        });
-      }
+  function shuffleCopy(arr) {
+    const out = arr.slice();
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [out[i], out[j]] = [out[j], out[i]];
     }
-    return list;
+    return out;
+  }
+
+  function stoneStartSlots() {
+    return [
+      { x: Number(dev.stone1X) || 929, y: Number(dev.stone1Y) || 540 },
+      { x: Number(dev.stone2X) || 991, y: Number(dev.stone2Y) || 540 }
+    ];
+  }
+
+  function makeDefaultStones() {
+    const slots = stoneStartSlots();
+    return [1, 2].map((n, idx) => ({
+      id: `stone-${n}`,
+      owner: "shared",
+      image: `kivi${n}.png`,
+      x: slots[idx].x,
+      y: slots[idx].y,
+      z: 2400 + idx,
+      rot: 0,
+      anim: null
+    }));
+  }
+
+  function isSharedStoneSet(stones) {
+    if (!Array.isArray(stones) || stones.length !== 2) return false;
+    const ids = new Set(stones.map(s => String(s.id || "")));
+    return ids.has("stone-1") && ids.has("stone-2") && stones.every(s => s.owner === "shared");
+  }
+
+  function placeStonesOnStartSlots() {
+    const slots = stoneStartSlots();
+    const current = new Map((state.stones || []).map(s => [String(s.id), s]));
+    state.stones = [1, 2].map((n, idx) => {
+      const old = current.get(`stone-${n}`) || {};
+      return {
+        id: `stone-${n}`,
+        owner: "shared",
+        image: `kivi${n}.png`,
+        x: slots[idx].x,
+        y: slots[idx].y,
+        z: 2400 + idx,
+        rot: Number(old.rot) || 0,
+        anim: null
+      };
+    });
+    state.nextStoneWanderAt = Date.now() + (Math.max(10, Number(dev.stoneWanderEvery) || 70) * 1000);
+  }
+
+  function maybeStartStoneWander() {
+    if (!localPlayer || !state || stoneDrag) return;
+    ensureState();
+    if (Date.now() < Number(state.nextStoneWanderAt || 0)) return;
+
+    const stones = state.stones || [];
+    if (!isSharedStoneSet(stones)) {
+      state.stones = makeDefaultStones();
+      state.nextStoneWanderAt = Date.now() + (Math.max(10, Number(dev.stoneWanderEvery) || 70) * 1000);
+      return;
+    }
+
+    const stone = stones[Math.floor(Math.random() * stones.length)];
+    const dist = Math.max(0, Number(dev.stoneWanderDistance) || 22);
+    const rotAmount = Number(dev.stoneWanderRotation) || 32;
+    const dur = Math.max(400, Number(dev.stoneWanderDuration) || 2600);
+    const dir = Math.random() * Math.PI * 2;
+    const rotDir = Math.random() < 0.5 ? -1 : 1;
+    stone.anim = {
+      start: Date.now(),
+      dur,
+      fromX: Number(stone.x) || 960,
+      fromY: Number(stone.y) || 540,
+      fromRot: Number(stone.rot) || 0,
+      toX: Math.max(30, Math.min(TABLE_W - 30, (Number(stone.x) || 960) + Math.cos(dir) * dist)),
+      toY: Math.max(30, Math.min(TABLE_H - 30, (Number(stone.y) || 540) + Math.sin(dir) * dist)),
+      toRot: (Number(stone.rot) || 0) + rotDir * (rotAmount * (0.45 + Math.random() * 0.9))
+    };
+    state.nextStoneWanderAt = Date.now() + (Math.max(10, Number(dev.stoneWanderEvery) || 70) * 1000);
+  }
+
+  function updateStoneAnimations() {
+    if (!state || !Array.isArray(state.stones)) return false;
+    const now = Date.now();
+    let active = false;
+    state.stones.forEach(stone => {
+      const a = stone.anim;
+      if (!a) return;
+      const t = Math.max(0, Math.min(1, (now - a.start) / Math.max(1, a.dur)));
+      const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      stone.x = a.fromX + (a.toX - a.fromX) * eased;
+      stone.y = a.fromY + (a.toY - a.fromY) * eased;
+      stone.rot = a.fromRot + (a.toRot - a.fromRot) * eased;
+      if (t >= 1) {
+        stone.x = a.toX;
+        stone.y = a.toY;
+        stone.rot = a.toRot;
+        stone.anim = null;
+      } else {
+        active = true;
+      }
+    });
+    return active;
   }
 
   function pileBaseStatic(player, kind) {
@@ -173,6 +269,7 @@
       deckOrigins: { p1: {}, p2: {} },
       chat: [],
       stones: makeDefaultStones(),
+      nextStoneWanderAt: Date.now() + (70 * 1000),
       updated: Date.now()
     };
   }
@@ -187,9 +284,12 @@
     if (!state.sleeves) state.sleeves = { p1: { type: "og", color: "#6a3b20" }, p2: { type: "og", color: "#6a3b20" } };
     if (!state.deckOrigins) state.deckOrigins = { p1: {}, p2: {} };
     if (!Array.isArray(state.chat)) state.chat = [];
-    if (!Array.isArray(state.stones) || state.stones.length < 10) {
-      const existing = new Map((state.stones || []).map(s => [s.id, s]));
-      state.stones = makeDefaultStones().map(s => ({ ...s, ...(existing.get(s.id) || {}) }));
+    if (!isSharedStoneSet(state.stones)) {
+      state.stones = makeDefaultStones();
+      state.nextStoneWanderAt = Date.now() + (Math.max(10, Number(dev.stoneWanderEvery) || 70) * 1000);
+    }
+    if (!state.nextStoneWanderAt) {
+      state.nextStoneWanderAt = Date.now() + (Math.max(10, Number(dev.stoneWanderEvery) || 70) * 1000);
     }
     for (const player of ["p1", "p2"]) {
       if (!state.sleeves[player]) state.sleeves[player] = { type: "og", color: "#6a3b20" };
@@ -1088,7 +1188,7 @@
       el.style.left = (Number(stone.x) || 960) + "px";
       el.style.top = (Number(stone.y) || 540) + "px";
       el.style.zIndex = String(stone.z || 2400);
-      const baseRot = stone.owner === localPlayer ? 0 : 180;
+      const baseRot = stone.owner === "shared" ? 0 : (stone.owner === localPlayer ? 0 : 180);
       el.style.transform = `translate(-50%, -50%) rotate(${baseRot + (Number(stone.rot) || 0)}deg)`;
       el.addEventListener("pointerdown", e => onStonePointerDown(e, stone));
       els.diceLayer.appendChild(el);
@@ -1107,6 +1207,7 @@
       offsetX: p.x - (Number(stone.x) || p.x),
       offsetY: p.y - (Number(stone.y) || p.y)
     };
+    stone.anim = null;
     stone.z = Math.max(2400, ...state.stones.map(s => Number(s.z) || 2400)) + 1;
     e.preventDefault();
     e.stopPropagation();
@@ -1915,6 +2016,11 @@
         saveDev();
         applyMenuDevStylesV36();
         if (["helpPanelX","helpPanelY","inspectorPanelX","inspectorPanelY"].includes(name)) applyPanelDefaultPositionsV37(true);
+        if (/^stone\d+[XY]$/.test(name)) {
+          placeStonesOnStartSlots(false);
+          push();
+          return;
+        }
         render();
       });
     });
@@ -3345,6 +3451,13 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
   }, true); // v27OrbCloseSync
 
   bindDev();
+  const stoneRandomizeBtn = document.getElementById("devRandomizeStoneStarts");
+  if (stoneRandomizeBtn) {
+    stoneRandomizeBtn.onclick = () => {
+      placeStonesOnStartSlots(true);
+      push();
+    };
+  }
 
   document.addEventListener("click", e => {
     if (e.target && e.target.closest && e.target.closest("#orbflipExternal .orbflip-close")) {
@@ -3408,6 +3521,26 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
     toggleBattlefieldTapFromElement(el, e);
   }, true);
 
+
+
+  setInterval(() => {
+    if (!localPlayer || !state) return;
+    maybeStartStoneWander();
+  }, 5000);
+
+  function stoneAnimationLoop() {
+    if (localPlayer && state && updateStoneAnimations()) {
+      render();
+    }
+    requestAnimationFrame(stoneAnimationLoop);
+  }
+  stoneAnimationLoop();
+
+  setInterval(() => {
+    if (!localPlayer || !state) return;
+    const hasAnimatingStone = Array.isArray(state.stones) && state.stones.some(s => s.anim);
+    if (!hasAnimatingStone) push();
+  }, 15000);
 
   window.CleanTable = {
     initialState,

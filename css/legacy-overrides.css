@@ -235,3 +235,11 @@
     0 2px 8px rgba(0,0,0,.6),
     inset 0 1px 0 rgba(255,255,255,.55) !important;
 }
+
+
+.stone,
+.stone-counter,
+[class*="stone"]{
+  z-index: 3500 !important;
+  visibility: visible !important;
+}

@@ -186,3 +186,11 @@
   padding: 6px 9px;
   font-size: 11px;
 }
+
+
+.stone,
+.stone-counter,
+[class*="stone"]{
+  z-index: 3500 !important;
+  visibility: visible !important;
+}

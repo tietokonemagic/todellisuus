@@ -865,3 +865,11 @@
   height: calc(var(--die-size, 33px) * var(--stone-scale, 1.15)) !important;
   transform-origin: 50% 50%;
 }
+
+
+.stone,
+.stone-counter,
+[class*="stone"]{
+  z-index: 3500 !important;
+  visibility: visible !important;
+}

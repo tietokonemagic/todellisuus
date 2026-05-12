@@ -107,3 +107,11 @@ textarea { width: 100%; height: 300px; resize: vertical; background: #080808; co
 
 .shuffle-card, .fly-card { position: fixed; width: 118px; height: 165px; background: #050505 url("../lapi2.png") center / cover no-repeat; border-radius: 7px; pointer-events: none; z-index: 200001; box-shadow: 0 8px 24px rgba(0,0,0,.7); }
 .help-box pre { text-transform: none; font-style: normal; white-space: pre-wrap; line-height: 1.35; }
+
+
+.stone,
+.stone-counter,
+[class*="stone"]{
+  z-index: 3500 !important;
+  visibility: visible !important;
+}
