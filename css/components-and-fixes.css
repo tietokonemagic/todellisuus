@@ -467,3 +467,38 @@
   border-radius: 7px;
   display: block;
 }
+
+
+/* v2026.05.12-004: adjustable compact main menu */
+.app-version-label {
+  margin: -4px 0 14px 0;
+  color: #8fd69f;
+  font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  text-transform: none;
+  font-style: normal;
+}
+.main-menu {
+  width: var(--menu-width, 196px) !important;
+  gap: var(--menu-gap, 5px) !important;
+  padding: 8px !important;
+  font-size: var(--menu-font-size, 11px) !important;
+}
+.main-menu button,
+.main-menu input,
+.main-menu select {
+  font-size: var(--menu-font-size, 11px) !important;
+}
+.main-menu button {
+  padding: var(--menu-button-padding-y, 4px) var(--menu-button-padding-x, 7px) !important;
+  min-height: 24px !important;
+  border-radius: 6px !important;
+}
+.main-menu .menu-section {
+  gap: var(--menu-gap, 5px) !important;
+}
+.help-panel-v34 {
+  pointer-events: auto !important;
+}
+.help-controls-v34 button {
+  min-width: 28px;
+}

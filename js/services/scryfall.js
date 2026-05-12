@@ -1,7 +1,14 @@
-const OLD_SCHOOL_SETS = ["lea", "leb", "2ed", "arn", "atq", "leg", "drk", "fem"];
+const OLD_SCHOOL_SETS = ["lea", "leb", "2ed", "3ed", "4ed", "arn", "atq", "leg", "drk", "fem"];
+const CORE_FALLBACK_ORDER = ["4ed", "3ed", "2ed", "leb", "lea"];
 
 function scryfallCacheKey(name, coreSet = "leb") {
-  return "scryfallCard:" + coreSet + ":" + name.toLowerCase();
+  return "scryfallCard:v36:" + coreSet + ":" + name.toLowerCase();
+}
+
+function fallbackCoreSets(coreSet) {
+  const idx = CORE_FALLBACK_ORDER.indexOf(coreSet);
+  if (idx === -1) return [coreSet];
+  return CORE_FALLBACK_ORDER.slice(idx);
 }
 
 async function fetchPreferredCard(name, coreSet = "leb") {
@@ -10,8 +17,9 @@ async function fetchPreferredCard(name, coreSet = "leb") {
   if (cached) return JSON.parse(cached);
 
   const exact = name.replace(/"/g, "\\\"");
+  const coreFallbacks = fallbackCoreSets(coreSet);
   const queries = [
-    `!"${exact}" set:${coreSet} lang:en`,
+    ...coreFallbacks.map(set => `!"${exact}" set:${set} lang:en`),
     `!"${exact}" (${OLD_SCHOOL_SETS.map(s => "set:" + s).join(" OR ")}) lang:en`,
     `!"${exact}" lang:en`
   ];
@@ -53,7 +61,7 @@ function normalizeScryfallCard(card) {
       (face.image_uris && (face.image_uris.normal || face.image_uris.large)) || "",
     oracle: face.oracle_text || card.oracle_text || "",
     typeLine: face.type_line || card.type_line || "",
-    manaCost: face.mana_cost || card.mana_cost || "",
+    manaCost: face.mana_cost || "",
     power: face.power || "",
     toughness: face.toughness || "",
     set: card.set

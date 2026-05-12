@@ -14,6 +14,7 @@
     <div class="seat-box">
       <h1>Oldschool Table</h1>
       <p>Choose room and seat.</p>
+      <div id="appVersionLabel" class="app-version-label">v2026.05.12-004</div>
       <div class="seat-grid">
         <button id="joinR1P1">ROOM 1 / PLAYER 1</button>
         <button id="joinR1P2">ROOM 1 / PLAYER 2</button>
@@ -99,12 +100,13 @@
             <option value="lea">ALPHA</option>
             <option value="leb" selected>BETA</option>
             <option value="2ed">UNLIMITED</option>
+            <option value="3ed">REVISED / 3RD EDITION</option>
+            <option value="4ed">4TH EDITION</option>
           </select>
         </label>
       </div>
       <div class="row">
         <button id="doLoadDeck">LOAD</button>
-        <button id="closeDeckModal">CLOSE</button>
       </div>
       <div id="deckStatus" class="status"></div>
     </div>
@@ -254,6 +256,14 @@
     <label>Shuffle length <input id="devShuffleLength" type="range" min="400" max="3500" value="2000"><span id="devShuffleLengthVal">2000</span></label>
     <label>Shuffle spread <input id="devShuffleSpread" type="range" min="2" max="100" value="30"><span id="devShuffleSpreadVal">30</span></label>
 
+
+    <div class="dev-subtitle">MAIN MENU</div>
+    <label>Menu font size <input id="devMenuFontSize" type="range" min="9" max="20" value="11"><span id="devMenuFontSizeVal">11</span></label>
+    <label>Menu button Y padding <input id="devMenuButtonPaddingY" type="range" min="2" max="14" value="4"><span id="devMenuButtonPaddingYVal">4</span></label>
+    <label>Menu button X padding <input id="devMenuButtonPaddingX" type="range" min="4" max="18" value="7"><span id="devMenuButtonPaddingXVal">7</span></label>
+    <label>Menu gap <input id="devMenuGap" type="range" min="2" max="14" value="5"><span id="devMenuGapVal">5</span></label>
+    <label>Menu width <input id="devMenuWidth" type="range" min="160" max="300" value="196"><span id="devMenuWidthVal">196</span></label>
+
     <div class="dev-buttons">
       <button id="devReset">RESET DEV</button>
       <button id="devCopy">COPY VALUES</button>
@@ -272,7 +282,6 @@
       <div class="help-controls-v34">
         <button id="helpMinus" type="button" title="Smaller text">−</button>
         <button id="helpPlus" type="button" title="Bigger text">+</button>
-        <button id="helpClose" type="button" title="Close help">×</button>
       </div>
     </div>
     <pre id="helpContent">D / TAB / 1 = draw one

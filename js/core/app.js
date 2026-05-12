@@ -11,7 +11,7 @@
 
   const els = {};
   [
-    "seatScreen","seatStatus","joinR1P1","joinR1P2","joinR2P1","joinR2P2","kickRoom1","kickRoom2",
+    "seatScreen","seatStatus","appVersionLabel","joinR1P1","joinR1P2","joinR2P1","joinR2P2","kickRoom1","kickRoom2",
     "game","viewport","world","pileLayer","cardLayer","dragLayer","diceLayer","myHand","opponentHand",
     "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","helpOverlayV33","helpHeader","helpMinus","helpPlus","helpClose","helpContent","helpBtn","devTuningBtn","inspectorToggleBtn","resetVoteBtn","leaveBtn","roomInfo",
     "deckModal","deckText","coreSetSelect","doLoadDeck","closeDeckModal","deckStatus",
@@ -22,6 +22,7 @@
     "selectBox","devPanel","devDragHandle","devReset","devCopy","devClose","devOutput"
   ].forEach(id => els[id] = document.getElementById(id));
 
+  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-004";
   let localRoom = null;
   let localPlayer = null;
   let selectedIds = new Set();
@@ -87,7 +88,12 @@
     "handSafeZoneHeight": 260,
     "handScrollSensitivity": 1,
     "handScrollSpeed": 1,
-    "handFanMaxSpread": 70
+    "handFanMaxSpread": 70,
+    "menuFontSize": 11,
+    "menuButtonPaddingY": 4,
+    "menuButtonPaddingX": 7,
+    "menuGap": 5,
+    "menuWidth": 196
 };
   let dev = loadDev();
 
@@ -151,6 +157,7 @@
   }
 
   function setLocalSeat(room, player) {
+    applyMenuDevStylesV36();
     localRoom = room;
     localPlayer = player;
     document.body.dataset.player = player;
@@ -244,6 +251,7 @@
     shuffleInPlace(deck);
     state.cards = state.cards.concat(deck);
     els.deckModal.classList.add("hidden");
+    updateMenuActiveStates();
     els.deckStatus.textContent = "";
     push();
   }
@@ -394,7 +402,18 @@
     return { x: b.x + (dev[key + "X"] || 0), y: b.y + (dev[key + "Y"] || 0) };
   }
 
+
+  function applyMenuDevStylesV36() {
+    const root = document.documentElement;
+    root.style.setProperty("--menu-font-size", `${Number(dev.menuFontSize) || 11}px`);
+    root.style.setProperty("--menu-button-padding-y", `${Number(dev.menuButtonPaddingY) || 4}px`);
+    root.style.setProperty("--menu-button-padding-x", `${Number(dev.menuButtonPaddingX) || 7}px`);
+    root.style.setProperty("--menu-gap", `${Number(dev.menuGap) || 5}px`);
+    root.style.setProperty("--menu-width", `${Number(dev.menuWidth) || 196}px`);
+  }
+
   function render() {
+    applyMenuDevStylesV36();
     if (!localPlayer) return;
     ensureState();
     renderPlaymats();
@@ -1576,6 +1595,7 @@
         dev[name] = input.type === "color" ? input.value : Number(input.value);
         if (val) val.textContent = String(dev[name]);
         saveDev();
+        applyMenuDevStylesV36();
         render();
       });
     });
@@ -1684,6 +1704,7 @@
     if (els.menuFlipStarBtn) els.menuFlipStarBtn.classList.toggle("active", !!flip.active && flip.front === "fallingstar.png");
     if (els.helpBtn && els.helpOverlayV33) els.helpBtn.classList.toggle("active", !els.helpOverlayV33.classList.contains("hidden"));
     if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active", !els.devPanel.classList.contains("hidden"));
+    if (els.loadDeckBtn && els.deckModal) els.loadDeckBtn.classList.toggle("active", !els.deckModal.classList.contains("hidden"));
     if (els.playmatMenuBtn && els.playmatMenu) els.playmatMenuBtn.classList.toggle("active", !els.playmatMenu.classList.contains("hidden"));
     if (els.sleevesMenuBtn && els.sleevesMenu) els.sleevesMenuBtn.classList.toggle("active", !els.sleevesMenu.classList.contains("hidden"));
     if (els.addTokenMenuBtn && els.tokenMenu) els.addTokenMenuBtn.classList.toggle("active", !els.tokenMenu.classList.contains("hidden"));
@@ -1874,14 +1895,6 @@
       };
     }
 
-    if (els.helpClose) {
-      els.helpClose.onclick = e => {
-        e.preventDefault();
-        e.stopPropagation();
-        setHelpOpenV33(false);
-      };
-    }
-
     if (window.ResizeObserver) {
       new ResizeObserver(() => saveHelpPanelV34()).observe(els.helpOverlayV33);
     }
@@ -1913,7 +1926,7 @@
   let boxSelectV33=null;
   function beginBoxSelectV33(e){
     if(e.button!==0||!localPlayer)return;
-    if(e.target.closest(".card,.die,.pile,.hand,.main-menu,.main-menu-btn,.modal,.context-menu,.inspector,.dev-panel,.sylvan-panel,.help-overlay-v33"))return;
+    if(e.target.closest(".card,.die,.pile,.hand,.main-menu,.main-menu-btn,.modal,.context-menu,.inspector,.dev-panel,.sylvan-panel,.help-overlay-v33,.help-panel-v34"))return;
     boxSelectV33={x0:e.clientX,y0:e.clientY,x1:e.clientX,y1:e.clientY};
     els.selectBox.classList.remove("hidden");updateBoxSelectV33(e);
     document.addEventListener("pointermove",updateBoxSelectV33);
@@ -1939,7 +1952,7 @@
   }
 
   // UI bindings
-  if(els.helpBtn){els.helpBtn.onclick=toggleHelpV33;els.helpBtn.addEventListener("click",toggleHelpV33,true);}
+  if(els.helpBtn){els.helpBtn.onclick=toggleHelpV33;}
   bindHelpPanelV34();
   if(els.ogBackSleeveBtn)els.ogBackSleeveBtn.onclick=e=>{e.preventDefault();e.stopPropagation();setSleeveV33("og");};
   if(els.colorSleeveBtn)els.colorSleeveBtn.onclick=e=>{e.preventDefault();e.stopPropagation();setSleeveV33("color");};
@@ -1988,12 +2001,12 @@
 
   els.sylvanOk.onclick = () => finishSylvanLibrary();
 
-  els.loadDeckBtn.onclick = () => els.deckModal.classList.remove("hidden");
-  els.closeDeckModal.onclick = () => els.deckModal.classList.add("hidden");
+  els.loadDeckBtn.onclick = () => { els.deckModal.classList.toggle("hidden"); updateMenuActiveStates(); };
+  if (els.closeDeckModal) els.closeDeckModal.onclick = () => { els.deckModal.classList.add("hidden"); updateMenuActiveStates(); };
   els.doLoadDeck.onclick = loadDeck;
   els.devTuningBtn.onclick = () => { els.devPanel.classList.toggle("hidden"); renderHandDropZoneDebug(); renderHandSafeZoneDebug(); updateMenuActiveStates(); };
   els.devClose.onclick = () => { els.devPanel.classList.add("hidden"); updateMenuActiveStates(); };
-  els.devReset.onclick = () => { dev = { ...devDefaults }; saveDev(); bindDev(); render(); };
+  els.devReset.onclick = () => { dev = { ...devDefaults }; saveDev(); applyMenuDevStylesV36(); bindDev(); render(); };
   els.devCopy.onclick = async () => { const text = JSON.stringify(dev, null, 2); els.devOutput.value = text; try { await navigator.clipboard.writeText(text); } catch {} };
   els.leaveBtn.onclick = () => window.FirebaseCleanSync?.leaveRoom();
   els.resetVoteBtn.onclick = () => { if (confirm("Are you sure? Other player must also confirm.")) window.FirebaseCleanSync?.voteReset(true); };
