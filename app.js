@@ -1762,6 +1762,7 @@
 
   // UI bindings
   els.helpBtn.onclick=toggleHelpV33;
+  els.helpBtn.addEventListener("click",toggleHelpV33,true);
   els.helpOverlayV33.addEventListener("click",e=>{if(e.target===els.helpOverlayV33)setHelpOpenV33(false);});
   if(els.ogBackSleeveBtn)els.ogBackSleeveBtn.onclick=e=>{e.preventDefault();e.stopPropagation();setSleeveV33("og");};
   if(els.colorSleeveBtn)els.colorSleeveBtn.onclick=e=>{e.preventDefault();e.stopPropagation();setSleeveV33("color");};
