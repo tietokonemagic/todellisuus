@@ -1718,8 +1718,19 @@
   function rectsOverlapV31(a,b){ return !(a.right<b.left || a.left>b.right || a.bottom<b.top || a.top>b.bottom); }
 
 
-  function setHelpOpenV33(open){els.helpOverlayV33.classList.toggle("hidden",!open);updateMenuActiveStates();}
-  function toggleHelpV33(e=null){if(e){e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();}setHelpOpenV33(els.helpOverlayV33.classList.contains("hidden"));}
+  function setHelpOpenV33(open){
+    if (!els.helpOverlayV33) return;
+    els.helpOverlayV33.classList.toggle("hidden", !open);
+    updateMenuActiveStates();
+  }
+  function toggleHelpV33(e=null){
+    if(e){
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!els.helpOverlayV33) return;
+    setHelpOpenV33(els.helpOverlayV33.classList.contains("hidden"));
+  }
   function updateSleeveButtonsV33(){
     if(!localPlayer||!state.sleeves)return;
     const s=state.sleeves[localPlayer]||{type:"og",color:"#6a3b20"};
@@ -1761,9 +1772,14 @@
   }
 
   // UI bindings
-  els.helpBtn.onclick=toggleHelpV33;
-  els.helpBtn.addEventListener("click",toggleHelpV33,true);
-  els.helpOverlayV33.addEventListener("click",e=>{if(e.target===els.helpOverlayV33)setHelpOpenV33(false);});
+  if (els.helpBtn) {
+    els.helpBtn.onclick = toggleHelpV33;
+  }
+  if (els.helpOverlayV33) {
+    els.helpOverlayV33.addEventListener("click", e => {
+      if (e.target === els.helpOverlayV33) setHelpOpenV33(false);
+    });
+  }
   if(els.ogBackSleeveBtn)els.ogBackSleeveBtn.onclick=e=>{e.preventDefault();e.stopPropagation();setSleeveV33("og");};
   if(els.colorSleeveBtn)els.colorSleeveBtn.onclick=e=>{e.preventDefault();e.stopPropagation();setSleeveV33("color");};
   if(els.sleeveColorInput)els.sleeveColorInput.oninput=()=>{if(state.sleeves?.[localPlayer]?.type==="color")setSleeveV33("color");};
