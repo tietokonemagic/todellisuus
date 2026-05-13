@@ -14,7 +14,7 @@
     <div class="seat-box">
       <h1>Oldschool Table</h1>
       <p>Choose room and seat.</p>
-      <div id="appVersionLabel" class="app-version-label">v2026.05.12-028</div>
+      <div id="appVersionLabel" class="app-version-label">v2026.05.12-052</div>
       <label class="nickname-row">NICKNAME <input id="nicknameInput" type="text" maxlength="24" placeholder="Player"></label>
       <div class="seat-grid seat-grid-detailed">
         <div class="seat-choice">
@@ -39,8 +39,6 @@
         </div>
       </div>
       <div class="seat-grid kick-grid">
-        <button id="kickRoom1" class="danger">KICK ROOM 1 ALL</button>
-        <button id="kickRoom2" class="danger">KICK ROOM 2 ALL</button>
       </div>
       <div id="seatStatus" class="status"></div>
     </div>
@@ -77,17 +75,7 @@
 
       <button id="addTokenMenuBtn">ADD TOKEN</button>
       <div id="tokenMenu" class="menu-section hidden"></div>
-
-      <button id="menuFlipOrbBtn">FLIP ORB</button>
-      <button id="menuFlipStarBtn">FLIP FALLING STAR</button>
-      <button id="addDiceBtn">ADD DICE</button>
-      <div class="throw-dice-row">
-        <select id="throwDiceCount" aria-label="Throw dice count">
-          <option value="1">1 DIE</option>
-          <option value="2">2 DICE</option>
-        </select>
-        <button id="throwDiceBtn" type="button">THROW DICE</button>
-      </div>
+      <button id="throwD6Btn" class="main-menu-action" type="button">THROW D6</button>
       <button id="loadDeckBtn">LOAD DECK</button>
       <button id="sideboardBtn">SIDEBOARD</button>
       <button id="chatBtn">CHAT</button>
@@ -126,6 +114,15 @@ SIDEBOARD:
 2 Blue Elemental Blast
 2 Disenchant
 1 Shatter</textarea>
+      <div id="deckLibraryPanel" class="deck-library-panel">
+        <div class="deck-library-title">DECK LIBRARY</div>
+        <div class="deck-library-save-row">
+          <input id="deckLibraryName" type="text" maxlength="80" placeholder="deck name">
+          <button id="deckLibrarySave" type="button">SAVE LIST</button>
+        </div>
+        <input id="deckLibrarySearch" type="text" maxlength="80" placeholder="search decks">
+        <div id="deckLibraryList" class="deck-library-list"></div>
+      </div>
       <div class="row core-row">
         <label>CORE SET
           <select id="coreSetSelect">
@@ -221,6 +218,7 @@ SIDEBOARD:
 
   <div id="cardMenu" class="context-menu hidden">
     <button data-card-action="flip">FLIP CARD</button>
+    <button data-card-action="orbflip">ORBFLIP</button>
     <button data-card-action="clone">CLONE</button>
     <button data-card-action="hand">TO HAND</button>
     <button data-card-action="grave">TO GRAVE</button>
@@ -275,47 +273,7 @@ SIDEBOARD:
         <button id="helpPlus">+</button>
       </div>
     </div>
-    <div id="helpBody">HELP!! <BR>
-<BR>
-HELP opens/closes this help panel. <BR>
-INSPECTOR opens/closes card text panel. <BR>
-CHAT opens/closes room chat. <BR>
-LOAD DECK loads a decklist. 1 empty line and a line with only this “SIDEBOARD:” will load all cards after this on the sideboard. <BR>
-SIDEBOARD ends the current game, opens sideboard editor. <BR>
-THROW DICE rolls 1 or 2 dice. <BR>
-RESET GAME asks both players to confirm reset. <BR>
-<BR>
-CARDS <BR>
-Double-click library: draw 1 card. <BR>
-Right-click library: open library actions. <BR>
-Right-click card: open card menu. <BR>
-<BR>
-Hover card + G: send to graveyard. <BR>
-Hover card + E: exile. <BR>
-Hover card + T: tap/untap. <BR>
-Hover card + H: return to hand. <BR>
-<BR>
-SELECTION <BR>
-Shift + drag on table: box select. <BR>
-Click outside selection: clear selection. <BR>
-Selected cards can be moved together or performed any of the hover actions. <BR>
-<BR>
-DICE <BR>
-Right-click die: change value/color. <BR>
-Drag die: move die. <BR>
-Selected dice can be moved together. <BR>
-Hover die + G or E: remove die. <BR>
-Hover die + numbers 1-6 change number on dice <BR>
-<BR>
-HANDS <BR>
-Mouse wheel over hand: open/close card fan. <BR>
-<BR>
-SIDEBOARD ends current game and opens editor. <BR>
-Drag cards between mainboard and sideboard. <BR>
-DONE starts a new game with current mainboard. <BR>
-RESET TO ORIGINAL restores original loaded decklist. <BR>
-<BR>
-</div>
+    <div id="helpBody">lollotiloo</div>
   </div>
 
 
@@ -331,6 +289,7 @@ RESET TO ORIGINAL restores original loaded decklist. <BR>
     <div class="chat-compose">
       <input id="chatText" type="text" maxlength="240" placeholder="message">
       <button id="chatSend" type="button">SEND</button>
+      
     </div>
   </div>
 
@@ -434,6 +393,20 @@ RESET TO ORIGINAL restores original loaded decklist. <BR>
     <label>Stone slot 8 Y <input id="devStone8Y" type="range" min="0" max="1080" step="1" value="540"><span id="devStone8YVal">540</span></label>
     <label>Stone shuffle minutes <input id="devStoneShuffleMinutes" type="range" min="1" max="60" step="1" value="10"><span id="devStoneShuffleMinutesVal">10</span></label>
     <button id="devRandomizeStoneStarts" type="button">RANDOMIZE STONES TO START SLOTS</button>
+
+    <div class="dev-subtitle">CARD ORBFLIP</div>
+    <label>Flip gauge X <input id="devCardFlipGaugeX" type="range" min="0" max="1920" step="1" value="1548"><span id="devCardFlipGaugeXVal">1548</span></label>
+    <label>Flip gauge Y <input id="devCardFlipGaugeY" type="range" min="0" max="1080" step="1" value="108"><span id="devCardFlipGaugeYVal">108</span></label>
+    <label>Flip gauge scale <input id="devCardFlipGaugeScale" type="range" min="0.4" max="2.5" step="0.05" value="1"><span id="devCardFlipGaugeScaleVal">1</span></label>
+    <label>Flip power time <input id="devCardFlipPowerTime" type="range" min="400" max="3000" step="50" value="1850"><span id="devCardFlipPowerTimeVal">1850</span></label>
+    <label>Flip gravity <input id="devCardFlipGravity" type="range" min="0.02" max="0.3" step="0.005" value="0.095"><span id="devCardFlipGravityVal">0.095</span></label>
+    <label>Flip lift base <input id="devCardFlipLiftBase" type="range" min="0" max="2" step="0.05" value="0.45"><span id="devCardFlipLiftBaseVal">0.45</span></label>
+    <label>Flip lift power <input id="devCardFlipLiftPower" type="range" min="0.5" max="10" step="0.1" value="4.6"><span id="devCardFlipLiftPowerVal">4.6</span></label>
+    <label>Flip torque power <input id="devCardFlipTorquePower" type="range" min="5" max="90" step="1" value="40"><span id="devCardFlipTorquePowerVal">40</span></label>
+
+    <label>Orbflip panel X <input id="devOrbflipPanelX" type="range" min="0" max="1920" step="1" value="38"><span id="devOrbflipPanelXVal">38</span></label>
+    <label>Orbflip panel Y <input id="devOrbflipPanelY" type="range" min="0" max="1080" step="1" value="24"><span id="devOrbflipPanelYVal">24</span></label>
+    <label>Orbflip panel scale <input id="devOrbflipPanelScale" type="range" min="0.35" max="2" step="0.05" value="1"><span id="devOrbflipPanelScaleVal">1</span></label>
 
     <div class="dev-buttons">
       <button id="devReset">RESET DEV</button>

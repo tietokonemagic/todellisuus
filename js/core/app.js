@@ -13,8 +13,8 @@
   [
     "seatScreen","seatStatus","appVersionLabel","nicknameInput","joinR1P1","joinR1P2","joinR2P1","joinR2P2","seatR1P1Name","seatR1P2Name","seatR2P1Name","seatR2P2Name","kickR1P1","kickR1P2","kickR2P1","kickR2P2","kickRoom1","kickRoom2",
     "game","viewport","world","pileLayer","cardLayer","dragLayer","diceLayer","myHand","opponentHand",
-    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","addDiceBtn","throwDiceCount","throwDiceBtn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","sideboardBtn","sideboardModal","sideboardWindow","closeSideboardEditor","resetOriginalSideboard","mainboardScroll","mainboardBoard","sideboardScroll","sideboardBoard","mainboardCount","sideboardCount","chatBtn","chatPanel","chatHeader","chatMinus","chatPlus","chatMessages","chatText","chatSend","helpBtn","helpPanel","helpHeader","helpMinus","helpPlus","helpBody","devTuningBtn","inspectorToggleBtn","resetVoteBtn","leaveBtn","roomInfo",
-    "deckModal","deckText","coreSetSelect","doLoadDeck","closeDeckModal","deckStatus",
+    "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","throwD6Btn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","sideboardBtn","sideboardModal","sideboardWindow","closeSideboardEditor","resetOriginalSideboard","mainboardScroll","mainboardBoard","sideboardScroll","sideboardBoard","mainboardCount","sideboardCount","chatBtn","chatPanel","chatHeader","chatMinus","chatPlus","chatMessages","chatText","chatSend","chatClear","helpBtn","helpPanel","helpHeader","helpMinus","helpPlus","helpBody","devTuningBtn","inspectorToggleBtn","resetVoteBtn","leaveBtn","roomInfo",
+    "deckModal","deckText","coreSetSelect","doLoadDeck","closeDeckModal","deckStatus","deckLibraryName","deckLibrarySave","deckLibrarySearch","deckLibraryList",
     "tutorModal","tutorGrid","tutorToHand","tutorToTable","closeTutor",
     "graveModal","graveGrid","closeGrave","exileModal","exileGrid","closeExile",
     "libraryMenu","cardMenu","handCardMenu","resetPrompt","acceptReset","rejectReset",
@@ -29,7 +29,7 @@
     document.body.appendChild(els.selectBox);
   }
 
-  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-028";
+  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-052";
   let localRoom = null;
   let localPlayer = null;
   let localNickname = localStorage.getItem("oldschoolNicknameV1") || "Player";
@@ -127,7 +127,18 @@
     "stoneWanderEvery": 70,
     "stoneWanderDistance": 22,
     "stoneWanderRotation": 32,
-    "stoneWanderDuration": 2600
+    "stoneWanderDuration": 2600,
+    "cardFlipGaugeX": 1548,
+    "cardFlipGaugeY": 108,
+    "cardFlipGaugeScale": 1,
+    "orbflipPanelX": 38,
+    "orbflipPanelY": 24,
+    "orbflipPanelScale": 1,
+    "cardFlipPowerTime": 1850,
+    "cardFlipGravity": 0.095,
+    "cardFlipLiftBase": 0.45,
+    "cardFlipLiftPower": 4.6,
+    "cardFlipTorquePower": 40
 };
   let dev = loadDev();
 
@@ -268,6 +279,7 @@
       flipOverlay: { active: false, front: "", nonce: 0, owner: "" },
       sleeves: { p1: { type: "og", color: "#6a3b20" }, p2: { type: "og", color: "#6a3b20" } },
       deckOrigins: { p1: {}, p2: {} },
+      deckLibrary: [],
       chat: [],
       playerNames: {},
       stones: makeDefaultStones(),
@@ -285,6 +297,7 @@
     if (!state.revealHand) state.revealHand = { p1:false, p2:false };
     if (!state.sleeves) state.sleeves = { p1: { type: "og", color: "#6a3b20" }, p2: { type: "og", color: "#6a3b20" } };
     if (!state.deckOrigins) state.deckOrigins = { p1: {}, p2: {} };
+    if (!Array.isArray(state.deckLibrary)) state.deckLibrary = [];
     if (!Array.isArray(state.chat)) state.chat = [];
     if (!state.playerNames) state.playerNames = {};
     if (!isSharedStoneSet(state.stones)) {
@@ -373,6 +386,138 @@
     return state.cards.filter(c => c && c.owner === player && c.zone === playerZone(player, suffix));
   }
   function battlefieldCards() { return state.cards.filter(c => c.zone === "battlefield"); }
+
+
+  function normalizeDeckLibraryName(name) {
+    return String(name || "").trim().replace(/\s+/g, " ").slice(0, 80);
+  }
+
+  function deckLibrarySorted() {
+    ensureState();
+    return [...(state.deckLibrary || [])].sort((a, b) =>
+      String(a.name || "").localeCompare(String(b.name || ""), undefined, { sensitivity: "base" })
+    );
+  }
+
+  function renderDeckLibrary() {
+    if (!els.deckLibraryList) return;
+    ensureState();
+
+    const q = String(els.deckLibrarySearch?.value || "").trim().toLowerCase();
+    const decks = deckLibrarySorted().filter(d => !q || String(d.name || "").toLowerCase().includes(q));
+
+    els.deckLibraryList.innerHTML = "";
+
+    if (!decks.length) {
+      const empty = document.createElement("div");
+      empty.className = "deck-library-empty";
+      empty.textContent = q ? "NO MATCHES" : "NO SAVED DECKS";
+      els.deckLibraryList.appendChild(empty);
+      return;
+    }
+
+    decks.forEach(deck => {
+      const row = document.createElement("div");
+      row.className = "deck-library-row";
+
+      const name = document.createElement("button");
+      name.type = "button";
+      name.className = "deck-library-load";
+      name.textContent = deck.name || "UNTITLED";
+      name.title = "Load this list into the Load Deck text box";
+      name.onclick = e => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (els.deckText) els.deckText.value = deck.text || "";
+        if (els.deckStatus) els.deckStatus.textContent = `Loaded saved list: ${deck.name}`;
+      };
+
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "deck-library-delete";
+      del.textContent = "×";
+      del.title = "Delete saved deck";
+      del.onclick = e => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!confirm(`Delete saved deck "${deck.name}"?`)) return;
+        state.deckLibrary = (state.deckLibrary || []).filter(d => d.id !== deck.id);
+        push();
+        renderDeckLibrary();
+      };
+
+      row.appendChild(name);
+      row.appendChild(del);
+      els.deckLibraryList.appendChild(row);
+    });
+  }
+
+  function saveDeckToLibrary() {
+    if (!els.deckText || !els.deckLibraryName) return;
+    ensureState();
+
+    const name = normalizeDeckLibraryName(els.deckLibraryName.value);
+    const text = String(els.deckText.value || "").trim();
+
+    if (!name) {
+      if (els.deckStatus) els.deckStatus.textContent = "Write a deck name first.";
+      els.deckLibraryName.focus();
+      return;
+    }
+
+    if (!text) {
+      if (els.deckStatus) els.deckStatus.textContent = "Deck text is empty.";
+      els.deckText.focus();
+      return;
+    }
+
+    const now = Date.now();
+    const existing = (state.deckLibrary || []).find(d => String(d.name || "").toLowerCase() === name.toLowerCase());
+
+    if (existing) {
+      existing.name = name;
+      existing.text = text;
+      existing.updated = now;
+    } else {
+      state.deckLibrary = (state.deckLibrary || []).concat({
+        id: uid(),
+        name,
+        text,
+        created: now,
+        updated: now
+      });
+    }
+
+    els.deckLibraryName.value = "";
+    if (els.deckStatus) els.deckStatus.textContent = `Saved deck: ${name}`;
+    push();
+    renderDeckLibrary();
+  }
+
+  function bindDeckLibrary() {
+    if (els.deckLibrarySave) {
+      els.deckLibrarySave.onclick = e => {
+        e.preventDefault();
+        e.stopPropagation();
+        saveDeckToLibrary();
+      };
+    }
+
+    if (els.deckLibrarySearch) {
+      els.deckLibrarySearch.addEventListener("input", renderDeckLibrary);
+    }
+
+    if (els.deckLibraryName) {
+      els.deckLibraryName.addEventListener("keydown", e => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          saveDeckToLibrary();
+        }
+      });
+    }
+
+    renderDeckLibrary();
+  }
 
   function parseDeckList(text) {
     const result = { main: [], side: [] };
@@ -696,6 +841,7 @@
     syncSharedFlipOverlay();
     renderChatMessages();
     updateMenuActiveStates();
+    renderDeckLibrary();
   }
 
   function renderPlaymats() {
@@ -771,6 +917,86 @@
     }
   }
 
+
+
+  const CARD_FLIP_MAX_CM = 45;
+  const CARD_FLIP_GAUGE_TOP = 22;
+  const CARD_FLIP_GAUGE_BOTTOM = 472;
+  const CARD_FLIP_PX_PER_CM = (CARD_FLIP_GAUGE_BOTTOM - CARD_FLIP_GAUGE_TOP) / CARD_FLIP_MAX_CM;
+  let airborneDrag = null;
+
+  function clamp(v, a, b) {
+    return Math.max(a, Math.min(b, v));
+  }
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  function tablePerspectiveRot(card) {
+    const worldRot = localPlayer === "p2" ? 180 : 0;
+    const desired = card.owner === localPlayer ? 0 : 180;
+    return (desired - worldRot + 360) % 360;
+  }
+
+  function flipGaugeY(cm) {
+    return CARD_FLIP_GAUGE_BOTTOM - clamp(cm, 0, CARD_FLIP_MAX_CM) * CARD_FLIP_PX_PER_CM;
+  }
+
+  function gaugeCmFromClientY(clientY) {
+    const gauge = document.querySelector(".card-flip-gauge .flip-gauge-area");
+    if (!gauge) return 0;
+    const r = gauge.getBoundingClientRect();
+    const y = clientY - r.top;
+    return clamp((CARD_FLIP_GAUGE_BOTTOM - y) / CARD_FLIP_PX_PER_CM, 0, CARD_FLIP_MAX_CM);
+  }
+
+  function ensureAirborne(card) {
+    if (!card.airborne) return null;
+    const a = card.airborne;
+    if (!a.started) a.started = Date.now();
+    if (!a.mode) a.mode = "setup";
+    return a;
+  }
+
+  function startCardOrbFlip(card) {
+    if (!card || card.zone !== "battlefield") return;
+    bringToFront(card);
+    card.tapped = false;
+
+    const screen = screenRectForCard(card);
+    card.orbflipHidden = true;
+    card.airborne = null;
+    push();
+
+    const front = card.image || "chaosfront.png";
+    const owner = card.owner || localPlayer || "p1";
+
+    if (window.OrbFlipExternal && typeof window.OrbFlipExternal.openCard === "function") {
+      window.OrbFlipExternal.openCard({
+        cardId: card.id,
+        front,
+        owner,
+        startX: screen.left,
+        startY: screen.top,
+        startW: screen.width,
+        startH: screen.height
+      });
+    } else {
+      // fallback: do not lose the card if orbflip module has not loaded
+      card.orbflipHidden = false;
+      push();
+    }
+  }
+
+  function updateAirborneCards() {
+    return false;
+  }
+
+  function renderAirborneHelpers(card) {
+    return;
+  }
+
   function cardRotation(card) {
     const worldRot = localPlayer === "p2" ? 180 : 0;
     const desired = card.owner === localPlayer ? 0 : 180;
@@ -812,16 +1038,24 @@
   function renderCards() {
     els.cardLayer.innerHTML = "";
     battlefieldCards()
+      .filter(card => !card.orbflipHidden)
       .filter(card => !(drag && drag.id === card.id))
       .sort((a,b) => (a.z || 1) - (b.z || 1))
       .forEach(card => {
-        const el = createCardEl(card, "table-card", card.faceDown);
+        const airborne = ensureAirborne(card);
+        const el = createCardEl(card, "table-card" + (airborne ? " airborne-card " + (airborne.mode === "setup" ? "setup-orbflip " : "") + (airborne.charging ? "charging-orbflip" : "") : ""), card.faceDown);
         const pos = cardRenderPosition(card);
         el.style.left = (pos.x - CARD_W / 2) + "px";
-        el.style.top = (pos.y - CARD_H / 2) + "px";
-        el.style.transform = `rotate(${cardRotation(card)}deg)`;
-        el.style.zIndex = String(card.z || 1);
+        el.style.top = (pos.y - CARD_H / 2 - (airborne ? (Number(airborne.h) || 0) * 2.2 : 0)) + "px";
+        if (airborne) {
+          const base = tablePerspectiveRot(card);
+          el.style.transform = `perspective(900px) rotateZ(${base + (Number(airborne.yaw) || 0)}deg) rotateX(${-(Number(airborne.roll) || 0)}deg) rotateY(${Number(airborne.pitch) || 0}deg) scale(${1 + (Number(airborne.h) || 0) / 90})`;
+        } else {
+          el.style.transform = `rotate(${cardRotation(card)}deg)`;
+        }
+        el.style.zIndex = String((card.z || 1) + (airborne ? 6000 : 0));
         els.cardLayer.appendChild(el);
+        if (airborne) renderAirborneHelpers(card);
       });
 
     renderGraveStack("p1");
@@ -884,9 +1118,11 @@
     const fanValue = handFan[player] || 0;
     const fanT = Math.max(0, Math.min(1, (fanValue + 100) / 200));
 
+    const isOpponentHand = !own;
+
     const baseHand = document.createElement("img");
     baseHand.className = "hand-art hand-art-base";
-    baseHand.src = "hand.png";
+    baseHand.src = isOpponentHand ? "o_hand.png" : "hand.png";
     baseHand.alt = "";
     baseHand.draggable = false;
     baseHand.style.width = (dev.handArtSize || 190) + "px";
@@ -964,13 +1200,21 @@
 
     const thumb = document.createElement("img");
     thumb.className = "hand-art hand-art-thumb";
-    thumb.src = "thumb.png";
+    thumb.src = isOpponentHand ? "o_thumb.png" : "thumb.png";
     thumb.alt = "";
     thumb.draggable = false;
     thumb.style.width = (dev.handArtSize || 190) + "px";
-    thumb.style.left = `calc(50% + ${(dev.handArtX || 0) + thumbX}px)`;
-    thumb.style.bottom = ((dev.handArtY || 0) + thumbY) + "px";
-    thumb.style.transform = `rotate(${thumbRot}deg)`;
+
+    if (isOpponentHand) {
+      thumb.style.left = `calc(50% + ${dev.handArtX || 0}px)`;
+      thumb.style.bottom = (dev.handArtY || 0) + "px";
+      thumb.style.transform = "none";
+    } else {
+      thumb.style.left = `calc(50% + ${(dev.handArtX || 0) + thumbX}px)`;
+      thumb.style.bottom = ((dev.handArtY || 0) + thumbY) + "px";
+      thumb.style.transform = `rotate(${thumbRot}deg)`;
+    }
+
     container.appendChild(thumb);
 
     if (oldDragVisual && drag && drag.fromZone === player + "-hand") {
@@ -1372,6 +1616,20 @@
 
   function onCardPointerDown(e, card) {
     if (e.button !== 0) return;
+    if (card.airborne && card.airborne.active && card.airborne.mode === "setup") {
+      if (e.shiftKey) {
+        const r = e.currentTarget.getBoundingClientRect();
+        card.airborne.charging = true;
+        card.airborne.chargeStart = Date.now();
+        card.airborne.chargeLocalX = (e.clientX - r.left) / Math.max(1, r.width) - 0.5;
+        card.airborne.chargeLocalY = (e.clientY - r.top) / Math.max(1, r.height) - 0.5;
+        e.preventDefault(); e.stopPropagation();
+        render();
+        return;
+      }
+      startAirborneDrag(e, card, "card");
+      return;
+    }
     if (e.shiftKey && (card.zone === "battlefield" || card.zone.endsWith("-hand"))) {
       if (selectedIds.has(card.id)) selectedIds.delete(card.id);
       else selectedIds.add(card.id);
@@ -1958,6 +2216,7 @@
       shuffleInPlace(ownerCards("p2", "library"));
       state.life = { p1:20, p2:20 };
       state.dice = makeAllLifeDice(state.life);
+      state.chat = [];
       if (window.FirebaseCleanSync) window.FirebaseCleanSync.clearResetVote();
       push();
     }
@@ -2130,34 +2389,7 @@
   }
 
   function syncSharedFlipOverlay() {
-    if (!state.flipOverlay) state.flipOverlay = { active: false, front: "", nonce: 0, owner: "", physics: null };
-    const flip = state.flipOverlay;
-    const physicsStamp = flip.physics ? (flip.physics.t || 0) : 0;
-    const sig = flip.active ? `${flip.front}:${flip.nonce}:${flip.owner || ""}` : "off";
-
-    if (sig !== localFlipOverlaySignature) {
-      localFlipOverlaySignature = sig;
-      if (flip.active) {
-        if (window.OrbFlipExternal && typeof window.OrbFlipExternal.open === "function") {
-          window.OrbFlipExternal.open(flip.front, flip.owner || localPlayer || "p1");
-        } else {
-          setTimeout(() => syncSharedFlipOverlay(), 80);
-        }
-      } else {
-        if (window.OrbFlipExternal && typeof window.OrbFlipExternal.close === "function") {
-          window.OrbFlipExternal.close();
-        }
-      }
-    }
-
-    if (flip.active && flip.owner && flip.owner !== localPlayer && flip.physics && window.OrbFlipExternal?.applyRemoteState) {
-      if (physicsStamp !== syncSharedFlipOverlay.lastPhysicsStamp) {
-        syncSharedFlipOverlay.lastPhysicsStamp = physicsStamp;
-        window.OrbFlipExternal.applyRemoteState(flip.physics, flip.owner);
-      }
-    }
-
-    updateMenuActiveStates();
+    // Deprecated external orb overlay. Card ORBFLIP now lives on shared table cards.
   }
 
   function publishOrbPhysics(physics) {
@@ -2758,24 +2990,18 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
   if (els.kickR1P2) els.kickR1P2.onclick = async () => { const sync = await waitForSyncModule(2500); if (sync?.kickSeat) sync.kickSeat("room1", "p2"); };
   if (els.kickR2P1) els.kickR2P1.onclick = async () => { const sync = await waitForSyncModule(2500); if (sync?.kickSeat) sync.kickSeat("room2", "p1"); };
   if (els.kickR2P2) els.kickR2P2.onclick = async () => { const sync = await waitForSyncModule(2500); if (sync?.kickSeat) sync.kickSeat("room2", "p2"); };
-  els.kickRoom1.onclick = async () => {
-    const sync = await waitForSyncModule(2500);
-    if (sync?.kickRoom) sync.kickRoom("room1");
-  };
-  els.kickRoom2.onclick = async () => {
-    const sync = await waitForSyncModule(2500);
-    if (sync?.kickRoom) sync.kickRoom("room2");
-  };
 
   els.mainMenuBtn.onclick = () => els.mainMenu.classList.toggle("hidden");
   populateGreenMenuLists();
   if (els.playmatMenuBtn) els.playmatMenuBtn.onclick = () => toggleSection(els.playmatMenu, els.playmatMenuBtn);
   if (els.sleevesMenuBtn) els.sleevesMenuBtn.onclick = () => toggleSection(els.sleevesMenu, els.sleevesMenuBtn);
   if (els.addTokenMenuBtn) els.addTokenMenuBtn.onclick = () => toggleSection(els.tokenMenu, els.addTokenMenuBtn);
-  if (els.addDiceBtn) els.addDiceBtn.onclick = () => addCounterDie();
-  if (els.throwDiceBtn) els.throwDiceBtn.onclick = e => { e.preventDefault(); e.stopPropagation(); throwDiceAnimated(); };
-  if (els.menuFlipOrbBtn) els.menuFlipOrbBtn.onclick = e => { e.preventDefault(); e.stopPropagation(); toggleSharedFlip("chaosfront.png"); };
-  if (els.menuFlipStarBtn) els.menuFlipStarBtn.onclick = e => { e.preventDefault(); e.stopPropagation(); toggleSharedFlip("fallingstar.png"); };
+;
+  if (els.menuFlipStarBtn) els.menuFlipStarBtn.onclick = e => {
+    e.preventDefault(); e.stopPropagation();
+    const card = { id: uid(), owner: localPlayer, zone: "battlefield", x: 960, y: localPlayer === "p1" ? 720 : 360, z: 1, tapped: false, faceDown: false, marked: false, name: "Falling Star", image: "fallingstar.png", typeLine: "Sorcery", oracle: "Flip this card with ORBFLIP from right-click menu.", isToken: true };
+    bringToFront(card); state.cards.push(card); push();
+  };
   if (els.dieMenu) els.dieMenu.addEventListener("click", e => {
     const btn = e.target.closest("button[data-die-value]");
     if (!btn) return;
@@ -2801,7 +3027,7 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
 
   els.sylvanOk.onclick = () => finishSylvanLibrary();
 
-  els.loadDeckBtn.onclick = () => { els.deckModal.classList.toggle("hidden"); updateMenuActiveStates(); };
+  els.loadDeckBtn.onclick = () => { els.deckModal.classList.toggle("hidden"); renderDeckLibrary(); updateMenuActiveStates(); };
   if (els.sideboardBtn) els.sideboardBtn.onclick = () => { if (els.sideboardModal.classList.contains("hidden")) openSideboardEditor(); else closeSideboardEditor(); };
   if (els.closeSideboardEditor) els.closeSideboardEditor.onclick = finalizeSideboardEditor;
   if (els.resetOriginalSideboard) els.resetOriginalSideboard.onclick = resetSideboardToOriginal;
@@ -2825,7 +3051,10 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
   els.devClose.onclick = () => { els.devPanel.classList.add("hidden"); updateMenuActiveStates(); };
   els.devReset.onclick = () => { dev = { ...devDefaults }; saveDev(); applyMenuDevStylesV36(); bindDev(); render(); };
   els.devCopy.onclick = async () => { const text = JSON.stringify(dev, null, 2); els.devOutput.value = text; try { await navigator.clipboard.writeText(text); } catch {} };
-  els.leaveBtn.onclick = () => window.FirebaseCleanSync?.leaveRoom();
+  els.leaveBtn.onclick = () => {
+    clearChatForCurrentGame();
+    window.FirebaseCleanSync?.leaveRoom();
+  };
   els.resetVoteBtn.onclick = () => { if (confirm("Are you sure? Other player must also confirm.")) window.FirebaseCleanSync?.voteReset(true); };
   els.acceptReset.onclick = () => window.FirebaseCleanSync?.voteReset(true);
   els.rejectReset.onclick = () => { window.FirebaseCleanSync?.voteReset(false); els.resetPrompt.classList.add("hidden"); };
@@ -2953,6 +3182,7 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
     const card = state.cards.find(c => c.id === contextCardId);
     if (!a || !card) return;
     if (a === "flip") card.faceDown = !card.faceDown;
+    if (a === "orbflip") startCardOrbFlip(card);
     if (a === "clone") {
       const copy = clone(card);
       copy.id = uid();
@@ -2995,6 +3225,92 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
 
   document.addEventListener("click", e => {
     if (!e.target.closest(".context-menu")) closeMenus();
+  });
+
+
+  document.addEventListener("pointermove", e => {
+    if (airborneDrag) {
+      const card = state.cards.find(c => c.id === airborneDrag.id);
+      const a = card?.airborne;
+      if (!card || !a || !a.active) { airborneDrag = null; return; }
+      if (airborneDrag.type === "cardArrow") {
+        a.h = gaugeCmFromClientY(e.clientY);
+      } else if (airborneDrag.type === "handArrow") {
+        a.handH = gaugeCmFromClientY(e.clientY);
+      } else {
+        const p = tablePoint(e.clientX, e.clientY, false);
+        if (airborneDrag.type === "card") {
+          card.x = snap(p.x - airborneDrag.offsetX);
+          card.y = snap(p.y - airborneDrag.offsetY);
+        } else if (airborneDrag.type === "hand") {
+          a.handX = snap(p.x - airborneDrag.offsetX);
+          a.handY = snap(p.y - airborneDrag.offsetY);
+        }
+      }
+      render();
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    const chargingCard = state.cards.find(c => c.airborne && c.airborne.active && c.airborne.charging);
+    if (chargingCard) {
+      const el = document.querySelector(`.card[data-card-id="${chargingCard.id}"]`);
+      const a = chargingCard.airborne;
+      if (el && a) {
+        const r = el.getBoundingClientRect();
+        a.chargeLocalX = (e.clientX - r.left) / Math.max(1, r.width) - 0.5;
+        a.chargeLocalY = (e.clientY - r.top) / Math.max(1, r.height) - 0.5;
+        a.power = airbornePower(a);
+        render();
+      }
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
+
+  document.addEventListener("pointerup", e => {
+    if (airborneDrag) {
+      airborneDrag = null;
+      push();
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    const chargingCard = state.cards.find(c => c.airborne && c.airborne.active && c.airborne.charging);
+    if (chargingCard) {
+      launchCardOrbFlip(chargingCard);
+      push();
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
+
+
+  window.addEventListener("orbflip-card-landed", e => {
+    const detail = e.detail || {};
+    const card = state.cards.find(c => c.id === detail.cardId);
+    if (!card) return;
+
+    const cx = Number(detail.x || 0) + Number(detail.w || 170) / 2;
+    const cy = Number(detail.y || 0) + Number(detail.hPx || 237) / 2;
+    const p = tablePoint(cx, cy, true);
+
+    card.x = p.x;
+    card.y = p.y;
+    card.tapped = false;
+    card.airborne = null;
+
+    // Keep the real table card hidden while the original orbflip overlay finishes its 3s post-landing view.
+    setTimeout(() => {
+      const c = state.cards.find(x => x.id === detail.cardId);
+      if (!c) return;
+      c.orbflipHidden = false;
+      c.airborne = null;
+      push();
+    }, 3000);
+
+    push();
   });
 
   window.addEventListener("keydown", e => {
@@ -3068,6 +3384,13 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
     if (atBottom) els.chatMessages.scrollTop = els.chatMessages.scrollHeight;
   }
 
+  function clearChatForCurrentGame() {
+    ensureState();
+    state.chat = [];
+    push();
+    renderChatMessages();
+  }
+
   function sendChatMessage() {
     if (!els.chatText) return;
     const text = String(els.chatText.value || "").trim();
@@ -3086,9 +3409,20 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
   }
 
 
-  function makeThrowDieFace(value) {
+
+  function makeThrowDieFace(value, sides = 6) {
     const el = document.createElement("div");
-    el.className = "throw-die-visual throw-die-cube";
+    el.className = "throw-die-visual " + (sides === 20 ? "throw-die-d20" : "throw-die-cube");
+
+    if (sides === 20) {
+      el.innerHTML = `
+        <div class="throw-d20-outline">
+          <span>${value}</span>
+        </div>
+      `;
+      return el;
+    }
+
     const faces = ["front","right","top"];
     faces.forEach((faceName, idx) => {
       const face = document.createElement("div");
@@ -3104,7 +3438,14 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
     return el;
   }
 
-  function updateThrowDieFace(el, value) {
+  function updateThrowDieFace(el, value, sides = 6) {
+    if (sides === 20) {
+      const span = el.querySelector(".throw-d20-outline span");
+      if (span) span.textContent = String(value);
+      else el.textContent = String(value);
+      return;
+    }
+
     const front = el.querySelector(".throw-die-front") || el;
     front.innerHTML = "";
     for (const p of PIPS[Math.max(1, Math.min(6, Number(value) || 1))]) {
@@ -3114,9 +3455,11 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
     }
   }
 
-  function throwDiceAnimated() {
+  function throwDiceAnimated(count = 1, sides = 6) {
     if (!localPlayer || !els.world) return;
-    const count = Math.max(1, Math.min(2, Number(els.throwDiceCount?.value || 1)));
+    count = Math.max(1, Math.min(2, Number(count) || 1));
+    sides = sides === 20 ? 20 : 6;
+
     const root = document.createElement("div");
     root.className = "throw-dice-overlay";
     document.body.appendChild(root);
@@ -3127,8 +3470,8 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
     const side = Math.floor(Math.random() * 4);
 
     const dice = Array.from({ length: count }, (_, i) => {
-      const value = 1 + Math.floor(Math.random() * 6);
-      const el = makeThrowDieFace(value);
+      const value = 1 + Math.floor(Math.random() * sides);
+      const el = makeThrowDieFace(value, sides);
       root.appendChild(el);
 
       let startX, startY;
@@ -3137,24 +3480,23 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
       else if (side === 2) { startX = Math.random() * innerWidth; startY = -80 - i * 40; }
       else { startX = Math.random() * innerWidth; startY = innerHeight + 80 + i * 40; }
 
-      const targetX = tableCenterX + (Math.random() - 0.5) * Math.min(360, worldRect.width * 0.35) + i * 42;
-      const targetY = tableCenterY + (Math.random() - 0.5) * Math.min(220, worldRect.height * 0.25) + i * 28;
+      const targetX = tableCenterX + (Math.random() - 0.5) * Math.min(360, worldRect.width * 0.35) + i * 48;
+      const targetY = tableCenterY + (Math.random() - 0.5) * Math.min(220, worldRect.height * 0.25) + i * 30;
 
       return {
         el,
         value,
+        sides,
         x: startX,
         y: startY,
         tx: targetX,
         ty: targetY,
-        vx: (targetX - startX) / 64,
-        vy: (targetY - startY) / 64,
         rotX: Math.random() * 360,
         rotY: Math.random() * 360,
         rotZ: Math.random() * 360,
-        spinX: 18 + Math.random() * 18,
-        spinY: 18 + Math.random() * 18,
-        spinZ: 12 + Math.random() * 20
+        spinX: 18 + Math.random() * 20,
+        spinY: 18 + Math.random() * 20,
+        spinZ: 12 + Math.random() * 22
       };
     });
 
@@ -3179,21 +3521,21 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
         }
       }
 
-      dice.forEach((d, i) => {
+      dice.forEach(d => {
         d.x += (d.tx - d.x) * (0.055 + t * 0.035);
         d.y += (d.ty - d.y) * (0.055 + t * 0.035);
         d.rotX += d.spinX * (1 - t * 0.72);
         d.rotY += d.spinY * (1 - t * 0.72);
         d.rotZ += d.spinZ * (1 - t * 0.72);
 
-        if (frame % 6 === 0 && t < 0.82) updateThrowDieFace(d.el, 1 + Math.floor(Math.random() * 6));
+        if (frame % 6 === 0 && t < 0.82) updateThrowDieFace(d.el, 1 + Math.floor(Math.random() * d.sides), d.sides);
 
         const scale = 1.9 - ease * 0.9;
         const lift = -bounce;
         d.el.style.left = d.x + "px";
         d.el.style.top = (d.y + lift) + "px";
         d.el.style.transform =
-          `translate(-50%, -50%) perspective(520px) rotateX(${d.rotX}deg) rotateY(${d.rotY}deg) rotateZ(${d.rotZ}deg) scale(${scale})`;
+          `translate(-50%, -50%) perspective(720px) rotateX(${d.rotX}deg) rotateY(${d.rotY}deg) rotateZ(${d.rotZ}deg) scale(${scale})`;
       });
 
       if (frame < frames) {
@@ -3202,13 +3544,14 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
       }
 
       dice.forEach(d => {
-        updateThrowDieFace(d.el, d.value);
+        updateThrowDieFace(d.el, d.value, d.sides);
         const p = tablePoint(d.tx, d.ty, true);
         state.dice.push({
           id: uid(),
           kind: "counter",
           owner: localPlayer,
           value: d.value,
+          sides: d.sides,
           color: "#eeeeee",
           pipColor: "#111111",
           x: p.x,
@@ -3224,6 +3567,27 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
     requestAnimationFrame(step);
   }
 
+
+
+  function bindThrowButtonsInternalV47() {
+    const map = { throwD6Btn: [1, 6] };
+    Object.entries(map).forEach(([id, args]) => {
+      const btn = document.getElementById(id);
+      if (!btn || btn.dataset.throwBoundInternal === "1") return;
+      btn.dataset.throwBoundInternal = "1";
+      btn.type = "button";
+      btn.onclick = e => {
+        e.preventDefault();
+        e.stopPropagation();
+        throwDiceAnimated(args[0], args[1]);
+      };
+    });
+  }
+  bindThrowButtonsInternalV47();
+  setTimeout(bindThrowButtonsInternalV47, 250);
+  setTimeout(bindThrowButtonsInternalV47, 1200);
+
+  window.throwDiceAnimated = throwDiceAnimated;
 
   function bindChatPanel() {
     if (!els.chatBtn || !els.chatPanel || !els.chatHeader) return;
@@ -3264,6 +3628,13 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
       e.preventDefault();
       e.stopPropagation();
       sendChatMessage();
+    };
+
+
+    if (els.chatClear) els.chatClear.onclick = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      clearChatForCurrentGame();
     };
 
     if (els.chatText) els.chatText.addEventListener("keydown", e => {
@@ -3499,6 +3870,7 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
 
   bindInspectorPanel();
   bindChatPanel();
+  bindDeckLibrary();
   bindHelpPanel();
 
   document.addEventListener("click", e => {
@@ -3589,12 +3961,18 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
   }, 5000);
 
   function stoneAnimationLoop() {
-    if (localPlayer && state && updateStoneAnimations()) {
-      render();
-    }
+    let needsRender = false;
+    if (localPlayer && state && updateStoneAnimations()) needsRender = true;
+    if (localPlayer && state && updateAirborneCards()) needsRender = true;
+    if (needsRender) render();
     requestAnimationFrame(stoneAnimationLoop);
   }
   stoneAnimationLoop();
+
+  setInterval(() => {
+    if (!localPlayer || !state) return;
+    if (state.cards && state.cards.some(c => c.airborne && c.airborne.active)) push();
+  }, 120);
 
   setInterval(() => {
     if (!localPlayer || !state) return;
@@ -3612,4 +3990,42 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
     setLocalSeat,
     onResetVoteChanged
   };
+})();
+
+
+
+
+
+
+
+
+
+// v047: throw buttons call exposed in-game dice engine.
+(function(){
+  function bindThrowButtonsV47() {
+    const binds = [["throwD6Btn", 1, 6]];
+
+    binds.forEach(([id, count, sides]) => {
+      const btn = document.getElementById(id);
+      if (!btn || btn.dataset.v47Bound === "1") return;
+      btn.dataset.v47Bound = "1";
+      btn.type = "button";
+      btn.style.pointerEvents = "auto";
+
+      btn.addEventListener("click", e => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        if (typeof window.throwDiceAnimated === "function") {
+          window.throwDiceAnimated(count, sides);
+        } else {
+          console.error("throwDiceAnimated not available");
+        }
+      }, true);
+    });
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindThrowButtonsV47);
+  else bindThrowButtonsV47();
+  setTimeout(bindThrowButtonsV47, 100);
 })();

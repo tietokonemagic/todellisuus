@@ -80,11 +80,13 @@
   let dragPanel = null;
   let remoteControlled = false;
   let lastPublish = 0;
+  let targetCardId = null;
+  let cardMode = false;
 
   const st = {
     x: 0,
     y: 0,
-    h: 30,
+    h: 32,
 
     vx: 0,
     vy: 0,
@@ -257,7 +259,6 @@
           <div class="orbflip-hand-arrow"></div>
         </div>
         <div class="orbflip-power"><div class="orbflip-power-inner"></div></div>
-        <button type="button" class="orbflip-again">AGAIN</button>
         <button type="button" class="orbflip-close">CLOSE</button>
       </div>
     `;
@@ -355,6 +356,31 @@
     if (window.CleanTablePublishOrbPhysics) window.CleanTablePublishOrbPhysics(snapshot());
   }
 
+
+  function isBackFaceVisible() {
+    const roll = (Number(st.roll) || 0) * Math.PI / 180;
+    const pitch = (Number(st.pitch) || 0) * Math.PI / 180;
+    return Math.cos(roll) * Math.cos(pitch) < 0;
+  }
+
+  function applyCardFaceVisibility() {
+    const backVisible = isBackFaceVisible();
+
+    frontImg.style.opacity = backVisible ? "0" : "1";
+    backImg.style.opacity = backVisible ? "1" : "0";
+
+    frontImg.style.zIndex = backVisible ? "1" : "2";
+    backImg.style.zIndex = backVisible ? "2" : "1";
+
+    /*
+      The parent card rotates in 3D. When the backside is camera-facing,
+      the texture itself would otherwise read mirrored, so we counter-flip
+      only the displayed back texture. No CSS override pile, no duplicated faces.
+    */
+    frontImg.style.transform = "none";
+    backImg.style.transform = backVisible ? "scaleX(-1)" : "none";
+  }
+
   function apply() {
     st.x = clamp(st.x, -W * 0.4, innerWidth - W * 0.6);
     st.y = clamp(st.y, -H * 0.4, innerHeight - H * 0.6);
@@ -371,6 +397,7 @@
 
     frontImg.src = frontImage;
     backImg.src = "lapi2.png";
+    applyCardFaceVisibility();
 
     shadow.style.left = `${st.x + W * 0.06}px`;
     shadow.style.top = `${st.y + H * 0.06}px`;
@@ -382,9 +409,20 @@
     hand.style.top = `${TUNE.fingerWorldY}px`;
     hand.style.transform = `rotate(${baseRot}deg) scale(${handScale})`;
 
-    panel.style.transformOrigin = "50% 50%";
-    panel.style.transform = `rotate(${baseRot}deg)`;
-    heightLabel.textContent = `HEIGHT ${Math.round(st.h)} CM`;
+    const appDev = (() => {
+      try { return JSON.parse(localStorage.getItem("oldschoolCleanDevV21") || "{}"); }
+      catch { return {}; }
+    })();
+    const panelX = Number.isFinite(Number(appDev.orbflipPanelX)) ? Number(appDev.orbflipPanelX) : 38;
+    const panelY = Number.isFinite(Number(appDev.orbflipPanelY)) ? Number(appDev.orbflipPanelY) : 24;
+    const panelScale = Number.isFinite(Number(appDev.orbflipPanelScale)) ? Number(appDev.orbflipPanelScale) : 1;
+    panel.style.left = `${panelX}px`;
+    panel.style.top = `${panelY}px`;
+    panel.style.right = "auto";
+    panel.style.bottom = "auto";
+    panel.style.transformOrigin = "0 0";
+    panel.style.transform = `scale(${panelScale}) rotate(${baseRot}deg)`;
+    heightLabel.textContent = "";
 
     cardArrow.style.top = `${gaugeY(Math.max(0, st.h + lowestCornerOffsetCm())) - 7}px`;
     handArrow.style.top = `${gaugeY(TUNE.fingerY) - 7}px`;
@@ -397,7 +435,7 @@
     Object.assign(st, {
       x: innerWidth * 0.5 - W * 0.5,
       y: innerHeight * 0.5 - H * 0.5,
-      h: 30,
+      h: 32,
 
       vx: 0,
       vy: 0,
@@ -442,7 +480,7 @@
 
     card.classList.remove("dragging", "aiming", "flipping");
     forceDot.style.display = "none";
-    powerInner.style.width = "0%";
+    powerInner.style.setProperty("--orb-power-scale", "0");
     apply();
   }
 
@@ -453,6 +491,30 @@
     root.classList.remove("hidden");
     reset(front);
     publishSnapshot(true);
+  }
+
+
+  function openCard(opts = {}) {
+    const front = opts.front || "chaosfront.png";
+    const owner = opts.owner || "p1";
+    open(front, owner);
+    cardMode = true;
+    targetCardId = opts.cardId || null;
+
+    // Start exactly over the selected battlefield card.
+    if (typeof opts.startX === "number") st.x = opts.startX;
+    if (typeof opts.startY === "number") st.y = opts.startY;
+
+    // Put skasi next to the card by default so the original finger-contact system can happen.
+    const baseScale = landingScale();
+    TUNE.fingerY = Math.max(0, Math.min(MAX_CM, TUNE.fingerY || 20));
+    TUNE.fingerWorldX = st.x + W * baseScale + 22;
+    TUNE.fingerWorldY = st.y + H * baseScale * 0.40;
+
+    syncFingerGaugeFromWorld();
+
+    // Keep the original orbflip physics, only changing the initial render target.
+    apply();
   }
 
   function close() {
@@ -484,7 +546,7 @@
     st.fingerRollOnly = false;
     card.classList.remove("aiming");
     forceDot.style.display = "none";
-    powerInner.style.width = "0%";
+    powerInner.style.setProperty("--orb-power-scale", "0");
 
     const shortEdge = Math.abs(lx);
     const longEdge = Math.abs(ly);
@@ -542,42 +604,94 @@
     TUNE.fingerX = clamp((tip.x - cardCx) / 150, -1, 1);
   }
 
+  function setHeightFromGaugeClientY(clientY, target) {
+    if (!gauge) return;
+    const r = gauge.getBoundingClientRect();
+    const y = clientY - r.top;
+    const usableTop = 10;
+    const usableBottom = Math.max(20, r.height - 24);
+    const t = clamp((usableBottom - y) / Math.max(1, usableBottom - usableTop), 0, 1);
+    const cm = t * MAX_CM;
+    if (target === "card") {
+      st.h = cm;
+    } else {
+      TUNE.fingerY = cm;
+    }
+    apply();
+  }
+
+  function bindGaugeArrowDrag(el, target) {
+    if (!el) return;
+    el.addEventListener("pointerdown", e => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      setHeightFromGaugeClientY(e.clientY, target);
+
+      const move = ev => {
+        setHeightFromGaugeClientY(ev.clientY, target);
+        ev.preventDefault();
+        ev.stopPropagation();
+      };
+
+      const up = ev => {
+        document.removeEventListener("pointermove", move, true);
+        document.removeEventListener("pointerup", up, true);
+        ev.preventDefault();
+        ev.stopPropagation();
+      };
+
+      document.addEventListener("pointermove", move, true);
+      document.addEventListener("pointerup", up, true);
+    }, true);
+  }
+
   function tryFingerContact() {
     if (!TUNE.fingerEnabled || st.fingerHit || st.settling) return;
 
+    // Original orbflip impact logic, but with a slightly more forgiving contact window
+    // because the card is now launched from the tabletop instead of a fixed overlay-only card.
     syncFingerGaugeFromWorld();
 
     const tip = stageFingerTip();
 
     const currentHeight = Math.max(0, st.h + lowestCornerOffsetCm());
     const previousHeight = Math.max(0, st.prevLowestHeight);
-    const minH = Math.min(previousHeight, currentHeight) - TUNE.fingerHitWindow;
-    const maxH = Math.max(previousHeight, currentHeight) + TUNE.fingerHitWindow;
+    const hitWindow = Math.max(1.8, TUNE.fingerHitWindow * 9);
+    const minH = Math.min(previousHeight, currentHeight) - hitWindow;
+    const maxH = Math.max(previousHeight, currentHeight) + hitWindow;
     const heightMatches = TUNE.fingerY >= minH && TUNE.fingerY <= maxH;
     const fallingOrNear =
-      st.vh <= 0.15 ||
-      Math.abs(currentHeight - TUNE.fingerY) <= TUNE.fingerHitWindow;
+      st.vh <= 0.35 ||
+      Math.abs(currentHeight - TUNE.fingerY) <= hitWindow;
 
     if (!heightMatches || !fallingOrNear) return;
 
+    const baseScale = landingScale();
     const cardLeft = st.x;
-    const cardRight = st.x + W * landingScale();
+    const cardRight = st.x + W * baseScale;
     const cardTop = st.y;
-    const cardBottom = st.y + H * landingScale();
+    const cardBottom = st.y + H * baseScale;
+    const cardCenterX = st.x + (W * baseScale) / 2;
 
+    const generousY = 42 + TUNE.fingerTipRadius * 85;
     const withinY =
-      tip.y >= cardTop - TUNE.fingerHitWindow * 2 &&
-      tip.y <= cardBottom + TUNE.fingerHitWindow * 2;
+      tip.y >= cardTop - generousY &&
+      tip.y <= cardBottom + generousY;
 
+    // Check both side-edge contact and a central projected contact so a visible skasi tip
+    // reliably produces the original pivot impact.
     const distRight = Math.abs(tip.x - cardRight);
     const distLeft = Math.abs(tip.x - cardLeft);
+    const edgeAllowance = 34 + TUNE.fingerTipRadius * 95;
 
-    const hitRight = withinY && distRight <= (18 + TUNE.fingerTipRadius * 45);
-    const hitLeft = withinY && distLeft <= (18 + TUNE.fingerTipRadius * 45);
+    const hitRight = withinY && distRight <= edgeAllowance;
+    const hitLeft = withinY && distLeft <= edgeAllowance;
+    const hitProjected = withinY && tip.x >= cardLeft - edgeAllowance && tip.x <= cardRight + edgeAllowance;
 
-    if (!hitRight && !hitLeft) return;
+    if (!hitRight && !hitLeft && !hitProjected) return;
 
-    const side = hitRight ? 1 : -1;
+    const side = hitRight ? 1 : hitLeft ? -1 : (tip.x >= cardCenterX ? 1 : -1);
 
     st.fingerHit = true;
     st.fingerPivoting = true;
@@ -586,6 +700,8 @@
     st.fingerPivotFramesLeft = Math.round(TUNE.fingerPivotFrames);
     st.fingerPivotSide = side;
 
+    // This is the original skasi impact: lock roll, kill yaw/roll, kick pitch around the finger,
+    // add lift/slide impulse, then yaw-twist the card.
     st.wRoll = 0;
     st.wYaw = 0;
     st.vh = Math.max(st.vh, TUNE.fingerLift * 0.35);
@@ -632,6 +748,22 @@
     };
   }
 
+
+  function collapseTowardTableAfterContact() {
+    const flattenEase = 0.42;
+    const targetRoll = st.fingerRollOnly ? st.fingerLockedRoll : flatTarget(st.roll);
+    const targetPitch = flatTarget(st.pitch);
+
+    st.roll += normDeg(targetRoll - st.roll) * flattenEase;
+    st.pitch += normDeg(targetPitch - st.pitch) * flattenEase;
+    st.h = Math.max(0, -lowestCornerOffsetCm());
+
+    st.vh *= 0.08;
+    st.wRoll *= 0.18;
+    st.wPitch *= 0.18;
+    st.wYaw *= 0.55;
+  }
+
   function startLanding() {
     const contact = lowestContact();
     st.h = Math.max(0, -contact.offset);
@@ -649,7 +781,7 @@
       const bounceMultiplier = edge.corner ? TUNE.dropBounce * 1.6 : TUNE.dropBounce;
       const slideMultiplier = edge.corner ? 0.35 : 0.25;
       const missScale = 5;
-      const targetVH = impact * bounceMultiplier * (1 + TUNE.badAngleBounce);
+      const targetVH = impact * bounceMultiplier * 0.12;
 
       const skidVX =
         Math.sign(contact.x || st.vx || 1) *
@@ -661,17 +793,19 @@
         impact * slideMultiplier *
         TUNE.landingSkid * missScale;
 
-      const badAngleBoost = 1 + TUNE.badAngleBounce * 2;
+      const badAngleBoost = 1 + TUNE.badAngleBounce * 0.7;
 
       st.vh = lerp(st.vh, targetVH, TUNE.smoothLandingEase);
       st.vx = lerp(st.vx, st.vx * TUNE.dropSlide + skidVX * badAngleBoost, TUNE.smoothLandingEase);
       st.vy = lerp(st.vy, st.vy * TUNE.dropSlide + skidVY * badAngleBoost, TUNE.smoothLandingEase);
 
-      st.wRoll *= edge.corner ? 0.30 : 0.18;
-      st.wPitch *= edge.corner ? 0.30 : 0.18;
+      st.wRoll *= edge.corner ? 0.06 : 0.045;
+      st.wPitch *= edge.corner ? 0.06 : 0.045;
 
-      st.wYaw += Math.sign((contact.x || 0.1) * (contact.y || 0.1)) * impact * TUNE.yawLandingTwist * 0.08;
+      st.wYaw += Math.sign((contact.x || 0.1) * (contact.y || 0.1)) * impact * TUNE.yawLandingTwist * 0.035;
       st.wYaw *= TUNE.yawDamping;
+
+      collapseTowardTableAfterContact();
     } else {
       st.vh = 0;
       st.vx *= TUNE.flatSlide;
@@ -705,10 +839,10 @@
         st.wRoll = 0;
         st.wYaw = 0;
       } else {
-        st.roll += normDeg(st.targetRoll - st.roll) * Math.min(0.35, TUNE.settleSpeed * 0.018);
+        st.roll += normDeg(st.targetRoll - st.roll) * Math.min(0.78, TUNE.settleSpeed * 0.065);
       }
 
-      st.pitch += normDeg(st.targetPitch - st.pitch) * Math.min(0.35, TUNE.settleSpeed * 0.018);
+      st.pitch += normDeg(st.targetPitch - st.pitch) * Math.min(0.78, TUNE.settleSpeed * 0.065);
       st.h = Math.max(0, -lowestCornerOffsetCm());
     }
 
@@ -729,7 +863,7 @@
       st.dropFrames >= TUNE.settleDelay;
 
     if (done || st.landingFrames > TUNE.maxDropFrames) {
-      st.roll = st.targetRoll;
+      st.roll = st.fingerRollOnly ? st.fingerLockedRoll : st.targetRoll;
       st.pitch = st.targetPitch;
       st.h = 0;
       st.vx = 0;
@@ -742,6 +876,30 @@
       st.phase = "landed";
       card.classList.remove("flipping");
       apply();
+
+      if (cardMode && targetCardId) {
+        window.dispatchEvent(new CustomEvent("orbflip-card-landed", {
+          detail: {
+            cardId: targetCardId,
+            x: st.x,
+            y: st.y,
+            w: W,
+            hPx: H,
+            roll: st.roll,
+            pitch: st.pitch,
+            yaw: st.yaw,
+            owner: flipOwner
+          }
+        }));
+
+        // Keep original visual on screen briefly, then close the overlay and clear mode.
+        setTimeout(() => {
+          close();
+          cardMode = false;
+          targetCardId = null;
+        }, 3000);
+      }
+
       return true;
     }
 
@@ -888,7 +1046,8 @@
       e.stopImmediatePropagation();
     }, true);
 
-    root.querySelector(".orbflip-again").addEventListener("click", e => {
+    const againBtn = root.querySelector(".orbflip-again");
+    if (againBtn) againBtn.addEventListener("click", e => {
       e.preventDefault();
       reset(frontImage);
     });
@@ -1031,6 +1190,7 @@
 
   window.OrbFlipExternal = {
     open,
+    openCard,
     close,
     applyRemoteState: applySnapshot,
     getState: snapshot,
@@ -1041,7 +1201,7 @@
 
   (function chargeLoop() {
     if (root && !root.classList.contains("hidden") && st.charging) {
-      powerInner.style.width = `${power() * 100}%`;
+      powerInner.style.setProperty("--orb-power-scale", String(power()));
     }
     requestAnimationFrame(chargeLoop);
   })();
