@@ -29,7 +29,7 @@
     document.body.appendChild(els.selectBox);
   }
 
-  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-052";
+  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-054";
   let localRoom = null;
   let localPlayer = null;
   let localNickname = localStorage.getItem("oldschoolNicknameV1") || "Player";
@@ -4028,4 +4028,204 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindThrowButtonsV47);
   else bindThrowButtonsV47();
   setTimeout(bindThrowButtonsV47, 100);
+})();
+
+
+
+// v054 fake-3D dice canvas: force 3 visible sides instead of paper-flap cube.
+(function(){
+const canvas=document.getElementById("dice3dCanvas");
+if(!canvas)return;
+const ctx=canvas.getContext("2d");
+const dice=[];
+
+function resize(){
+canvas.width=innerWidth;
+canvas.height=innerHeight;
+}
+resize();
+addEventListener("resize",resize);
+
+function pipPositions(n){
+return {
+1:[[0,0]],
+2:[[-.45,-.45],[.45,.45]],
+3:[[-.45,-.45],[0,0],[.45,.45]],
+4:[[-.45,-.45],[.45,-.45],[-.45,.45],[.45,.45]],
+5:[[-.45,-.45],[.45,-.45],[0,0],[-.45,.45],[.45,.45]],
+6:[[-.45,-.55],[.45,-.55],[-.45,0],[.45,0],[-.45,.55],[.45,.55]]
+}[Math.max(1,Math.min(6,n))] || [[0,0]];
+}
+
+function drawPoly(points, fill, stroke="rgba(0,0,0,.55)"){
+ctx.beginPath();
+ctx.moveTo(points[0].x,points[0].y);
+for(let i=1;i<points.length;i++)ctx.lineTo(points[i].x,points[i].y);
+ctx.closePath();
+ctx.fillStyle=fill;
+ctx.fill();
+ctx.strokeStyle=stroke;
+ctx.lineWidth=2;
+ctx.stroke();
+}
+
+function drawPipsOnQuad(points,value,scale=1){
+const c={
+x:(points[0].x+points[1].x+points[2].x+points[3].x)/4,
+y:(points[0].y+points[1].y+points[2].y+points[3].y)/4
+};
+const ux={x:(points[1].x-points[0].x+points[2].x-points[3].x)/2,y:(points[1].y-points[0].y+points[2].y-points[3].y)/2};
+const vy={x:(points[3].x-points[0].x+points[2].x-points[1].x)/2,y:(points[3].y-points[0].y+points[2].y-points[1].y)/2};
+
+ctx.fillStyle="#111";
+pipPositions(value).forEach(p=>{
+const x=c.x+ux.x*p[0]*.62+vy.x*p[1]*.62;
+const y=c.y+ux.y*p[0]*.62+vy.y*p[1]*.62;
+ctx.beginPath();
+ctx.arc(x,y,4.4*scale,0,Math.PI*2);
+ctx.fill();
+});
+}
+
+function shade(base, k){
+const v=Math.max(0,Math.min(255,Math.round(base*k)));
+return `rgb(${v},${v},${v})`;
+}
+
+function drawDie(d){
+const x=innerWidth/2+d.x;
+const y=innerHeight/2+d.y;
+const s=d.size*(1+d.z/900);
+
+// fake camera vectors. Always keep 3 faces visible.
+const t=d.spinPhase;
+const yaw=Math.sin(t)*0.55;
+const pitch=0.55+Math.sin(t*0.73)*0.18;
+const roll=d.rz;
+
+const depth=s*(0.55+Math.abs(Math.sin(t*.9))*0.18);
+const right={x:Math.cos(yaw)*depth,y:Math.sin(yaw)*depth*.38};
+const up={x:-Math.sin(roll)*s*.22,y:-Math.cos(pitch)*depth};
+
+const frontW=s*2.0;
+const frontH=s*2.0;
+
+const p0={x:x-frontW/2,y:y-frontH/2};
+const p1={x:x+frontW/2,y:y-frontH/2};
+const p2={x:x+frontW/2,y:y+frontH/2};
+const p3={x:x-frontW/2,y:y+frontH/2};
+
+// top face and right face are always visible and trapezoid-like
+const top=[{x:p0.x+up.x,y:p0.y+up.y},{x:p1.x+up.x,y:p1.y+up.y},p1,p0];
+const rightFace=[p1,{x:p1.x+right.x,y:p1.y+right.y},{x:p2.x+right.x,y:p2.y+right.y},p2];
+const front=[p0,p1,p2,p3];
+
+// strong shadow
+ctx.save();
+ctx.globalAlpha=.34;
+ctx.filter="blur(14px)";
+ctx.fillStyle="#000";
+ctx.beginPath();
+ctx.ellipse(x+s*.25,y+s*1.15,s*1.25,s*.42,0,0,Math.PI*2);
+ctx.fill();
+ctx.restore();
+
+// draw back-to-front
+drawPoly(top,shade(245,.78));
+drawPoly(rightFace,shade(245,.55));
+drawPoly(front,shade(245,.96));
+
+// bevel-ish highlights
+ctx.strokeStyle="rgba(255,255,255,.35)";
+ctx.lineWidth=1.2;
+ctx.beginPath();
+ctx.moveTo(p0.x+3,p0.y+3);
+ctx.lineTo(p1.x-3,p1.y+3);
+ctx.stroke();
+
+drawPipsOnQuad(front,d.value,1.0);
+drawPipsOnQuad(top,d.topValue,.72);
+drawPipsOnQuad(rightFace,d.sideValue,.72);
+}
+
+function anim(){
+ctx.clearRect(0,0,canvas.width,canvas.height);
+
+dice.forEach(d=>{
+d.vy+=0.25;
+d.x+=d.vx;
+d.y+=d.vy;
+d.spinPhase+=d.spinSpeed;
+d.rz+=d.rotSpeed;
+
+if(d.y>d.floor){
+d.y=d.floor;
+d.vy*=-0.42;
+d.vx*=0.95;
+d.spinSpeed*=0.90;
+d.rotSpeed*=0.90;
+if(Math.abs(d.vy)<1.1)d.rest++;
+}
+
+drawDie(d);
+});
+
+for(let i=dice.length-1;i>=0;i--){
+const d=dice[i];
+if(d.rest>22){
+dice.splice(i,1);
+const p=tablePoint(innerWidth/2+d.x,innerHeight/2+d.y,true);
+state.dice.push({
+id:uid(),
+kind:"counter",
+owner:localPlayer,
+value:d.value,
+color:"#eeeeee",
+pipColor:"#111111",
+x:p.x,
+y:p.y,
+z:3000+Math.floor(Math.random()*1000)
+});
+push();
+}
+}
+
+requestAnimationFrame(anim);
+}
+
+requestAnimationFrame(anim);
+
+window.throwDiceAnimated=function(){
+const val=1+Math.floor(Math.random()*6);
+dice.push({
+value:val,
+topValue:1+Math.floor(Math.random()*6),
+sideValue:1+Math.floor(Math.random()*6),
+size:34,
+x:(Math.random()-.5)*760,
+y:-innerHeight/2-120,
+z:80+Math.random()*120,
+vx:(Math.random()-.5)*12,
+vy:4+Math.random()*2,
+rz:Math.random()*Math.PI,
+rotSpeed:(Math.random()-.5)*.32,
+spinPhase:Math.random()*Math.PI*2,
+spinSpeed:.22+Math.random()*.18,
+floor:innerHeight*.12+Math.random()*95,
+rest:0
+});
+};
+
+function bindBtn(){
+const btn=document.getElementById("throwD6Btn");
+if(!btn||btn.dataset.v54)return;
+btn.dataset.v54="1";
+btn.onclick=e=>{
+e.preventDefault();
+e.stopPropagation();
+window.throwDiceAnimated();
+};
+}
+bindBtn();
+setTimeout(bindBtn,500);
 })();

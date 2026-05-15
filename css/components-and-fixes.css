@@ -1264,3 +1264,12 @@ body[data-player="p2"] .player-name-label { color: #63e6e2; }
 .hand.opponent .hand-art-thumb {
   z-index: 10 !important;
 }
+
+#dice3dCanvas{
+position:fixed;
+inset:0;
+width:100vw;
+height:100vh;
+pointer-events:none;
+z-index:2147483000;
+}
