@@ -11,7 +11,7 @@
 
   const els = {};
   [
-    "seatScreen","seatStatus","appVersionLabel","nicknameInput","joinR1P1","joinR1P2","joinR2P1","joinR2P2","seatR1P1Name","seatR1P2Name","seatR2P1Name","seatR2P2Name","kickR1P1","kickR1P2","kickR2P1","kickR2P2","kickRoom1","kickRoom2",
+    "seatScreen","seatStatus","appVersionLabel","nicknameInput","selectR1P1","selectR1P2","selectR2P1","selectR2P2","lobbyJoinBtn","seatR1P1Name","seatR1P2Name","seatR2P1Name","seatR2P2Name","kickR1P1","kickR1P2","kickR2P1","kickR2P2","kickRoom1","kickRoom2","kickRequestModal","kickRequestTimer","kickRequestYes","kickRequestNo",
     "game","viewport","world","pileLayer","cardLayer","dragLayer","diceLayer","myHand","opponentHand",
     "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","throwD6Btn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","sideboardBtn","sideboardModal","sideboardWindow","closeSideboardEditor","resetOriginalSideboard","mainboardScroll","mainboardBoard","sideboardScroll","sideboardBoard","mainboardCount","sideboardCount","chatBtn","chatPanel","chatHeader","chatMinus","chatPlus","chatMessages","chatText","chatSend","chatClear","helpBtn","helpPanel","helpHeader","helpMinus","helpPlus","helpBody","devTuningBtn","inspectorToggleBtn","resetVoteBtn","leaveBtn","roomInfo",
     "deckModal","deckText","coreSetSelect","doLoadDeck","closeDeckModal","deckStatus","deckLibraryName","deckLibrarySave","deckLibrarySearch","deckLibraryList",
@@ -29,11 +29,12 @@
     document.body.appendChild(els.selectBox);
   }
 
-  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.12-054";
+  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.16-select-join";
   let localRoom = null;
   let localPlayer = null;
-  let localNickname = localStorage.getItem("oldschoolNicknameV1") || "Player";
+  let localNickname = localStorage.getItem("oldschoolNicknameV1") || "";
   let lobbySeats = {};
+  let selectedLobbySeat = null;
   if (els.nicknameInput) els.nicknameInput.value = localNickname;
   let selectedIds = new Set();
   let selectedDieIds = new Set();
@@ -299,6 +300,7 @@
     if (!state.deckOrigins) state.deckOrigins = { p1: {}, p2: {} };
     if (!Array.isArray(state.deckLibrary)) state.deckLibrary = [];
     if (!Array.isArray(state.chat)) state.chat = [];
+    if (!Array.isArray(state.diceRollEvents)) state.diceRollEvents = [];
     if (!state.playerNames) state.playerNames = {};
     if (!isSharedStoneSet(state.stones)) {
       state.stones = makeDefaultStones();
@@ -335,19 +337,29 @@
     state = remote || initialState();
     ensureState();
     render();
+    if (window.throwDice3D && typeof window.throwDice3D.playRemoteEvents === "function") {
+      window.throwDice3D.playRemoteEvents();
+    }
   }
 
-  function setLocalSeat(room, player) {
+  function setLocalSeat(room, player, nicknameOverride) {
     applyMenuDevStylesV36();
     localRoom = room;
     localPlayer = player;
+
+    const lockedNickname = String(nicknameOverride || localNickname || "").trim().slice(0, 24);
+    if (lockedNickname) {
+      localNickname = lockedNickname;
+      localStorage.setItem("oldschoolNicknameV1", lockedNickname);
+      if (els.nicknameInput) els.nicknameInput.value = lockedNickname;
+    }
+
     document.body.dataset.player = player;
     if (!state.playerNames) state.playerNames = {};
     state.playerNames[player] = localNickname || player.toUpperCase();
-    if (window.FirebaseCleanSync) window.FirebaseCleanSync.pushState(clone(state));
     els.seatScreen.classList.add("hidden");
     els.game.classList.remove("hidden");
-    els.roomInfo.textContent = room.toUpperCase() + " / " + player.toUpperCase();
+    els.roomInfo.textContent = room.toUpperCase().replace("ROOM", "TABLE") + " / " + player.toUpperCase();
     updateScale();
     render();
   }
@@ -2222,12 +2234,58 @@
     }
   }
 
+  let activeKickRequest = null;
+  let kickRequestTimerId = null;
+
+  function hideKickRequestModal() {
+    if (kickRequestTimerId) clearInterval(kickRequestTimerId);
+    kickRequestTimerId = null;
+    activeKickRequest = null;
+    els.kickRequestModal?.classList.add("hidden");
+  }
+
+  function onKickRequest(req) {
+    if (!req || !req.id) return;
+    if (activeKickRequest && activeKickRequest.id === req.id) return;
+    activeKickRequest = req;
+
+    const modal = els.kickRequestModal;
+    if (!modal) return;
+
+    modal.classList.remove("hidden");
+    const updateTimer = () => {
+      const left = Math.max(0, Math.ceil(((Number(req.expires) || (Date.now() + 20000)) - Date.now()) / 1000));
+      if (els.kickRequestTimer) els.kickRequestTimer.textContent = String(left);
+      if (left <= 0) {
+        hideKickRequestModal();
+        window.FirebaseCleanSync?.answerKickRequest?.(true, req.id);
+      }
+    };
+
+    updateTimer();
+    if (kickRequestTimerId) clearInterval(kickRequestTimerId);
+    kickRequestTimerId = setInterval(updateTimer, 250);
+
+    if (els.kickRequestYes) els.kickRequestYes.onclick = () => {
+      const id = activeKickRequest?.id;
+      hideKickRequestModal();
+      window.FirebaseCleanSync?.answerKickRequest?.(true, id);
+    };
+
+    if (els.kickRequestNo) els.kickRequestNo.onclick = () => {
+      const id = activeKickRequest?.id;
+      hideKickRequestModal();
+      window.FirebaseCleanSync?.answerKickRequest?.(false, id);
+    };
+  }
+
   function installEmergencyOfflineSync() {
     if (window.FirebaseCleanSync) return;
     window.FirebaseCleanSync = {
       offline: true,
-      joinRoom: async (r, p) => {
-        setLocalSeat((r || "room1") + " / OFFLINE", p || "p1");
+      joinRoom: async (r, p, nickname) => {
+        if (nickname) localNickname = String(nickname).trim().slice(0, 24);
+        setLocalSeat((r || "room1") + " / OFFLINE", p || "p1", localNickname);
         applyRemoteState(initialState());
       },
       pushState: async () => {},
@@ -2259,22 +2317,95 @@
   }
 
 
+  function getTypedNickname() {
+    return String(els.nicknameInput?.value || "").trim().slice(0, 24);
+  }
+
+  function isLobbySeatActive(room, player) {
+    const seat = lobbySeats?.[room]?.[player];
+    return !!(seat && Date.now() - (Number(seat.updated) || 0) < 30000);
+  }
+
+  function syncSelectedLobbyVisuals() {
+    const map = [
+      ["room1", "p1", els.selectR1P1],
+      ["room1", "p2", els.selectR1P2],
+      ["room2", "p1", els.selectR2P1],
+      ["room2", "p2", els.selectR2P2]
+    ];
+
+    let validSelection = false;
+    for (const [room, player, btn] of map) {
+      if (!btn) continue;
+      const slot = btn.closest(".lobby-slot");
+      const selected = !!selectedLobbySeat && selectedLobbySeat.room === room && selectedLobbySeat.player === player;
+      const occupied = isLobbySeatActive(room, player);
+      slot?.classList.toggle("selected", selected);
+      btn.textContent = selected ? "SELECTED" : "SELECT";
+      btn.classList.toggle("occupied", occupied);
+      btn.disabled = occupied;
+      if (selected && !occupied) validSelection = true;
+      if (selected && occupied) selectedLobbySeat = null;
+    }
+
+    if (els.lobbyJoinBtn) {
+      els.lobbyJoinBtn.disabled = !validSelection;
+      els.lobbyJoinBtn.textContent = validSelection
+        ? `JOIN ${selectedLobbySeat.room.toUpperCase().replace("ROOM", "TABLE")} ${selectedLobbySeat.player.toUpperCase()}`
+        : "JOIN";
+    }
+  }
+
+  function selectLobbySeat(room, player) {
+    const nickname = getTypedNickname();
+    if (!nickname) {
+      els.seatStatus.textContent = "Write your nickname first.";
+      els.nicknameInput?.focus();
+      els.nicknameInput?.classList.add("nickname-required");
+      setTimeout(() => els.nicknameInput?.classList.remove("nickname-required"), 900);
+      return;
+    }
+
+    if (isLobbySeatActive(room, player)) {
+      els.seatStatus.textContent = "That seat is occupied. Use KICK if needed.";
+      return;
+    }
+
+    localNickname = nickname;
+    localStorage.setItem("oldschoolNicknameV1", localNickname);
+    selectedLobbySeat = { room, player };
+    els.seatStatus.textContent = `Selected ${room.toUpperCase().replace("ROOM", "TABLE")} ${player.toUpperCase()} as ${localNickname}.`;
+    syncSelectedLobbyVisuals();
+  }
+
   function updateLobbySeats(seats = {}) {
     lobbySeats = seats || {};
     const map = {
-      room1: { p1: els.seatR1P1Name, p2: els.seatR1P2Name },
-      room2: { p1: els.seatR2P1Name, p2: els.seatR2P2Name }
+      room1: {
+        p1: { name: els.seatR1P1Name, kick: els.kickR1P1, select: els.selectR1P1 },
+        p2: { name: els.seatR1P2Name, kick: els.kickR1P2, select: els.selectR1P2 }
+      },
+      room2: {
+        p1: { name: els.seatR2P1Name, kick: els.kickR2P1, select: els.selectR2P1 },
+        p2: { name: els.seatR2P2Name, kick: els.kickR2P2, select: els.selectR2P2 }
+      }
     };
     for (const room of ["room1", "room2"]) {
       for (const player of ["p1", "p2"]) {
-        const el = map[room]?.[player];
-        if (!el) continue;
+        const slot = map[room]?.[player];
+        if (!slot?.name) continue;
         const seat = lobbySeats?.[room]?.[player];
         const active = seat && Date.now() - (Number(seat.updated) || 0) < 30000;
-        el.textContent = active ? (seat.nickname || player.toUpperCase()) : "EMPTY";
-        el.classList.toggle("occupied", !!active);
+        slot.name.textContent = active ? (seat.nickname || player.toUpperCase()) : "EMPTY";
+        slot.name.classList.toggle("occupied", !!active);
+        if (slot.kick) slot.kick.classList.toggle("hidden", !active);
+        if (slot.select) {
+          slot.select.classList.toggle("occupied", !!active);
+          slot.select.disabled = !!active;
+        }
       }
     }
+    syncSelectedLobbyVisuals();
   }
 
   function startLobbySeatWatch() {
@@ -2286,13 +2417,34 @@
   }
 
   async function join(room, player) {
-    localNickname = (els.nicknameInput?.value || "").trim().slice(0, 24) || player.toUpperCase();
+    const target = room && player ? { room, player } : selectedLobbySeat;
+    if (!target) {
+      els.seatStatus.textContent = "Select a free seat first.";
+      return;
+    }
+
+    localNickname = getTypedNickname();
+    if (!localNickname) {
+      els.seatStatus.textContent = "Write your nickname first.";
+      els.nicknameInput?.focus();
+      els.nicknameInput?.classList.add("nickname-required");
+      setTimeout(() => els.nicknameInput?.classList.remove("nickname-required"), 900);
+      return;
+    }
+
+    if (isLobbySeatActive(target.room, target.player)) {
+      els.seatStatus.textContent = "That seat is occupied. Use KICK if needed.";
+      selectedLobbySeat = null;
+      syncSelectedLobbyVisuals();
+      return;
+    }
+
     localStorage.setItem("oldschoolNicknameV1", localNickname);
     els.seatStatus.textContent = "Joining...";
     try {
       const sync = await waitForSyncModule();
       if (!sync) throw new Error("Firebase sync module not loaded. Refresh once or check that js/services/firebase-sync.js is uploaded.");
-      await sync.joinRoom(room, player);
+      await sync.joinRoom(target.room, target.player, localNickname);
     } catch (err) {
       els.seatStatus.textContent = err?.message || String(err);
       console.error(err);
@@ -2982,10 +3134,11 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
   }, true);
 
 
-  els.joinR1P1.onclick = () => join("room1", "p1");
-  els.joinR1P2.onclick = () => join("room1", "p2");
-  els.joinR2P1.onclick = () => join("room2", "p1");
-  els.joinR2P2.onclick = () => join("room2", "p2");
+  if (els.selectR1P1) els.selectR1P1.onclick = () => selectLobbySeat("room1", "p1");
+  if (els.selectR1P2) els.selectR1P2.onclick = () => selectLobbySeat("room1", "p2");
+  if (els.selectR2P1) els.selectR2P1.onclick = () => selectLobbySeat("room2", "p1");
+  if (els.selectR2P2) els.selectR2P2.onclick = () => selectLobbySeat("room2", "p2");
+  if (els.lobbyJoinBtn) els.lobbyJoinBtn.onclick = () => join();
   if (els.kickR1P1) els.kickR1P1.onclick = async () => { const sync = await waitForSyncModule(2500); if (sync?.kickSeat) sync.kickSeat("room1", "p1"); };
   if (els.kickR1P2) els.kickR1P2.onclick = async () => { const sync = await waitForSyncModule(2500); if (sync?.kickSeat) sync.kickSeat("room1", "p2"); };
   if (els.kickR2P1) els.kickR2P1.onclick = async () => { const sync = await waitForSyncModule(2500); if (sync?.kickSeat) sync.kickSeat("room2", "p1"); };
@@ -3410,184 +3563,340 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
 
 
 
-  function makeThrowDieFace(value, sides = 6) {
-    const el = document.createElement("div");
-    el.className = "throw-die-visual " + (sides === 20 ? "throw-die-d20" : "throw-die-cube");
 
-    if (sides === 20) {
-      el.innerHTML = `
-        <div class="throw-d20-outline">
-          <span>${value}</span>
-        </div>
-      `;
-      return el;
-    }
+  // Shared CSS-3D D6 throw animation.
+  // Rebuilt from scratch: one shared event is written to state.diceRollEvents,
+  // every client renders the same lightweight DOM/CSS 3D die, and only the
+  // throwing client commits the final tabletop die after the animation.
+  const throwDice3D = (() => {
+    const playedEvents = new Set();
+    const activeRolls = new Map();
+    let stage = null;
 
-    const faces = ["front","right","top"];
-    faces.forEach((faceName, idx) => {
-      const face = document.createElement("div");
-      face.className = "throw-die-face throw-die-" + faceName;
-      const faceValue = idx === 0 ? value : (1 + Math.floor(Math.random() * 6));
-      for (const p of PIPS[Math.max(1, Math.min(6, Number(faceValue) || 1))]) {
-        const pip = document.createElement("div");
-        pip.className = "throw-pip p" + p;
-        face.appendChild(pip);
+    const settings = {
+      duration: 1245,
+      arc: 158,
+      startOutside: 42,
+      spinX: 823,
+      spinY: 172,
+      spinZ: 297,
+      randomSpin: 249,
+      sideDrift: 66,
+      squashAmount: 3,
+      squashBounces: 11
+    };
+
+    const pipLayouts = {
+      1: [4],
+      2: [0, 8],
+      3: [0, 4, 8],
+      4: [0, 2, 6, 8],
+      5: [0, 2, 4, 6, 8],
+      6: [0, 2, 3, 5, 6, 8]
+    };
+
+    const faceMap = [
+      ["front", 1],
+      ["back", 6],
+      ["right", 3],
+      ["left", 4],
+      ["top", 2],
+      ["bottom", 5]
+    ];
+
+    const finalRotations = {
+      1: [0, 0, 0],
+      2: [-90, 0, 0],
+      3: [0, -90, 0],
+      4: [0, 90, 0],
+      5: [90, 0, 0],
+      6: [0, 180, 0]
+    };
+
+    function hashString(str) {
+      let h = 2166136261;
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
       }
-      el.appendChild(face);
-    });
-    return el;
-  }
-
-  function updateThrowDieFace(el, value, sides = 6) {
-    if (sides === 20) {
-      const span = el.querySelector(".throw-d20-outline span");
-      if (span) span.textContent = String(value);
-      else el.textContent = String(value);
-      return;
+      return h >>> 0;
     }
 
-    const front = el.querySelector(".throw-die-front") || el;
-    front.innerHTML = "";
-    for (const p of PIPS[Math.max(1, Math.min(6, Number(value) || 1))]) {
-      const pip = document.createElement("div");
-      pip.className = "throw-pip p" + p;
-      front.appendChild(pip);
+    function makeRng(seed) {
+      let s = (Number(seed) || hashString(String(seed || Date.now()))) >>> 0;
+      return function rng() {
+        s += 0x6D2B79F5;
+        let t = s;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
     }
-  }
 
-  function throwDiceAnimated(count = 1, sides = 6) {
-    if (!localPlayer || !els.world) return;
-    count = Math.max(1, Math.min(2, Number(count) || 1));
-    sides = sides === 20 ? 20 : 6;
+    function hslToHex(h, s, l) {
+      s /= 100; l /= 100;
+      const k = n => (n + h / 30) % 12;
+      const a = s * Math.min(l, 1 - l);
+      const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+      return "#" + [f(0), f(8), f(4)].map(v => Math.round(255 * v).toString(16).padStart(2, "0")).join("");
+    }
 
-    const root = document.createElement("div");
-    root.className = "throw-dice-overlay";
-    document.body.appendChild(root);
+    function randomDieColor(rng) {
+      return hslToHex(Math.floor(rng() * 360), 68 + rng() * 20, 44 + rng() * 12);
+    }
 
-    const worldRect = els.world.getBoundingClientRect();
-    const tableCenterX = worldRect.left + worldRect.width * (localPlayer === "p2" ? 0.56 : 0.50);
-    const tableCenterY = worldRect.top + worldRect.height * (localPlayer === "p2" ? 0.42 : 0.58);
-    const side = Math.floor(Math.random() * 4);
+    function getDieStyleMetrics() {
+      const rootStyle = getComputedStyle(document.documentElement);
+      const size = Math.max(22, Number(rootStyle.getPropertyValue("--die-size").replace("px", "")) || Number(dev.dieSize) || 30);
+      const radiusRaw = rootStyle.getPropertyValue("--die-radius").trim() || (Number(dev.dieRadius) || 4) + "px";
+      const border = "1px solid rgba(0,0,0,.5)";
+      return { size, radiusRaw, border };
+    }
 
-    const dice = Array.from({ length: count }, (_, i) => {
-      const value = 1 + Math.floor(Math.random() * sides);
-      const el = makeThrowDieFace(value, sides);
-      root.appendChild(el);
+    function ensureStage() {
+      stage = document.getElementById("sharedVectorDiceStage");
+      if (!stage) {
+        stage = document.createElement("div");
+        stage.id = "sharedVectorDiceStage";
+        stage.className = "shared-vector-dice-stage";
+        document.body.appendChild(stage);
+      }
+      return stage;
+    }
 
-      let startX, startY;
-      if (side === 0) { startX = -80 - i * 40; startY = Math.random() * innerHeight; }
-      else if (side === 1) { startX = innerWidth + 80 + i * 40; startY = Math.random() * innerHeight; }
-      else if (side === 2) { startX = Math.random() * innerWidth; startY = -80 - i * 40; }
-      else { startX = Math.random() * innerWidth; startY = innerHeight + 80 + i * 40; }
+    function buildDie(ev) {
+      const metrics = getDieStyleMetrics();
+      const die = document.createElement("div");
+      die.className = "shared-vector-die";
+      die.dataset.rollId = ev.id;
+      die.style.setProperty("--throw-die-size", metrics.size + "px");
+      die.style.setProperty("--throw-die-half", (metrics.size / 2) + "px");
+      die.style.setProperty("--throw-die-radius", metrics.radiusRaw);
+      die.style.setProperty("--throw-die-color", ev.color || "#eeeeee");
+      die.style.setProperty("--throw-pip-color", ev.pipColor || "#111111");
+      die.style.setProperty("--throw-die-border", metrics.border);
 
-      const targetX = tableCenterX + (Math.random() - 0.5) * Math.min(360, worldRect.width * 0.35) + i * 48;
-      const targetY = tableCenterY + (Math.random() - 0.5) * Math.min(220, worldRect.height * 0.25) + i * 30;
+      for (const [name, value] of faceMap) {
+        const face = document.createElement("div");
+        face.className = "shared-vector-die-face " + name;
+        face.dataset.n = String(value);
+        for (let i = 0; i < 9; i++) {
+          const cell = document.createElement("div");
+          if ((pipLayouts[value] || []).includes(i)) cell.className = "shared-vector-pip";
+          face.appendChild(cell);
+        }
+        die.appendChild(face);
+      }
+      return die;
+    }
+
+    function tableCenter() {
+      return { x: 960, y: 540 };
+    }
+
+    function pickFinalTableSpot(rng) {
+      const center = tableCenter();
+      const existing = Array.isArray(state.dice)
+        ? state.dice.filter(d =>
+            d &&
+            d.kind === "counter" &&
+            Math.abs(Number(d.x || 0) - center.x) < 260 &&
+            Math.abs(Number(d.y || 0) - center.y) < 220
+          )
+        : [];
+
+      const ring = Math.min(5, Math.floor(existing.length / 6));
+      const angle = rng() * Math.PI * 2 + existing.length * 0.82;
+      const radius = 34 + (existing.length % 6) * 17 + ring * 26 + rng() * 10;
 
       return {
-        el,
-        value,
-        sides,
-        x: startX,
-        y: startY,
-        tx: targetX,
-        ty: targetY,
-        rotX: Math.random() * 360,
-        rotY: Math.random() * 360,
-        rotZ: Math.random() * 360,
-        spinX: 18 + Math.random() * 20,
-        spinY: 18 + Math.random() * 20,
-        spinZ: 12 + Math.random() * 22
+        x: Math.round(center.x + Math.cos(angle) * radius + (rng() - 0.5) * 18),
+        y: Math.round(center.y + Math.sin(angle) * radius * 0.72 + (rng() - 0.5) * 18)
       };
-    });
+    }
 
-    const frames = 76;
-    let frame = 0;
+    function tableSpotToScreen(spot) {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const scale = Math.min(w / TABLE_W, h / TABLE_H);
+      return {
+        x: w / 2 + (Number(spot.x || 960) - 960) * scale,
+        y: h / 2 + (Number(spot.y || 540) - 540) * scale
+      };
+    }
 
-    function step() {
-      frame++;
-      const t = Math.min(1, frame / frames);
-      const ease = 1 - Math.pow(1 - t, 3);
-      const bounce = Math.sin(t * Math.PI) * 90;
+    function createEvent() {
+      ensureState();
+      const seed = hashString([Date.now(), localPlayer || "p", Math.random()].join(":"));
+      const rng = makeRng(seed);
+      const value = 1 + Math.floor(rng() * 6);
+      const color = randomDieColor(rng);
+      const finalSpot = pickFinalTableSpot(rng);
+      const id = "roll-" + Date.now().toString(36) + "-" + Math.floor(rng() * 1e9).toString(36);
 
-      if (dice.length === 2) {
-        const a = dice[0], b = dice[1];
-        const dx = a.x - b.x, dy = a.y - b.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist > 0 && dist < 58 && frame < 58) {
-          const nx = dx / dist, ny = dy / dist;
-          a.tx += nx * 24; a.ty += ny * 24;
-          b.tx -= nx * 24; b.ty -= ny * 24;
-          a.spinZ *= -0.92; b.spinZ *= -0.92;
+      return {
+        id,
+        kind: "d6ThrowVectorV1",
+        owner: localPlayer,
+        value,
+        seed,
+        color,
+        pipColor: "#111111",
+        createdAt: Date.now(),
+        finalDie: {
+          id: "die-" + id,
+          kind: "counter",
+          owner: localPlayer,
+          value,
+          color,
+          pipColor: "#111111",
+          x: finalSpot.x,
+          y: finalSpot.y,
+          z: 9000 + Math.floor(rng() * 1000)
         }
-      }
+      };
+    }
 
-      dice.forEach(d => {
-        d.x += (d.tx - d.x) * (0.055 + t * 0.035);
-        d.y += (d.ty - d.y) * (0.055 + t * 0.035);
-        d.rotX += d.spinX * (1 - t * 0.72);
-        d.rotY += d.spinY * (1 - t * 0.72);
-        d.rotZ += d.spinZ * (1 - t * 0.72);
+    function easeOutCubic(t) {
+      return 1 - Math.pow(1 - t, 3);
+    }
 
-        if (frame % 6 === 0 && t < 0.82) updateThrowDieFace(d.el, 1 + Math.floor(Math.random() * d.sides), d.sides);
+    function enqueueEvent(ev) {
+      if (!ev || ev.kind !== "d6ThrowVectorV1" || playedEvents.has(ev.id)) return;
+      playedEvents.add(ev.id);
 
-        const scale = 1.9 - ease * 0.9;
-        const lift = -bounce;
-        d.el.style.left = d.x + "px";
-        d.el.style.top = (d.y + lift) + "px";
-        d.el.style.transform =
-          `translate(-50%, -50%) perspective(720px) rotateX(${d.rotX}deg) rotateY(${d.rotY}deg) rotateZ(${d.rotZ}deg) scale(${scale})`;
-      });
+      const rng = makeRng(ev.seed || ev.id);
+      const root = ensureStage();
+      const die = buildDie(ev);
+      root.appendChild(die);
 
-      if (frame < frames) {
-        requestAnimationFrame(step);
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const fromLeft = rng() < 0.5;
+      const startX = fromLeft ? -settings.startOutside : w + settings.startOutside;
+      const startY = h * (0.35 + rng() * 0.3);
+      const finalScreen = tableSpotToScreen(ev.finalDie || { x: 960, y: 540 });
+      const endX = finalScreen.x;
+      const endY = finalScreen.y;
+
+      const spinX = settings.spinX + rng() * settings.randomSpin;
+      const spinY = settings.spinY + rng() * settings.randomSpin;
+      const spinZ = settings.spinZ + rng() * settings.randomSpin;
+      const [finalX, finalY, finalZ] = finalRotations[Math.max(1, Math.min(6, Number(ev.value) || 1))];
+
+      const roll = {
+        ev, die, start: performance.now(),
+        startX, startY, endX, endY,
+        spinX, spinY, spinZ, finalX, finalY, finalZ,
+        done: false
+      };
+      activeRolls.set(ev.id, roll);
+      requestAnimationFrame(now => animateRoll(roll, now));
+    }
+
+    function animateRoll(roll, now) {
+      if (!roll || roll.done) return;
+
+      const raw = Math.min((now - roll.start) / settings.duration, 1);
+      const t = easeOutCubic(raw);
+
+      const x = roll.startX + (roll.endX - roll.startX) * t;
+      const y = roll.startY + (roll.endY - roll.startY) * t - Math.sin(raw * Math.PI) * settings.arc;
+
+      const squash = raw > 0.78
+        ? 1 + Math.sin((raw - 0.78) * Math.PI * settings.squashBounces) * (1 - raw) * (settings.squashAmount / 100)
+        : 1;
+
+      const rx = roll.spinX * (1 - t) + roll.finalX;
+      const ry = roll.spinY * (1 - t) + roll.finalY;
+      const rz = roll.spinZ * (1 - t) + roll.finalZ;
+
+      roll.die.style.left = x + "px";
+      roll.die.style.top = y + "px";
+      roll.die.style.transform = `
+        translate(-50%, -50%)
+        scaleY(${squash})
+        rotateX(${rx}deg)
+        rotateY(${ry}deg)
+        rotateZ(${rz}deg)
+      `;
+
+      if (raw < 1) {
+        requestAnimationFrame(next => animateRoll(roll, next));
         return;
       }
 
-      dice.forEach(d => {
-        updateThrowDieFace(d.el, d.value, d.sides);
-        const p = tablePoint(d.tx, d.ty, true);
-        state.dice.push({
-          id: uid(),
-          kind: "counter",
-          owner: localPlayer,
-          value: d.value,
-          sides: d.sides,
-          color: "#eeeeee",
-          pipColor: "#111111",
-          x: p.x,
-          y: p.y,
-          z: 3000 + Math.floor(Math.random() * 1000)
-        });
-      });
+      roll.done = true;
+      roll.die.style.left = roll.endX + "px";
+      roll.die.style.top = roll.endY + "px";
+      roll.die.style.transform = `
+        translate(-50%, -50%)
+        rotateX(${roll.finalX}deg)
+        rotateY(${roll.finalY}deg)
+        rotateZ(${roll.finalZ}deg)
+      `;
 
-      root.remove();
+      setTimeout(() => {
+        finishRoll(roll);
+        roll.die.remove();
+        activeRolls.delete(roll.ev.id);
+      }, 140);
+    }
+
+    function finishRoll(roll) {
+      const ev = roll.ev;
+      if (ev.owner !== localPlayer) return;
+      ensureState();
+      if (!Array.isArray(state.dice)) state.dice = [];
+      if (!state.dice.some(d => d.id === ev.finalDie.id)) state.dice.push(clone(ev.finalDie));
+      const cutoff = Date.now() - 25000;
+      state.diceRollEvents = (state.diceRollEvents || []).filter(old => old.id !== ev.id && Number(old.createdAt || 0) > cutoff);
       push();
     }
 
-    requestAnimationFrame(step);
-  }
+    function throwD6() {
+      ensureState();
+      if (!Array.isArray(state.diceRollEvents)) state.diceRollEvents = [];
+      const ev = createEvent();
+      state.diceRollEvents = state.diceRollEvents
+        .filter(old => Date.now() - Number(old.createdAt || 0) < 25000)
+        .concat(ev)
+        .slice(-12);
+      enqueueEvent(ev);
+      push();
+    }
 
+    function playRemoteEvents() {
+      ensureState();
+      (state.diceRollEvents || [])
+        .filter(ev => ev && ev.kind === "d6ThrowVectorV1" && Date.now() - Number(ev.createdAt || 0) < 25000)
+        .forEach(enqueueEvent);
+    }
 
-
-  function bindThrowButtonsInternalV47() {
-    const map = { throwD6Btn: [1, 6] };
-    Object.entries(map).forEach(([id, args]) => {
-      const btn = document.getElementById(id);
-      if (!btn || btn.dataset.throwBoundInternal === "1") return;
-      btn.dataset.throwBoundInternal = "1";
+    function bindButton() {
+      const btn = document.getElementById("throwD6Btn");
+      if (!btn) return;
       btn.type = "button";
       btn.onclick = e => {
         e.preventDefault();
         e.stopPropagation();
-        throwDiceAnimated(args[0], args[1]);
+        throwD6();
       };
-    });
+    }
+
+    return { throwD6, bindButton, playRemoteEvents };
+  })();
+
+  window.throwDice3D = throwDice3D;
+
+  function throwDiceAnimated() {
+    throwDice3D.throwD6();
   }
-  bindThrowButtonsInternalV47();
-  setTimeout(bindThrowButtonsInternalV47, 250);
-  setTimeout(bindThrowButtonsInternalV47, 1200);
 
   window.throwDiceAnimated = throwDiceAnimated;
+  throwDice3D.bindButton();
+  setTimeout(() => throwDice3D.bindButton(), 250);
+  setTimeout(() => throwDice3D.bindButton(), 1200);
 
   function bindChatPanel() {
     if (!els.chatBtn || !els.chatPanel || !els.chatHeader) return;
@@ -3982,250 +4291,16 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
 
   startLobbySeatWatch();
   window.CleanTablePublishOrbPhysics = publishOrbPhysics;
-  window.CleanTableNickname = () => localNickname || "";
+  window.CleanTableNickname = () => {
+    const typed = (els.nicknameInput?.value || "").trim().slice(0, 24);
+    return typed || localNickname || "";
+  };
 
   window.CleanTable = {
     initialState,
     applyRemoteState,
     setLocalSeat,
-    onResetVoteChanged
+    onResetVoteChanged,
+    onKickRequest
   };
-})();
-
-
-
-
-
-
-
-
-
-// v047: throw buttons call exposed in-game dice engine.
-(function(){
-  function bindThrowButtonsV47() {
-    const binds = [["throwD6Btn", 1, 6]];
-
-    binds.forEach(([id, count, sides]) => {
-      const btn = document.getElementById(id);
-      if (!btn || btn.dataset.v47Bound === "1") return;
-      btn.dataset.v47Bound = "1";
-      btn.type = "button";
-      btn.style.pointerEvents = "auto";
-
-      btn.addEventListener("click", e => {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        if (typeof window.throwDiceAnimated === "function") {
-          window.throwDiceAnimated(count, sides);
-        } else {
-          console.error("throwDiceAnimated not available");
-        }
-      }, true);
-    });
-  }
-
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindThrowButtonsV47);
-  else bindThrowButtonsV47();
-  setTimeout(bindThrowButtonsV47, 100);
-})();
-
-
-
-// v054 fake-3D dice canvas: force 3 visible sides instead of paper-flap cube.
-(function(){
-const canvas=document.getElementById("dice3dCanvas");
-if(!canvas)return;
-const ctx=canvas.getContext("2d");
-const dice=[];
-
-function resize(){
-canvas.width=innerWidth;
-canvas.height=innerHeight;
-}
-resize();
-addEventListener("resize",resize);
-
-function pipPositions(n){
-return {
-1:[[0,0]],
-2:[[-.45,-.45],[.45,.45]],
-3:[[-.45,-.45],[0,0],[.45,.45]],
-4:[[-.45,-.45],[.45,-.45],[-.45,.45],[.45,.45]],
-5:[[-.45,-.45],[.45,-.45],[0,0],[-.45,.45],[.45,.45]],
-6:[[-.45,-.55],[.45,-.55],[-.45,0],[.45,0],[-.45,.55],[.45,.55]]
-}[Math.max(1,Math.min(6,n))] || [[0,0]];
-}
-
-function drawPoly(points, fill, stroke="rgba(0,0,0,.55)"){
-ctx.beginPath();
-ctx.moveTo(points[0].x,points[0].y);
-for(let i=1;i<points.length;i++)ctx.lineTo(points[i].x,points[i].y);
-ctx.closePath();
-ctx.fillStyle=fill;
-ctx.fill();
-ctx.strokeStyle=stroke;
-ctx.lineWidth=2;
-ctx.stroke();
-}
-
-function drawPipsOnQuad(points,value,scale=1){
-const c={
-x:(points[0].x+points[1].x+points[2].x+points[3].x)/4,
-y:(points[0].y+points[1].y+points[2].y+points[3].y)/4
-};
-const ux={x:(points[1].x-points[0].x+points[2].x-points[3].x)/2,y:(points[1].y-points[0].y+points[2].y-points[3].y)/2};
-const vy={x:(points[3].x-points[0].x+points[2].x-points[1].x)/2,y:(points[3].y-points[0].y+points[2].y-points[1].y)/2};
-
-ctx.fillStyle="#111";
-pipPositions(value).forEach(p=>{
-const x=c.x+ux.x*p[0]*.62+vy.x*p[1]*.62;
-const y=c.y+ux.y*p[0]*.62+vy.y*p[1]*.62;
-ctx.beginPath();
-ctx.arc(x,y,4.4*scale,0,Math.PI*2);
-ctx.fill();
-});
-}
-
-function shade(base, k){
-const v=Math.max(0,Math.min(255,Math.round(base*k)));
-return `rgb(${v},${v},${v})`;
-}
-
-function drawDie(d){
-const x=innerWidth/2+d.x;
-const y=innerHeight/2+d.y;
-const s=d.size*(1+d.z/900);
-
-// fake camera vectors. Always keep 3 faces visible.
-const t=d.spinPhase;
-const yaw=Math.sin(t)*0.55;
-const pitch=0.55+Math.sin(t*0.73)*0.18;
-const roll=d.rz;
-
-const depth=s*(0.55+Math.abs(Math.sin(t*.9))*0.18);
-const right={x:Math.cos(yaw)*depth,y:Math.sin(yaw)*depth*.38};
-const up={x:-Math.sin(roll)*s*.22,y:-Math.cos(pitch)*depth};
-
-const frontW=s*2.0;
-const frontH=s*2.0;
-
-const p0={x:x-frontW/2,y:y-frontH/2};
-const p1={x:x+frontW/2,y:y-frontH/2};
-const p2={x:x+frontW/2,y:y+frontH/2};
-const p3={x:x-frontW/2,y:y+frontH/2};
-
-// top face and right face are always visible and trapezoid-like
-const top=[{x:p0.x+up.x,y:p0.y+up.y},{x:p1.x+up.x,y:p1.y+up.y},p1,p0];
-const rightFace=[p1,{x:p1.x+right.x,y:p1.y+right.y},{x:p2.x+right.x,y:p2.y+right.y},p2];
-const front=[p0,p1,p2,p3];
-
-// strong shadow
-ctx.save();
-ctx.globalAlpha=.34;
-ctx.filter="blur(14px)";
-ctx.fillStyle="#000";
-ctx.beginPath();
-ctx.ellipse(x+s*.25,y+s*1.15,s*1.25,s*.42,0,0,Math.PI*2);
-ctx.fill();
-ctx.restore();
-
-// draw back-to-front
-drawPoly(top,shade(245,.78));
-drawPoly(rightFace,shade(245,.55));
-drawPoly(front,shade(245,.96));
-
-// bevel-ish highlights
-ctx.strokeStyle="rgba(255,255,255,.35)";
-ctx.lineWidth=1.2;
-ctx.beginPath();
-ctx.moveTo(p0.x+3,p0.y+3);
-ctx.lineTo(p1.x-3,p1.y+3);
-ctx.stroke();
-
-drawPipsOnQuad(front,d.value,1.0);
-drawPipsOnQuad(top,d.topValue,.72);
-drawPipsOnQuad(rightFace,d.sideValue,.72);
-}
-
-function anim(){
-ctx.clearRect(0,0,canvas.width,canvas.height);
-
-dice.forEach(d=>{
-d.vy+=0.25;
-d.x+=d.vx;
-d.y+=d.vy;
-d.spinPhase+=d.spinSpeed;
-d.rz+=d.rotSpeed;
-
-if(d.y>d.floor){
-d.y=d.floor;
-d.vy*=-0.42;
-d.vx*=0.95;
-d.spinSpeed*=0.90;
-d.rotSpeed*=0.90;
-if(Math.abs(d.vy)<1.1)d.rest++;
-}
-
-drawDie(d);
-});
-
-for(let i=dice.length-1;i>=0;i--){
-const d=dice[i];
-if(d.rest>22){
-dice.splice(i,1);
-const p=tablePoint(innerWidth/2+d.x,innerHeight/2+d.y,true);
-state.dice.push({
-id:uid(),
-kind:"counter",
-owner:localPlayer,
-value:d.value,
-color:"#eeeeee",
-pipColor:"#111111",
-x:p.x,
-y:p.y,
-z:3000+Math.floor(Math.random()*1000)
-});
-push();
-}
-}
-
-requestAnimationFrame(anim);
-}
-
-requestAnimationFrame(anim);
-
-window.throwDiceAnimated=function(){
-const val=1+Math.floor(Math.random()*6);
-dice.push({
-value:val,
-topValue:1+Math.floor(Math.random()*6),
-sideValue:1+Math.floor(Math.random()*6),
-size:34,
-x:(Math.random()-.5)*760,
-y:-innerHeight/2-120,
-z:80+Math.random()*120,
-vx:(Math.random()-.5)*12,
-vy:4+Math.random()*2,
-rz:Math.random()*Math.PI,
-rotSpeed:(Math.random()-.5)*.32,
-spinPhase:Math.random()*Math.PI*2,
-spinSpeed:.22+Math.random()*.18,
-floor:innerHeight*.12+Math.random()*95,
-rest:0
-});
-};
-
-function bindBtn(){
-const btn=document.getElementById("throwD6Btn");
-if(!btn||btn.dataset.v54)return;
-btn.dataset.v54="1";
-btn.onclick=e=>{
-e.preventDefault();
-e.stopPropagation();
-window.throwDiceAnimated();
-};
-}
-bindBtn();
-setTimeout(bindBtn,500);
 })();

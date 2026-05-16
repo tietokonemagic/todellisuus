@@ -21,6 +21,7 @@ let clientId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Ma
 let suppress = false;
 let unsubState = null;
 let unsubReset = null;
+let unsubKickRequest = null;
 
 function path(p = "") {
   return "cleanRoomsV13/" + roomId + (p ? "/" + p : "");
@@ -45,9 +46,17 @@ async function clearChatIfRoomEmpty(targetRoom = roomId) {
   }
 }
 
-async function joinRoom(nextRoom, nextPlayer) {
+async function joinRoom(nextRoom, nextPlayer, nicknameOverride = "") {
   roomId = nextRoom;
   playerId = nextPlayer;
+
+  const lockedNickname = String(
+    nicknameOverride || (window.CleanTableNickname ? window.CleanTableNickname() : "")
+  ).trim().slice(0, 24);
+
+  if (!lockedNickname) {
+    throw new Error("Write your nickname first.");
+  }
 
   await clearChatIfRoomEmpty(roomId);
 
@@ -58,17 +67,32 @@ async function joinRoom(nextRoom, nextPlayer) {
     throw new Error(playerId.toUpperCase() + " is occupied.");
   }
 
-  await set(seatRef, { clientId, updated: Date.now(), nickname: (window.CleanTableNickname ? window.CleanTableNickname() : "") });
+  // Write the visible lobby seat with the exact typed nickname before opening the table.
+  // This prevents the old bug where the seat name appeared only after refresh/rejoin.
+  await set(seatRef, { clientId, updated: Date.now(), nickname: lockedNickname });
   onDisconnect(seatRef).remove();
 
   const stateRef = ref(db, path("state"));
   const stateSnap = await get(stateRef);
   if (!stateSnap.exists() && window.CleanTable) {
-    await set(stateRef, window.CleanTable.initialState());
+    const initial = window.CleanTable.initialState();
+    initial.playerNames = initial.playerNames || {};
+    initial.playerNames[playerId] = lockedNickname;
+    await set(stateRef, initial);
+  } else {
+    // Store the joining player's visible in-game name before the state listener opens.
+    // Otherwise the first remote snapshot can overwrite the freshly typed name and it
+    // appears only after leaving/refreshing/rejoining.
+    await update(stateRef, { ["playerNames/" + playerId]: lockedNickname, updated: Date.now() });
   }
 
   if (unsubState) unsubState();
   if (unsubReset) unsubReset();
+
+  // Enter the table immediately with the nickname that was just selected.
+  // The state listener starts after this, so the first screen/chat render cannot
+  // briefly use an old nickname from localStorage or from the previous table.
+  if (window.CleanTable) window.CleanTable.setLocalSeat(roomId, playerId, lockedNickname);
 
   unsubState = onValue(stateRef, snap => {
     const data = snap.val();
@@ -82,13 +106,81 @@ async function joinRoom(nextRoom, nextPlayer) {
     if (window.CleanTable) window.CleanTable.onResetVoteChanged(snap.val() || {});
   });
 
-  window.CleanTable.setLocalSeat(roomId, playerId);
+  if (unsubKickRequest) unsubKickRequest();
+  unsubKickRequest = onValue(ref(db, path("kickRequests/" + playerId)), snap => {
+    const req = snap.val();
+    if (req && window.CleanTable && typeof window.CleanTable.onKickRequest === "function") {
+      window.CleanTable.onKickRequest(req);
+    }
+  });
+
+}
+
+// Bandwidth guard:
+/// The game can call pushState many times while dragging cards.
+/// Writing the entire room state on every mousemove makes Firebase re-send
+/// a large snapshot to both players. This queue keeps the local game instant
+/// but limits network writes to a smooth realtime cadence.
+let pendingState = null;
+let pendingJson = "";
+let flushTimer = null;
+let flushInFlight = false;
+let lastFlushAt = 0;
+let lastSeatHeartbeatAt = 0;
+
+const STATE_FLUSH_MS = 160; // about 6 updates/sec; smooth enough, far cheaper than 60/sec
+const SEAT_HEARTBEAT_MS = 5000;
+
+function scheduleStateFlush(delay = STATE_FLUSH_MS) {
+  if (flushTimer) return;
+  flushTimer = setTimeout(flushQueuedState, Math.max(0, delay));
+}
+
+async function flushQueuedState() {
+  flushTimer = null;
+  if (!roomId || !playerId || suppress || !pendingState || flushInFlight) return;
+
+  const now = Date.now();
+  const wait = STATE_FLUSH_MS - (now - lastFlushAt);
+  if (wait > 0) {
+    scheduleStateFlush(wait);
+    return;
+  }
+
+  const stateToWrite = pendingState;
+  pendingState = null;
+  flushInFlight = true;
+
+  try {
+    await set(ref(db, path("state")), stateToWrite);
+    lastFlushAt = Date.now();
+
+    if (Date.now() - lastSeatHeartbeatAt > SEAT_HEARTBEAT_MS) {
+      lastSeatHeartbeatAt = Date.now();
+      await update(ref(db, path("seats/" + playerId)), { updated: Date.now() });
+    }
+  } catch (err) {
+    console.warn("Firebase state flush failed; retrying", err);
+    pendingState = stateToWrite;
+    scheduleStateFlush(500);
+  } finally {
+    flushInFlight = false;
+    if (pendingState) scheduleStateFlush();
+  }
 }
 
 async function pushState(state) {
   if (!roomId || !playerId || suppress) return;
-  await set(ref(db, path("state")), state);
-  await update(ref(db, path("seats/" + playerId)), { updated: Date.now() });
+
+  let json = "";
+  try {
+    json = JSON.stringify(state);
+    if (json === pendingJson) return;
+    pendingJson = json;
+  } catch {}
+
+  pendingState = state;
+  scheduleStateFlush();
 }
 
 async function voteReset(yes) {
@@ -123,18 +215,62 @@ let unsubSeats = null;
 function watchSeats(cb) {
   if (typeof cb !== "function") return;
   if (unsubSeats) unsubSeats();
-  unsubSeats = onValue(ref(db, "cleanRoomsV13"), snap => {
-    const root = snap.val() || {};
-    const out = {};
-    for (const room of ["room1", "room2"]) {
-      out[room] = root[room]?.seats || {};
+
+  const rooms = ["room1", "room2"];
+  const latest = { room1: {}, room2: {} };
+  const unsubs = rooms.map(room =>
+    onValue(ref(db, "cleanRoomsV13/" + room + "/seats"), snap => {
+      latest[room] = snap.val() || {};
+      cb({ room1: latest.room1 || {}, room2: latest.room2 || {} });
+    })
+  );
+
+  unsubSeats = () => {
+    for (const unsub of unsubs) {
+      try { unsub(); } catch {}
     }
-    cb(out);
-  });
+  };
 }
 
 async function kickSeat(r, p) {
-  await remove(ref(db, "cleanRoomsV13/" + r + "/seats/" + p));
+  const requestId = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
+  const requestRef = ref(db, "cleanRoomsV13/" + r + "/kickRequests/" + p);
+  await set(requestRef, {
+    id: requestId,
+    fromClientId: clientId,
+    created: Date.now(),
+    expires: Date.now() + 20000
+  });
+
+  // If the player does not answer, the request owner enforces the 20s timeout.
+  setTimeout(async () => {
+    try {
+      const snap = await get(requestRef);
+      const current = snap.val();
+      if (current && current.id === requestId) {
+        await remove(ref(db, "cleanRoomsV13/" + r + "/seats/" + p));
+        await remove(requestRef);
+      }
+    } catch (err) {
+      console.warn("Kick timeout failed", err);
+    }
+  }, 20500);
+}
+
+async function answerKickRequest(agree, requestId) {
+  if (!roomId || !playerId) return;
+  const requestRef = ref(db, path("kickRequests/" + playerId));
+  const snap = await get(requestRef);
+  const current = snap.val();
+  if (requestId && current && current.id !== requestId) return;
+
+  await remove(requestRef);
+  if (agree) {
+    const leavingRoom = roomId;
+    await remove(ref(db, path("seats/" + playerId)));
+    await clearChatIfRoomEmpty(leavingRoom);
+    location.reload();
+  }
 }
 
 window.FirebaseCleanSync = {
@@ -145,6 +281,7 @@ window.FirebaseCleanSync = {
   leaveRoom,
   kickRoom,
   kickSeat,
+  answerKickRequest,
   watchSeats,
   get roomId() { return roomId; },
   get playerId() { return playerId; }

@@ -14,3 +14,10 @@ v2026.05.12-021
 - Korjattu maalausvalinta: selectBox luodaan varmasti DOMiin ja näkyy katkoviivana.
 - Maalausvalinta valitsee nyt myös pöytänopat.
 - Nopille lisätty ohut haalea valintakehys.
+
+
+v2026.05.15-clean-d6:
+- Siivottu päällekkäiset THROW D6 -sidonnat ja vanha DOM/CSS-noppa-animaattori app.js:stä.
+- THROW D6 käyttää nyt yhtä kevyttä canvas-pohjaista fake-3D-animaatiota.
+- Firebaseen/verkkotilaan tallennetaan vain lopullinen nopan tulos, ei animaatioframeja.
+- Säilytetty yhteensopivuus window.throwDiceAnimated()-kutsulle.
