@@ -11,7 +11,7 @@
 
   const els = {};
   [
-    "seatScreen","seatStatus","appVersionLabel","nicknameInput","selectR1P1","selectR1P2","selectR2P1","selectR2P2","lobbyJoinBtn","seatR1P1Name","seatR1P2Name","seatR2P1Name","seatR2P2Name","kickR1P1","kickR1P2","kickR2P1","kickR2P2","kickRoom1","kickRoom2","kickRequestModal","kickRequestTimer","kickRequestYes","kickRequestNo",
+    "seatScreen","seatStatus","appVersionLabel","nicknameInput","selectR1P1","selectR1P2","selectR2P1","selectR2P2","lobbyJoinBtn","seatR1P1Name","seatR1P2Name","seatR2P1Name","seatR2P2Name","kickR1P1","kickR1P2","kickR2P1","kickR2P2","kickRoom1","kickRoom2","kickRequestModal","kickRequestTimer","kickRequestYes","kickRequestNo","forceKickAllBtn",
     "game","viewport","world","pileLayer","cardLayer","dragLayer","diceLayer","myHand","opponentHand",
     "mainMenuBtn","mainMenu","playmatMenuBtn","playmatMenu","sleevesMenuBtn","sleevesMenu","ogBackSleeveBtn","colorSleeveBtn","sleeveColorInput","addTokenMenuBtn","tokenMenu","menuFlipOrbBtn","menuFlipStarBtn","throwD6Btn","sylvanPanel","sylvanMinus","sylvanPlus","sylvanCount","sylvanOk","dieMenu","dieColorInput","diePipColorInput","loadDeckBtn","sideboardBtn","sideboardModal","sideboardWindow","closeSideboardEditor","resetOriginalSideboard","mainboardScroll","mainboardBoard","sideboardScroll","sideboardBoard","mainboardCount","sideboardCount","chatBtn","chatPanel","chatHeader","chatMinus","chatPlus","chatMessages","chatText","chatSend","chatClear","helpBtn","helpPanel","helpHeader","helpMinus","helpPlus","helpBody","devTuningBtn","inspectorToggleBtn","resetVoteBtn","leaveBtn","roomInfo",
     "deckModal","deckText","coreSetSelect","doLoadDeck","closeDeckModal","deckStatus","deckLibraryName","deckLibrarySave","deckLibrarySearch","deckLibraryList",
@@ -4305,4 +4305,65 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
     onResetVoteChanged,
     onKickRequest
   };
+})();
+
+
+
+// draggable deckloader
+(function(){
+  const deck = els.deckModal;
+  const btn = els.loadDeckBtn;
+  if(btn) btn.textContent = "DECKLOADER";
+  if(deck){
+    deck.style.position = "fixed";
+    deck.style.left = "40px";
+    deck.style.top = "120px";
+    deck.style.right = "auto";
+    deck.style.bottom = "auto";
+    deck.style.zIndex = "9999";
+    let dragging = false;
+    let ox = 0;
+    let oy = 0;
+
+    const handle = document.createElement("div");
+    handle.textContent = "DECKLOADER";
+    handle.style.cursor = "move";
+    handle.style.padding = "8px";
+    handle.style.background = "#2a2a2a";
+    handle.style.color = "#ddd";
+    handle.style.fontWeight = "bold";
+    handle.style.borderBottom = "1px solid #444";
+    deck.prepend(handle);
+
+    handle.addEventListener("mousedown", e=>{
+      dragging = true;
+      ox = e.clientX - deck.offsetLeft;
+      oy = e.clientY - deck.offsetTop;
+    });
+
+    window.addEventListener("mousemove", e=>{
+      if(!dragging) return;
+      deck.style.left = (e.clientX - ox) + "px";
+      deck.style.top = (e.clientY - oy) + "px";
+    });
+
+    window.addEventListener("mouseup", ()=>{
+      dragging = false;
+    });
+  }
+
+  if(els.forceKickAllBtn){
+    els.forceKickAllBtn.onclick = ()=>{
+      if(!confirm("Kick everyone out of all tables?")) return;
+      try{
+        if(window.firebaseSync && firebaseSync.updateLobbySeats){
+          firebaseSync.updateLobbySeats({
+            room1:{p1:null,p2:null},
+            room2:{p1:null,p2:null}
+          });
+        }
+      }catch(e){}
+      location.reload();
+    };
+  }
 })();
