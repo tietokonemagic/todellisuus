@@ -216,16 +216,46 @@ function watchSeats(cb) {
   if (typeof cb !== "function") return;
   if (unsubSeats) unsubSeats();
 
-  const rooms = ["room1", "room2"];
   const latest = { room1: {}, room2: {} };
-  const unsubs = rooms.map(room =>
-    onValue(ref(db, "cleanRoomsV13/" + room + "/seats"), snap => {
-      latest[room] = snap.val() || {};
-      cb({ room1: latest.room1 || {}, room2: latest.room2 || {} });
+  let stopped = false;
+
+  async function pollSeats() {
+    if (stopped) return;
+    try {
+      const [r1, r2] = await Promise.all([
+        get(ref(db, "cleanRoomsV13/room1/seats")),
+        get(ref(db, "cleanRoomsV13/room2/seats"))
+      ]);
+
+      latest.room1 = r1.val() || {};
+      latest.room2 = r2.val() || {};
+
+      cb({
+        room1: latest.room1,
+        room2: latest.room2
+      });
+    } catch (err) {
+      console.warn("Seat polling failed", err);
+    }
+
+    setTimeout(pollSeats, 1200);
+  }
+
+  const unsubs = [
+    onValue(ref(db, "cleanRoomsV13/room1/seats"), snap => {
+      latest.room1 = snap.val() || {};
+      cb({ room1: latest.room1, room2: latest.room2 || {} });
+    }),
+    onValue(ref(db, "cleanRoomsV13/room2/seats"), snap => {
+      latest.room2 = snap.val() || {};
+      cb({ room1: latest.room1 || {}, room2: latest.room2 });
     })
-  );
+  ];
+
+  pollSeats();
 
   unsubSeats = () => {
+    stopped = true;
     for (const unsub of unsubs) {
       try { unsub(); } catch {}
     }
