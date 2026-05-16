@@ -2408,11 +2408,13 @@
     syncSelectedLobbyVisuals();
   }
 
-  function startLobbySeatWatch() {
-    if (window.FirebaseCleanSync && typeof window.FirebaseCleanSync.watchSeats === "function") {
-      window.FirebaseCleanSync.watchSeats(updateLobbySeats);
+  async function startLobbySeatWatch() {
+    const sync = await waitForSyncModule(6000);
+    if (sync && typeof sync.watchSeats === "function") {
+      sync.watchSeats(updateLobbySeats);
     } else {
       updateLobbySeats({});
+      console.warn("Firebase seat watcher was not available; lobby seats will not live-update until refresh.");
     }
   }
 
