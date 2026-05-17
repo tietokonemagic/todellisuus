@@ -4309,18 +4309,36 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
 
 
 
-// draggable deckloader
+// draggable deckloader + reliable force kick all
 (function(){
-  const deck = els.deckModal;
-  const btn = els.loadDeckBtn;
+  function byId(id){ return document.getElementById(id); }
+
+  function waitForFirebaseSync(timeoutMs = 8000){
+    if(window.FirebaseCleanSync) return Promise.resolve(window.FirebaseCleanSync);
+    return new Promise(resolve=>{
+      const started = Date.now();
+      const tick = ()=>{
+        if(window.FirebaseCleanSync) return resolve(window.FirebaseCleanSync);
+        if(Date.now() - started >= timeoutMs) return resolve(null);
+        setTimeout(tick, 80);
+      };
+      tick();
+    });
+  }
+
+  const deck = byId("deckModal");
+  const btn = byId("loadDeckBtn");
   if(btn) btn.textContent = "DECKLOADER";
-  if(deck){
+
+  if(deck && !deck.dataset.draggableDeckloaderInstalled){
+    deck.dataset.draggableDeckloaderInstalled = "1";
     deck.style.position = "fixed";
     deck.style.left = "40px";
     deck.style.top = "120px";
     deck.style.right = "auto";
     deck.style.bottom = "auto";
     deck.style.zIndex = "9999";
+
     let dragging = false;
     let ox = 0;
     let oy = 0;
@@ -4333,18 +4351,23 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
     handle.style.color = "#ddd";
     handle.style.fontWeight = "bold";
     handle.style.borderBottom = "1px solid #444";
+    handle.style.userSelect = "none";
     deck.prepend(handle);
 
     handle.addEventListener("mousedown", e=>{
       dragging = true;
-      ox = e.clientX - deck.offsetLeft;
-      oy = e.clientY - deck.offsetTop;
+      const rect = deck.getBoundingClientRect();
+      ox = e.clientX - rect.left;
+      oy = e.clientY - rect.top;
+      e.preventDefault();
     });
 
     window.addEventListener("mousemove", e=>{
       if(!dragging) return;
-      deck.style.left = (e.clientX - ox) + "px";
-      deck.style.top = (e.clientY - oy) + "px";
+      deck.style.left = Math.max(0, e.clientX - ox) + "px";
+      deck.style.top = Math.max(0, e.clientY - oy) + "px";
+      deck.style.right = "auto";
+      deck.style.bottom = "auto";
     });
 
     window.addEventListener("mouseup", ()=>{
@@ -4352,28 +4375,56 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
     });
   }
 
-  if(els.forceKickAllBtn){
-    els.forceKickAllBtn.onclick = async ()=>{
+  const forceBtn = byId("forceKickAllBtn");
+  if(forceBtn && !forceBtn.dataset.forceKickInstalled){
+    forceBtn.dataset.forceKickInstalled = "1";
+    forceBtn.addEventListener("click", async ()=>{
       if(!confirm("Kick everyone out of all tables?")) return;
-      els.forceKickAllBtn.disabled = true;
-      const oldText = els.forceKickAllBtn.textContent;
-      els.forceKickAllBtn.textContent = "KICKING...";
+
+      const oldText = forceBtn.textContent;
+      forceBtn.disabled = true;
+      forceBtn.textContent = "KICKING...";
+
+      const status = byId("seatStatus");
       try{
-        const sync = await waitForSyncModule(6000);
+        const sync = await waitForFirebaseSync();
         if(!sync || typeof sync.forceKickAll !== "function"){
-          throw new Error("Firebase forceKickAll is not available.");
+          throw new Error("Firebase forceKickAll is not available yet. Refresh and try again.");
         }
+
         await sync.forceKickAll();
-        selectedLobbySeat = null;
-        updateLobbySeats({ room1:{}, room2:{} });
-        if(els.seatStatus) els.seatStatus.textContent = "All seats cleared.";
+
+        // Immediate local visual cleanup. The Firebase listener will confirm it shortly.
+        ["seatR1P1Name","seatR1P2Name","seatR2P1Name","seatR2P2Name"].forEach(id=>{
+          const el = byId(id);
+          if(el){
+            el.textContent = "EMPTY";
+            el.classList.remove("occupied");
+          }
+        });
+        ["kickR1P1","kickR1P2","kickR2P1","kickR2P2"].forEach(id=>byId(id)?.classList.add("hidden"));
+        ["selectR1P1","selectR1P2","selectR2P1","selectR2P2"].forEach(id=>{
+          const el = byId(id);
+          if(el){
+            el.disabled = false;
+            el.classList.remove("occupied");
+            el.textContent = "SELECT";
+          }
+        });
+        const joinBtn = byId("lobbyJoinBtn");
+        if(joinBtn){
+          joinBtn.disabled = true;
+          joinBtn.textContent = "JOIN";
+        }
+
+        if(status) status.textContent = "All seats cleared.";
       }catch(e){
         console.error(e);
-        if(els.seatStatus) els.seatStatus.textContent = e?.message || String(e);
+        if(status) status.textContent = e?.message || String(e);
       }finally{
-        els.forceKickAllBtn.disabled = false;
-        els.forceKickAllBtn.textContent = oldText || "FORCE KICK ALL";
+        forceBtn.disabled = false;
+        forceBtn.textContent = oldText || "FORCE KICK ALL";
       }
-    };
+    });
   }
 })();

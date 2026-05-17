@@ -68,14 +68,21 @@ async function joinRoom(nextRoom, nextPlayer, nicknameOverride = "") {
   // The old code used get() + set(), so two browsers could read EMPTY at the same time
   // and both overwrite the same seat. runTransaction() makes the seat claim atomic.
   const claim = await runTransaction(seatRef, current => {
-    if (current && current.clientId && current.clientId !== clientId) {
-      return; // abort: occupied by another client
+    const now = Date.now();
+    const updated = Number(current?.updated || 0);
+    const fresh = !!current && !!current.clientId && (now - updated) < 45000;
+
+    // Occupied only means an active, fresh seat owned by another browser.
+    // Old/half-written/ghost seats must not block joining forever.
+    if (fresh && current.clientId !== clientId) {
+      return; // abort: occupied by another active client
     }
+
     return {
       clientId,
       nickname: lockedNickname,
-      updated: Date.now(),
-      joinedAt: current?.joinedAt || Date.now()
+      updated: now,
+      joinedAt: current?.joinedAt || now
     };
   }, { applyLocally: false });
 
@@ -234,16 +241,18 @@ async function kickRoom(r) {
 
 
 async function forceKickAll() {
-  // One authoritative operation for the lobby seats. All browsers watching
-  // cleanRoomsV13/*/seats see this immediately, and in-game clients reload
-  // through the own-seat listener above.
+  // Hard authoritative reset for lobby occupancy.
+  // This removes every occupied seat immediately; clients inside tables are
+  // kicked by their own-seat onValue listener as soon as their seat disappears.
   await Promise.all([
     remove(ref(db, "cleanRoomsV13/room1/seats")),
     remove(ref(db, "cleanRoomsV13/room2/seats")),
     remove(ref(db, "cleanRoomsV13/room1/kickRequests")),
     remove(ref(db, "cleanRoomsV13/room2/kickRequests")),
     remove(ref(db, "cleanRoomsV13/room1/resetVote")),
-    remove(ref(db, "cleanRoomsV13/room2/resetVote"))
+    remove(ref(db, "cleanRoomsV13/room2/resetVote")),
+    update(ref(db, "cleanRoomsV13/room1/state"), { playerNames: null, updated: Date.now() }).catch(() => {}),
+    update(ref(db, "cleanRoomsV13/room2/state"), { playerNames: null, updated: Date.now() }).catch(() => {})
   ]);
 }
 
