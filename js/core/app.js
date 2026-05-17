@@ -29,7 +29,7 @@
     document.body.appendChild(els.selectBox);
   }
 
-  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.16-hard-seat-lock";
+  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.17-dice-final-spot";
   let localRoom = null;
   let localPlayer = null;
   let localNickname = localStorage.getItem("oldschoolNicknameV1") || "";
@@ -3727,6 +3727,16 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
       };
     }
 
+    function screenToTableSpot(screenX, screenY) {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const scale = Math.min(w / TABLE_W, h / TABLE_H) || 1;
+      return {
+        x: Math.round(960 + (Number(screenX || w / 2) - w / 2) / scale),
+        y: Math.round(540 + (Number(screenY || h / 2) - h / 2) / scale)
+      };
+    }
+
     function createEvent() {
       ensureState();
       const seed = hashString([Date.now(), localPlayer || "p", Math.random()].join(":"));
@@ -3850,7 +3860,18 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
       if (ev.owner !== localPlayer) return;
       ensureState();
       if (!Array.isArray(state.dice)) state.dice = [];
-      if (!state.dice.some(d => d.id === ev.finalDie.id)) state.dice.push(clone(ev.finalDie));
+
+      // Commit the tabletop die at the exact table coordinate that matches
+      // the animated CSS-3D die's final screen position. This prevents the
+      // visible "teleport" where the animation lands in one place but the
+      // persistent die appears somewhere else.
+      const landedSpot = screenToTableSpot(roll.endX, roll.endY);
+      const finalDie = Object.assign({}, ev.finalDie, {
+        x: landedSpot.x,
+        y: landedSpot.y
+      });
+
+      if (!state.dice.some(d => d.id === finalDie.id)) state.dice.push(clone(finalDie));
       const cutoff = Date.now() - 25000;
       state.diceRollEvents = (state.diceRollEvents || []).filter(old => old.id !== ev.id && Number(old.createdAt || 0) > cutoff);
       push();
