@@ -29,7 +29,7 @@
     document.body.appendChild(els.selectBox);
   }
 
-  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.16-select-join";
+  if (els.appVersionLabel) els.appVersionLabel.textContent = "v2026.05.16-hard-seat-lock";
   let localRoom = null;
   let localPlayer = null;
   let localNickname = localStorage.getItem("oldschoolNicknameV1") || "";
@@ -4353,17 +4353,27 @@ if (els.devTuningBtn && els.devPanel) els.devTuningBtn.classList.toggle("active"
   }
 
   if(els.forceKickAllBtn){
-    els.forceKickAllBtn.onclick = ()=>{
+    els.forceKickAllBtn.onclick = async ()=>{
       if(!confirm("Kick everyone out of all tables?")) return;
+      els.forceKickAllBtn.disabled = true;
+      const oldText = els.forceKickAllBtn.textContent;
+      els.forceKickAllBtn.textContent = "KICKING...";
       try{
-        if(window.firebaseSync && firebaseSync.updateLobbySeats){
-          firebaseSync.updateLobbySeats({
-            room1:{p1:null,p2:null},
-            room2:{p1:null,p2:null}
-          });
+        const sync = await waitForSyncModule(6000);
+        if(!sync || typeof sync.forceKickAll !== "function"){
+          throw new Error("Firebase forceKickAll is not available.");
         }
-      }catch(e){}
-      location.reload();
+        await sync.forceKickAll();
+        selectedLobbySeat = null;
+        updateLobbySeats({ room1:{}, room2:{} });
+        if(els.seatStatus) els.seatStatus.textContent = "All seats cleared.";
+      }catch(e){
+        console.error(e);
+        if(els.seatStatus) els.seatStatus.textContent = e?.message || String(e);
+      }finally{
+        els.forceKickAllBtn.disabled = false;
+        els.forceKickAllBtn.textContent = oldText || "FORCE KICK ALL";
+      }
     };
   }
 })();

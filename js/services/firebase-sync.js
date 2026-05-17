@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getDatabase, ref, set, update, onValue, get, remove, onDisconnect } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { getDatabase, ref, set, update, onValue, get, remove, onDisconnect, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAP08tHu3kVqmI44kvbNzqvjGr2ZSegdD8",
@@ -22,6 +22,8 @@ let suppress = false;
 let unsubState = null;
 let unsubReset = null;
 let unsubKickRequest = null;
+let unsubOwnSeat = null;
+let intentionalLeaving = false;
 
 function path(p = "") {
   return "cleanRoomsV13/" + roomId + (p ? "/" + p : "");
@@ -61,15 +63,26 @@ async function joinRoom(nextRoom, nextPlayer, nicknameOverride = "") {
   await clearChatIfRoomEmpty(roomId);
 
   const seatRef = ref(db, "cleanRoomsV13/" + roomId + "/seats/" + playerId);
-  const snap = await get(seatRef);
-  const current = snap.val();
-  if (current && current.clientId && current.clientId !== clientId && Date.now() - (current.updated || 0) < 20000) {
+
+  // HARD SEAT LOCK:
+  // The old code used get() + set(), so two browsers could read EMPTY at the same time
+  // and both overwrite the same seat. runTransaction() makes the seat claim atomic.
+  const claim = await runTransaction(seatRef, current => {
+    if (current && current.clientId && current.clientId !== clientId) {
+      return; // abort: occupied by another client
+    }
+    return {
+      clientId,
+      nickname: lockedNickname,
+      updated: Date.now(),
+      joinedAt: current?.joinedAt || Date.now()
+    };
+  }, { applyLocally: false });
+
+  if (!claim.committed) {
     throw new Error(playerId.toUpperCase() + " is occupied.");
   }
 
-  // Write the visible lobby seat with the exact typed nickname before opening the table.
-  // This prevents the old bug where the seat name appeared only after refresh/rejoin.
-  await set(seatRef, { clientId, updated: Date.now(), nickname: lockedNickname });
   onDisconnect(seatRef).remove();
 
   const stateRef = ref(db, path("state"));
@@ -111,6 +124,14 @@ async function joinRoom(nextRoom, nextPlayer, nicknameOverride = "") {
     const req = snap.val();
     if (req && window.CleanTable && typeof window.CleanTable.onKickRequest === "function") {
       window.CleanTable.onKickRequest(req);
+    }
+  });
+
+  if (unsubOwnSeat) unsubOwnSeat();
+  unsubOwnSeat = onValue(seatRef, snap => {
+    if (!snap.exists() && roomId && playerId && !intentionalLeaving) {
+      alert("You were moved out of this table.");
+      location.reload();
     }
   });
 
@@ -195,6 +216,7 @@ async function clearResetVote() {
 
 async function leaveRoom() {
   if (!roomId || !playerId) return;
+  intentionalLeaving = true;
   const leavingRoom = roomId;
   await remove(ref(db, path("seats/" + playerId)));
   await clearChatIfRoomEmpty(leavingRoom);
@@ -208,6 +230,21 @@ async function kickRoom(r) {
   const stateSnap = await get(stateRef);
   const current = stateSnap.val();
   if (current) await update(stateRef, { chat: [] });
+}
+
+
+async function forceKickAll() {
+  // One authoritative operation for the lobby seats. All browsers watching
+  // cleanRoomsV13/*/seats see this immediately, and in-game clients reload
+  // through the own-seat listener above.
+  await Promise.all([
+    remove(ref(db, "cleanRoomsV13/room1/seats")),
+    remove(ref(db, "cleanRoomsV13/room2/seats")),
+    remove(ref(db, "cleanRoomsV13/room1/kickRequests")),
+    remove(ref(db, "cleanRoomsV13/room2/kickRequests")),
+    remove(ref(db, "cleanRoomsV13/room1/resetVote")),
+    remove(ref(db, "cleanRoomsV13/room2/resetVote"))
+  ]);
 }
 
 
@@ -310,6 +347,7 @@ window.FirebaseCleanSync = {
   clearResetVote,
   leaveRoom,
   kickRoom,
+  forceKickAll,
   kickSeat,
   answerKickRequest,
   watchSeats,
